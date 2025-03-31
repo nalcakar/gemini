@@ -7,64 +7,60 @@ const fetch = require("node-fetch");
 require("dotenv").config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// === SORU ÜRETME ENDPOINTİ ===
 app.post("/generate-questions", async (req, res) => {
   const { content } = req.body;
   const langCode = franc(content);
-  
-  // Basit dil eşleştirmesi:
-  let questionLanguage = "Türkçe"; // varsayılan
 
-const languageMap = {
-  "eng": "İngilizce",
-  "tur": "Türkçe",
-  "spa": "İspanyolca",
-  "fra": "Fransızca",
-  "deu": "Almanca",
-  "ita": "İtalyanca",
-  "por": "Portekizce",
-  "rus": "Rusça",
-  "jpn": "Japonca",
-  "kor": "Korece",
-  "nld": "Flemenkçe",
-  "pol": "Lehçe",
-  "ara": "Arapça",
-  "hin": "Hintçe",
-  "ben": "Bengalce",
-  "zho": "Çince",
-  "vie": "Vietnamca",
-  "tha": "Tayca",
-  "ron": "Romence",
-  "ukr": "Ukraynaca"
-};
+  const languageMap = {
+    eng: "İngilizce",
+    tur: "Türkçe",
+    spa: "İspanyolca",
+    fra: "Fransızca",
+    deu: "Almanca",
+    ita: "İtalyanca",
+    por: "Portekizce",
+    rus: "Rusça",
+    jpn: "Japonca",
+    kor: "Korece",
+    nld: "Flemenkçe",
+    pol: "Lehçe",
+    ara: "Arapça",
+    hin: "Hintçe",
+    ben: "Bengalce",
+    zho: "Çince",
+    vie: "Vietnamca",
+    tha: "Tayca",
+    ron: "Romence",
+    ukr: "Ukraynaca"
+  };
 
-if (languageMap[langCode]) {
-  questionLanguage = languageMap[langCode];
-}
+  let questionLanguage = languageMap[langCode] || "Türkçe";
 
-  // Gerekirse diğer diller eklenebilir
-
-  const prompt = ` 
+  const prompt = `
   Metin ${questionLanguage} dilindedir. Lütfen bu dilde çoktan seçmeli sorular üret.
-  
+
   Kurallar:
-  - Her soru *** ile başlamalıı.
+  - Her soru *** ile başlamalı.
   - Her sorunun 4 şıkkı olmalı. Şıklar /// ile başlasın.
   - Her sorunun altında doğru cevabı belirt: "~~Cevap: [cevap metni]" şeklinde  olsun.
-  - Ayrıca metne göre mutlaka bir açıklama ekle: "&&Açıklama: [açıklama metni] olsun."
-  - En az 10 soru en fazla 20 soru olsun.
+  - Ayrıca metne göre mutlaka bir açıklama ekle: "&&Açıklama: [açıklama metni]" olsun.
+  - En az 10 soru, en fazla 20 soru olsun.
   - Sadece metin formatında yanıt ver. JSON veya kod bloğu istemiyorum.
   - Cevapları **tam metin olarak** döndür.
-  
+
   Metin:
   ${content}
   `;
-  
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
@@ -77,14 +73,7 @@ if (languageMap[langCode]) {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Sunucu ${PORT} portunda çalışıyor`);
-});
-
-
-// site çaplı çeviri
-
+// === ÇEVİRİ ENDPOINTİ ===
 app.post("/translate-ui", async (req, res) => {
   const { targetLang, texts } = req.body;
 
@@ -109,4 +98,14 @@ app.post("/translate-ui", async (req, res) => {
     console.error("Çeviri hatası:", error.message);
     res.status(500).json({ error: "Çeviri yapılamadı" });
   }
+});
+
+// === SPA ROUTING: Diğer tüm isteklerde index.html dön ===
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// === SUNUCUYU BAŞLAT ===
+app.listen(PORT, () => {
+  console.log(`✅ Sunucu çalışıyor: http://localhost:${PORT}`);
 });
