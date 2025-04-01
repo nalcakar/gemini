@@ -1,16 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-  <title>Metne Dayalı Soru Üretici</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuizMaker</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f1f5f9;
+      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      padding: 0;
+      background: #f9fafb;
     }
 
     .question-card {
@@ -54,10 +53,22 @@
       background-color: #eef2ff;
     }
 
-    textarea.question { background-color: #ecfeff; }
-    textarea.choice { background-color: #f1fdf7; margin-left: 10px; }
-    textarea.answer { background-color: #fff7ed; }
-    textarea.explanation { background-color: #fdf2f8; }
+    textarea.question {
+      background-color: #ecfeff;
+    }
+
+    textarea.choice {
+      background-color: #f1fdf7;
+      margin-left: 10px;
+    }
+
+    textarea.answer {
+      background-color: #fff7ed;
+    }
+
+    textarea.explanation {
+      background-color: #fdf2f8;
+    }
 
     textarea#content {
       width: 100%;
@@ -66,8 +77,9 @@
       font-size: 16px;
       border-radius: 8px;
       border: 1px solid #ccc;
-      margin-bottom: 16px;
+      margin: 16px auto;
       box-sizing: border-box;
+      display: block;
     }
 
     button {
@@ -128,7 +140,8 @@
         margin: 12px 0;
       }
 
-      button, textarea#content {
+      button,
+      textarea#content {
         width: 100%;
       }
 
@@ -141,54 +154,108 @@
         margin-bottom: 4px;
       }
     }
+    #userInfo {
+  text-align: right;
+  padding: 10px;
+}
   </style>
 </head>
 <body>
-  <div style="margin-bottom: 12px;">
-    <label for="langSelect">🌍 Language:</label>
-    <select id="langSelect" onchange="onLangChange()" style="padding: 4px 8px; border-radius: 6px;">
-      <option value="it">Italiano</option>
-          <option value="en">English</option>
-      <option value="fr">Français</option>
-      <option value="de">Deutsch</option>
-      <option value="tr">Türkçe</option>
-      <option value="es">Español</option>
-            <option value="ja">日本語</option>
-            <option value="ar">العربية</option>
-            <option value="he">עברית</option>
-            <option value="fa">فارسی</option>
-      <option value="zh">中文</option>
-      <option value="ru">Русский</option>
-    </select>
-  </div>
-  <h2 class="translatable">Metin Girin:</h2>
-  <textarea id="content" rows="10" cols="80"></textarea><br>
-  <button onclick="generate()">Soru Üret</button>
+  <div id="userInfo"></div>
 
-  <div id="loading">
-    <div class="spinner"></div>
-    <div><span id="progress">0%</span> oluşturuluyor...</div>
-    <button id="retry" onclick="generate()" style="display:none; margin-top:10px; background-color:#ef4444;">Yeniden Dene</button>
+  <h2 style="text-align:center">Metin Girin:</h2>
+  <textarea id="content" rows="8" placeholder="📘 Lütfen sorular oluşturmak için metninizi buraya yazın..."></textarea>
+
+  <div style="text-align:center">
+    <button onclick="generate()">Soru Üret</button>
+    
   </div>
 
-  <div id="success"></div>
+  <div id="loading" style="display:none; text-align:center;">
+    <p><span id="progress">0%</span> oluşturuluyor...</p>
+    <button id="retry" onclick="generate()" style="display:none; background-color:#ef4444;">Yeniden Dene</button>
+  </div>
 
-  <h3>Oluşturulan Sorular:</h3>
+  <div id="success" style="text-align:center; color:green; font-weight:bold; margin-top:12px;"></div>
+  <h3 style="text-align:center">Oluşturulan Sorular:</h3>
   <div id="result"></div>
-  <button onclick="download()">Metin Olarak İndir (.txt)</button>
-  <script src="translate-ui.js"></script>
+  <div style="text-align:center">
+    <button onclick="download()">Metin Olarak İndir (.txt)</button>
+  </div>
+
+  <div id="planInfo" style="display:flex; flex-wrap:wrap; gap:20px; justify-content:center; margin-top:30px;">
+    <div style="background:#fef3c7; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.1); text-align:center;">
+      <h3>🧍 Ziyaretçi</h3>
+      <ul style="text-align:left;">
+        <li>Her seferde <b>5 soru</b></li>
+        <li><b>5 kez</b> kullanabilirsin</li>
+        <li>Giriş yapmadan deneme modu</li>
+      </ul>
+    </div>
+  
+    <div style="background:#dbeafe; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.1); text-align:center;">
+      <h3>🟡 Üyelik</h3>
+      <ul style="text-align:left;">
+        <li>Her üretimde <b>10 soru</b></li>
+        <li><b>5 üretim hakkı</b></li>
+        <li>Ücretsiz içeriklerle destekli</li>
+      </ul>
+      <a href="https://www.patreon.com/checkout/quizmaker?rid=25296810" target="_blank">
+        <button style="margin-top:12px; background:#fbbf24; padding:8px 16px; border-radius:8px; color:white; font-weight:bold; border:none; cursor:pointer;">
+          ⭐ Üyelik Satın Al
+        </button>
+      </a>
+    </div>
+  
+    <div style="background:#e0f2fe; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.15); border:2px solid #38bdf8; text-align:center;">
+      <h3>💎 Pro Üyelik</h3>
+      <ul style="text-align:left;">
+        <li><b>15 – 20</b> soru arası üretim</li>
+        <li><b>Sınırsız</b> kullanım hakkı</li>
+        <li>Özel destek ve ayrıcalıklar</li>
+      </ul>
+      <a href="https://www.patreon.com/checkout/quizmaker?rid=25539224" target="_blank">
+        <button style="margin-top:12px; background:#0ea5e9; padding:8px 16px; border-radius:8px; color:white; font-weight:bold; border:none; cursor:pointer;">
+          🚀 Pro Üyelik Satın Al
+        </button>
+      </a>
+    </div>
+  </div>
+  
+
   <script>
-    let textQuestions = "";
-    let retryCount = 0;
+  
+  window.onload = async () => {
+  const data = await fetch("/me").then(res => res.json());
+  const user = data.user;
+  const usage = data.usage;
 
-    // Sayfa yüklenince localStorage varsa göster
-    window.onload = async () => {
-  const systemLang = navigator.language.slice(0, 2);
-  const userLang = localStorage.getItem("lang") || systemLang;
+  const upgradeBtn = document.getElementById("upgradeBtn");
+  const userInfo = document.getElementById("userInfo");
 
-  await translateTranslatableElements(userLang);  // ✅ Sadece bu fonksiyon yeterli
-  initLangDropdown(userLang);                     // 🔽 Dropdown başlat
+  if (user) {
+    const tier = user.tier?.toLowerCase() || "ziyaretçi";
+    let badge = "⚪ Ziyaretçi";
+    if (tier.includes("pro")) badge = "🟣 Pro Üyelik";
+    else if (tier.includes("üyelik")) badge = "🟡 Üyelik";
 
+    const limitText =
+      tier.includes("pro")
+        ? "✔ Sınırsız kullanım"
+        : `🔁 Bugün kullandığınız: ${usage.freeCount}/5`;
+
+    userInfo.innerHTML = `
+      👤 ${user.name} – ${badge}<br>
+      <small>${limitText}</small><br>
+      <button onclick="logout()" style="margin-top:5px;">Çıkış</button>`;
+  } else {
+    const anonLeft = 5 - (usage.anonCount || 0);
+    userInfo.innerHTML = `
+      <button onclick="window.location.href='/auth/patreon'">Giriş Yap</button><br>
+      <small>🔁 Kalan hakkınız: ${anonLeft}/5</small>`;
+  }
+
+  // Kaydedilmiş soruları yükle
   const saved = localStorage.getItem("savedQuestions");
   if (saved) {
     textQuestions = saved;
@@ -197,65 +264,165 @@
 };
 
 
-    async function generate() {
-      const content = document.getElementById("content").value;
-      const loading = document.getElementById("loading");
-      const progressText = document.getElementById("progress");
-      const retryBtn = document.getElementById("retry");
-      const successMsg = document.getElementById("success");
 
-      successMsg.textContent = "";
-      loading.style.display = "block";
-      retryBtn.style.display = "none";
-      progressText.textContent = "0%";
 
-      let percent = 0;
-      const interval = setInterval(() => {
-        percent += Math.floor(Math.random() * 4) + 1;
-        if (percent >= 95) {
-          clearInterval(interval);
-          progressText.textContent = "Bekleniyor...";
-        } else {
-          progressText.textContent = percent + "%";
-        }
-      }, 300);
 
-      try {
-        const res = await fetch("/generate-questions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content }),
-        });
 
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
+    let textQuestions = "";
+    let retryCount = 0;
 
-        textQuestions = data.questions;
-        localStorage.setItem("savedQuestions", data.questions);
-        displayStylishQuestions(data.questions);
-        successMsg.textContent = "✔ Sorular başarıyla oluşturuldu.";
-        retryCount = 0;
-      } catch (error) {
-        if (retryCount < 1) {
-          retryCount++;
-          generate(); // otomatik 1 kez daha dene
-          return;
-        }
-        alert("Bir hata oluştu: " + error.message);
-        retryBtn.style.display = "inline-block";
-        retryCount++;
-        if (retryCount > 3) {
-          retryBtn.disabled = true;
-          retryBtn.textContent = "Daha sonra tekrar deneyin.";
-        }
-      } finally {
-        clearInterval(interval);
-        progressText.textContent = "100%";
-        setTimeout(() => {
-          loading.style.display = "none";
-        }, 800);
+    // Sayfa yüklenince localStorage varsa göster
+    
+
+async function getUser() {
+    const res = await fetch("/me");
+    const data = await res.json();
+    if (data.user) {
+      console.log("Giriş yapan kullanıcı:", data.user);
+      if (data.user.tier === "Pro") {
+        // sınırsız haklar
+      } else {
+        // sadece 5 soru üretilebilir
       }
     }
+  }
+  let user = null;
+
+  function logout() {
+  fetch("/logout").then(() => {
+    localStorage.clear();
+    location.reload();
+  });
+}
+
+
+ 
+
+async function generate() {
+  const content = document.getElementById("content").value;
+  const loading = document.getElementById("loading");
+  const progressText = document.getElementById("progress");
+  const retryBtn = document.getElementById("retry");
+  const successMsg = document.getElementById("success");
+  const upgradeBtn = document.getElementById("upgradeBtn");
+
+  successMsg.textContent = "";
+  loading.style.display = "block";
+  retryBtn.style.display = "none";
+  progressText.textContent = "0%";
+  if (upgradeBtn) upgradeBtn.style.display = "none";
+
+  let percent = 0;
+  const interval = setInterval(() => {
+    percent += Math.floor(Math.random() * 4) + 1;
+    if (percent >= 95) {
+      clearInterval(interval);
+      progressText.textContent = "Bekleniyor...";
+    } else {
+      progressText.textContent = percent + "%";
+    }
+  }, 300);
+
+  try {
+    const res = await fetch("/generate-questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ content }),
+    });
+
+    if (res.status === 403) {
+      const data = await res.json();
+      alert(data.error);
+
+      if ((data.error || "").includes("soru üretebilirsiniz") && upgradeBtn) {
+        upgradeBtn.style.display = "inline-block";
+      }
+
+      return;
+    }
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    localStorage.setItem("savedQuestions", data.questions);
+    displayStylishQuestions(data.questions);
+    successMsg.textContent = "✔ Sorular başarıyla oluşturuldu.";
+    retryCount = 0;
+
+    // ✅ Kalan hakkı güncelle
+    const me = await fetch("/me").then(r => r.json());
+    if (!me.user) {
+      const anonLeft = 5 - (me.usage.anonCount || 0);
+      document.getElementById("userInfo").innerHTML = `
+        <button onclick="window.location.href='/auth/patreon'">Giriş Yap</button><br>
+        <small>🔁 Kalan hakkınız: ${anonLeft}/5</small>`;
+    }
+
+  } catch (error) {
+    if (retryCount < 1) {
+      retryCount++;
+      generate();
+      return;
+    }
+    alert("Bir hata oluştu: " + error.message);
+    retryBtn.style.display = "inline-block";
+    retryCount++;
+    if (retryCount > 3) {
+      retryBtn.disabled = true;
+      retryBtn.textContent = "Daha sonra tekrar deneyin.";
+    }
+  } finally {
+    clearInterval(interval);
+    progressText.textContent = "100%";
+    setTimeout(() => {
+      loading.style.display = "none";
+    }, 800);
+  }
+}
+
+
+    function displayStylishQuestions(text) {
+      const container = document.getElementById("result");
+      container.innerHTML = "";
+      const questions = text.split("***").filter(Boolean);
+
+      questions.forEach((qText, index) => {
+        const parts = qText.trim().split("///");
+        const questionPart = parts[0].trim();
+        const choices = parts.slice(1).map(c => c.split("~~")[0].replace(/^[A-Da-d][\)\.\-:]\s*/, '').trim());
+
+        let correctAnswer = "";
+        let explanation = "";
+        const match = qText.match(/~~Cevap:\s*(.*?)\s*(?:~~)?\s*&&Açıklama:\s*(.*)/);
+        if (match) {
+          correctAnswer = match[1].trim();
+          explanation = match[2].trim();
+        }
+
+        const div = document.createElement("div");
+        div.className = "question-card";
+
+        let html = `<label>Soru ${index + 1}</label>
+          <textarea class="question">${questionPart}</textarea>`;
+        choices.forEach(choice => {
+          html += `<textarea class="choice">${choice}</textarea>`;
+        });
+
+        html += `<label>Cevap</label><textarea class="answer">${correctAnswer}</textarea>
+                 <label>Açıklama</label><textarea class="explanation">${explanation}</textarea>`;
+
+        div.innerHTML = html;
+        container.appendChild(div);
+        div.querySelectorAll("textarea").forEach(el => {
+          el.style.height = 'auto';
+          el.style.height = (el.scrollHeight) + 'px';
+        });
+      });
+    }
+
+
+
 
     function displayStylishQuestions(text) {
       const container = document.getElementById("result");
@@ -327,7 +494,17 @@
   localStorage.setItem("lang", selected);
   location.reload();
 }
+if (user) {
+  const tier = user.tier.toLowerCase();
+  let badge = "";
 
+  if (tier.includes("pro")) badge = "🟣 Pro Üyelik";
+  else if (tier.includes("üyelik")) badge = "🟡 Üyelik";
+  else badge = "⚪ Ziyaretçi";
+
+  document.getElementById("userInfo").innerHTML =
+    `👤 ${user.name} – ${badge} <button onclick="logout()">Çıkış</button>`;
+}
     
   </script>
   
