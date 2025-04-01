@@ -184,7 +184,7 @@
   </div>
 
   <div id="planInfo" style="display:flex; flex-wrap:wrap; gap:20px; justify-content:center; margin-top:30px;">
-    <div style="background:#fef3c7; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.1); text-align:center;">
+    <div id="plan-guest" style="background:#fef3c7; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.1); text-align:center;">
       <h3>🧍 Ziyaretçi</h3>
       <ul style="text-align:left;">
         <li>Her seferde <b>5 soru</b></li>
@@ -192,8 +192,8 @@
         <li>Giriş yapmadan deneme modu</li>
       </ul>
     </div>
-  
-    <div style="background:#dbeafe; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.1); text-align:center;">
+    
+    <div id="plan-free" style="background:#dbeafe; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.1); text-align:center;">
       <h3>🟡 Üyelik</h3>
       <ul style="text-align:left;">
         <li>Her üretimde <b>10 soru</b></li>
@@ -206,8 +206,8 @@
         </button>
       </a>
     </div>
-  
-    <div style="background:#e0f2fe; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.15); border:2px solid #38bdf8; text-align:center;">
+    
+    <div id="plan-pro" style="background:#e0f2fe; padding:16px; border-radius:12px; width:250px; box-shadow:0 0 10px rgba(0,0,0,0.15); border:2px solid #38bdf8; text-align:center;">
       <h3>💎 Pro Üyelik</h3>
       <ul style="text-align:left;">
         <li><b>15 – 20</b> soru arası üretim</li>
@@ -230,8 +230,15 @@
   const user = data.user;
   const usage = data.usage;
 
-  const upgradeBtn = document.getElementById("upgradeBtn");
   const userInfo = document.getElementById("userInfo");
+  const planGuest = document.getElementById("plan-guest");
+  const planFree = document.getElementById("plan-free");
+  const planPro = document.getElementById("plan-pro");
+
+  // Tüm plan kutularını başlangıçta gizle
+  planGuest.style.display = "none";
+  planFree.style.display = "none";
+  planPro.style.display = "none";
 
   if (user) {
     const tier = user.tier?.toLowerCase() || "ziyaretçi";
@@ -248,11 +255,28 @@
       👤 ${user.name} – ${badge}<br>
       <small>${limitText}</small><br>
       <button onclick="logout()" style="margin-top:5px;">Çıkış</button>`;
+
+    // Giriş yapan kullanıcıya göre üyelik kutularını gösterme
+    if (tier.includes("pro")) {
+      // Pro üyelik: Hiçbir kutu gösterilmesin.
+    } else if (tier.includes("üyelik")) {
+      // Üyelik (free): Sadece Pro kutusu gösterilsin.
+      planPro.style.display = "block";
+    } else {
+      // Diğer tanımlanmamış durumda, ziyaretçi gibi kabul edilebilir.
+      planFree.style.display = "block";
+      planPro.style.display = "block";
+    }
   } else {
+    // Giriş yapılmamışsa (ziyaretçi modunda): tüm kutular gösterilsin.
     const anonLeft = 5 - (usage.anonCount || 0);
     userInfo.innerHTML = `
       <button onclick="window.location.href='/auth/patreon'">Giriş Yap</button><br>
       <small>🔁 Kalan hakkınız: ${anonLeft}/5</small>`;
+    
+    planGuest.style.display = "block";
+    planFree.style.display = "block";
+    planPro.style.display = "block";
   }
 
   // Kaydedilmiş soruları yükle
