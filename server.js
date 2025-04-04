@@ -47,7 +47,7 @@ app.post("/generate-questions", async (req, res) => {
     "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
     "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
-  const questionLanguage = languageMap[langCode] || "Türkçe";
+  const questionLanguage = languageMap[langCode] || "ingilizce";
 
   const prompt = `
 Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli 10 ile 20 arası soru üret.
@@ -81,7 +81,7 @@ app.post("/generate-keywords", async (req, res) => {
     "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
     "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
-  const questionLanguage = languageMap[langCode] || "Türkçe";
+  const questionLanguage = languageMap[langCode] || "ingilizce";
 
   const prompt = `
 Metin ${questionLanguage} dilindedir.
@@ -89,7 +89,7 @@ Talimatlar:
 1. Metindeki konuyu belirle.
 2. Bu konu hakkındaki genel bilgiye göre metindeki ${questionLanguage} dilindeki en az 10 ve en fazla 20 anahtar kelimeleri bul.
 3. Her kelimeyi madde işareti (-) ile başlat.
-4. Kelimeden sonra ":" koy ve o kelimenin anlamını açıkla.
+4. Kelimeden sonra ":" koy ve o kelimenin anlamını ${questionLanguage} dilinde açıkla.
 Örnek Yapı:
 - Kelime: Açıklama
 Metin:
