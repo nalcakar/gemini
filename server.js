@@ -99,17 +99,18 @@ app.post("/generate-keywords", async (req, res) => {
   const questionLanguage = languageMap[langCode] || "ingilizce";
 
   const prompt = `
-Metin ${questionLanguage} dilindedir.
-Talimatlar:
-1. Metindeki konuyu belirle.
-2. Bu konu hakkındaki genel bilgiye göre metindeki ${questionLanguage} dilindeki en az 10 ve en fazla 20 anahtar kelimeleri bul.
-3. Her kelimeyi madde işareti (-) ile başlat.
-4. Kelimeden sonra ":" koy ve o kelimenin anlamını ${questionLanguage} olarak açıkla.
-Örnek Yapı:
-- Kelime: Açıklama
-Metin:
-${mycontent}
-`;
+  The text is in ${questionLanguage}.
+  Instructions:
+  1. Identify the topic of the text.
+  2. Based on general knowledge, list 10 to 20 keywords from the text in ${questionLanguage}.
+  3. Start each line with a dash (-).
+  4. After the keyword, write a colon and explain its meaning in ${questionLanguage}.
+  Example format:
+  - Keyword: Explanation
+  Text:
+  """
+  ${mycontent}
+  """`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
