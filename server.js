@@ -104,7 +104,7 @@ app.post("/generate-keywords", async (req, res) => {
   1. Identify the topic of the text.
   2. Based on general knowledge, list 10 to 20 keywords from the text in ${questionLanguage}.
   3. Start each line with a dash (-).
-  4. After the keyword, write a colon and explain its meaning in ${questionLanguage} with details.
+  4. After the keyword, write a colon and explain its meaning in ${questionLanguage} with two  or three sentences.
   Example format:
   - Keyword: Explanation
   Text:
