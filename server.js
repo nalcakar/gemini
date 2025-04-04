@@ -75,11 +75,26 @@ app.post("/generate-keywords", async (req, res) => {
   const { mycontent } = req.body;
   const langCode = franc(mycontent);
   const languageMap = {
-    "eng": "ingilizce", "tur": "Türkçe", "spa": "ispanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+    "eng": "English",
+    "tur": "Turkish",
+    "spa": "Spanish",
+    "fra": "French",
+    "deu": "German",
+    "ita": "Italian",
+    "por": "Portuguese",
+    "rus": "Russian",
+    "jpn": "Japanese",
+    "kor": "Korean",
+    "nld": "Dutch",
+    "pol": "Polish",
+    "ara": "Arabic",
+    "hin": "Hindi",
+    "ben": "Bengali",
+    "zho": "Chinese",
+    "vie": "Vietnamese",
+    "tha": "Thai",
+    "ron": "Romanian",
+    "ukr": "Ukrainian"
   };
   const questionLanguage = languageMap[langCode] || "ingilizce";
 
@@ -93,9 +108,8 @@ Talimatlar:
 Örnek Yapı:
 - Kelime: Açıklama
 Metin:
-"""
 ${mycontent}
-"""`;
+`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
