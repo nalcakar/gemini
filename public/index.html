@@ -118,7 +118,7 @@
         const kwRes = await fetch("/generate-keywords", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ mycontent })
         });
         const kwData = await kwRes.json();
         if (kwData.error) throw new Error(kwData.error);

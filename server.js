@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // === GEMINI SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
-  const { content } = req.body;
+  const { mycontent } = req.body;
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce",
