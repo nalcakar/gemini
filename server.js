@@ -75,7 +75,7 @@ app.post("/generate-keywords", async (req, res) => {
   const { mycontent } = req.body;
   const langCode = franc(mycontent);
   const languageMap = {
-    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "eng": "ingilizce", "tur": "Türkçe", "spa": "ispanyolca", "fra": "Fransızca",
     "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
     "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
     "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
@@ -89,7 +89,7 @@ Talimatlar:
 1. Metindeki konuyu belirle.
 2. Bu konu hakkındaki genel bilgiye göre metindeki ${questionLanguage} dilindeki en az 10 ve en fazla 20 anahtar kelimeleri bul.
 3. Her kelimeyi madde işareti (-) ile başlat.
-4. Kelimeden sonra ":" koy ve o kelimenin anlamını ${questionLanguage} dilinde açıkla.
+4. Kelimeden sonra ":" koy ve o kelimenin anlamını ${questionLanguage} olarak açıkla.
 Örnek Yapı:
 - Kelime: Açıklama
 Metin:
