@@ -1,8 +1,7 @@
-// CLEANED VERSION OF SERVER.JS (NO PATREON, LOCALSTORAGE, OR SQL)
-
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const rateLimit = require("express-rate-limit");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { franc } = require("franc");
 require("dotenv").config();
@@ -10,36 +9,43 @@ require("dotenv").config();
 const app = express();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// === MIDDLEWARE ===
-app.use(cors());
+// === CORS KONTROLÜ (Sadece doitwithai.org erişebilsin) ===
+const allowedOrigins = ["https://doitwithai.org"];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  // Diğer gerekli CORS başlıkları
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
+
+// === RATE LIMIT (Dakikada en fazla 10 istek) ===
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 10, // Dakikada 10 istek
+  message: { error: "Çok fazla istek gönderildi. Lütfen 1 dakika sonra tekrar deneyin." }
+});
+app.use("/generate-questions", limiter);
+app.use("/generate-keywords", limiter);
+
+// === PARSER + STATIC ===
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// === GEMINI SORU ÜRETME ===
+// === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
   const { mycontent } = req.body;
   const langCode = franc(mycontent);
   const languageMap = {
-    "eng": "İngilizce",
-    "tur": "Türkçe",
-    "spa": "İspanyolca",
-    "fra": "Fransızca",
-    "deu": "Almanca",
-    "ita": "İtalyanca",
-    "por": "Portekizce",
-    "rus": "Rusça",
-    "jpn": "Japonca",
-    "kor": "Korece",
-    "nld": "Flemenkçe",
-    "pol": "Lehçe",
-    "ara": "Arapça",
-    "hin": "Hintçe",
-    "ben": "Bengalce",
-    "zho": "Çince",
-    "vie": "Vietnamca",
-    "tha": "Tayca",
-    "ron": "Romence",
-    "ukr": "Ukraynaca"
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
   const questionLanguage = languageMap[langCode] || "Türkçe";
 
@@ -69,26 +75,11 @@ app.post("/generate-keywords", async (req, res) => {
   const { mycontent } = req.body;
   const langCode = franc(mycontent);
   const languageMap = {
-    "eng": "İngilizce",
-    "tur": "Türkçe",
-    "spa": "İspanyolca",
-    "fra": "Fransızca",
-    "deu": "Almanca",
-    "ita": "İtalyanca",
-    "por": "Portekizce",
-    "rus": "Rusça",
-    "jpn": "Japonca",
-    "kor": "Korece",
-    "nld": "Flemenkçe",
-    "pol": "Lehçe",
-    "ara": "Arapça",
-    "hin": "Hintçe",
-    "ben": "Bengalce",
-    "zho": "Çince",
-    "vie": "Vietnamca",
-    "tha": "Tayca",
-    "ron": "Romence",
-    "ukr": "Ukraynaca"
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
   const questionLanguage = languageMap[langCode] || "Türkçe";
 
@@ -117,7 +108,7 @@ ${mycontent}
   }
 });
 
-// === SPA Routing ===
+// === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 // === SUNUCU BAŞLAT ===
