@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // === GEMINI SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
   const { content } = req.body;
-  const langCode = franc(content);
+  const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce",
     "tur": "Türkçe",
@@ -52,7 +52,7 @@ Kurallar:
 - Açıklama &&Açıklama: [açıklama]
 - Sadece metin olarak döndür.
 Metin:
-${content}`;
+${mycontent}`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
@@ -66,8 +66,8 @@ ${content}`;
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
-  const { content } = req.body;
-  const langCode = franc(content);
+  const { mycontent } = req.body;
+  const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce",
     "tur": "Türkçe",
@@ -103,7 +103,7 @@ Talimatlar:
 - Kelime: Açıklama
 Metin:
 """
-${content}
+${mycontent}
 """`;
 
   try {

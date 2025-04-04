@@ -40,7 +40,7 @@
     .question-card textarea.choice { background-color: #f1fdf7; }
     .question-card textarea.answer { background-color: #fff7ed; }
     .question-card textarea.explanation { background-color: #fdf2f8; }
-    textarea#content {
+    textarea#mycontent {
       max-width: 700px;
       margin: 16px auto;
       display: block;
@@ -81,7 +81,7 @@
 </head>
 <body>
   <h2 style="text-align:center">Metin Girin:</h2>
-  <textarea id="content" rows="8" placeholder="📘 Lütfen sorular oluşturmak için metninizi buraya yazın..."></textarea>
+  <textarea id="mycontent" rows="8" placeholder="📘 Lütfen sorular oluşturmak için metninizi buraya yazın..."></textarea>
   <div style="text-align:center">
     <button onclick="generate()">Soru Üret</button>
   </div>
@@ -103,7 +103,7 @@
     let retryCount = 0;
 
     async function generate() {
-      const content = document.getElementById("content").value;
+      const mycontent = document.getElementById("mycontent").value;
       const loading = document.getElementById("loading");
       const progressText = document.getElementById("progress");
       const retryBtn = document.getElementById("retry");
@@ -133,7 +133,7 @@
         const res = await fetch("/generate-questions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ mycontent })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
