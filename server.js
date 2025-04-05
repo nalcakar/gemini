@@ -217,6 +217,11 @@ Avoid list format, give a direct definition only.
 app.post("/generate-docx", (req, res) => {
   const { questions, title } = req.body;
 
+  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ error: "Soru listesi eksik veya boş." });
+  }
+
+  // Soruları numaralandırarak yeniden düzenle
   const withIndex = questions.map((q, i) => ({
     index: i + 1,
     question: q.question,
@@ -228,6 +233,7 @@ app.post("/generate-docx", (req, res) => {
     explanation: q.explanation
   }));
 
+  // Şablon dosyasını oku
   const content = fs.readFileSync(path.join(__dirname, "template.docx"), "binary");
   const zip = new PizZip(content);
   const doc = new Docxtemplater(zip, {
@@ -235,18 +241,31 @@ app.post("/generate-docx", (req, res) => {
     linebreaks: true,
   });
 
-  // 🔥 Şablona başlığı da gönder
-  doc.render({ questions: withIndex, title: title || "Quiz" });
+  try {
+    // Şablona başlık ve soruları ekle
+    doc.render({ questions: withIndex, title: title || "Quiz" });
+  } catch (error) {
+    console.error("Docx şablon hatası:", error);
+    return res.status(500).json({ error: "Belge oluşturulamadı." });
+  }
 
   const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
+  // Dosya adı için güvenli bir format oluştur
+  const safeFilename = (title || "quiz")
+    .toLowerCase()
+    .replace(/[^a-z0-9\-_\sçğıöşü]/gi, "")  // Türkçe karakterlere izin ver
+    .replace(/\s+/g, "_")  // boşlukları _ ile değiştir
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");  // aksanları temizle
+
   res.set({
     "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "Content-Disposition": `attachment; filename="${title || 'quiz'}.docx"`
+    "Content-Disposition": `attachment; filename="${safeFilename}.docx"`
   });
 
   res.send(buffer);
 });
+
 
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
