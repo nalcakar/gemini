@@ -164,8 +164,7 @@ app.post("/define-keyword", async (req, res) => {
     return res.status(400).json({ error: "Anahtar kelime eksik veya çok kısa." });
   }
 
-  // === Dil algılama ===
-  const langCode = franc(mycontent || keyword); // içerik varsa kullan, yoksa sadece kelimeye göre
+  const langCode = franc(mycontent || keyword);
   const languageMap = {
     "eng": "English", "tur": "Turkish", "spa": "Spanish", "fra": "French",
     "deu": "German", "ita": "Italian", "por": "Portuguese", "rus": "Russian",
@@ -175,7 +174,22 @@ app.post("/define-keyword", async (req, res) => {
   };
   const detectedLang = languageMap[langCode] || "English";
 
-  const prompt = `
+  const prompt = mycontent
+    ? `
+You are given a text and a keyword. Explain the meaning of the keyword based on the context of the text in ${detectedLang}.
+Avoid generic definitions — consider how the term is used in this passage.
+
+Text:
+"""
+${mycontent}
+"""
+
+Keyword:
+"${keyword}"
+
+Explain it in 2–3 simple sentences in ${detectedLang}, clearly and in context.
+`
+    : `
 Explain the term "${keyword}" in ${detectedLang} using 2–3 simple sentences.
 Avoid list format, give a direct definition only.
 `;
