@@ -86,7 +86,7 @@ Sadece yukarıdaki biçimde düz metin döndür. HTML, kod veya fazladan açıkl
 
 app.post('/generate-single-question', async (req, res) => {
   try {
-    const { mycontent } = req.body;
+    const { mycontent, customPrompt } = req.body;
 
     const langCode = franc(mycontent);
     const languageMap = {
@@ -96,9 +96,23 @@ app.post('/generate-single-question', async (req, res) => {
       "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
       "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
     };
-    const questionLanguage = languageMap[langCode] || "ingilizce";
+    const questionLanguage = languageMap[langCode] || "İngilizce";
 
-    const prompt = `
+    const prompt = customPrompt
+      ? `
+"${customPrompt}" konusuna özel olarak, sadece 1 adet çoktan seçmeli soru üret.
+Kurallar:
+- Her soru *** ile başlasın.
+- Her şık /// ile başlasın.
+- Cevap ~~Cevap: [cevap]
+- Açıklama &&Açıklama: [açıklama]
+- Sadece metin olarak döndür.
+Referans metin:
+"""
+${mycontent}
+"""
+`
+      : `
 Metin ${questionLanguage} dilindedir. Bu metne göre sadece 1 adet çoktan seçmeli soru üret.
 Kurallar:
 - Her soru *** ile başlasın.
@@ -107,7 +121,9 @@ Kurallar:
 - Açıklama &&Açıklama: [açıklama]
 - Sadece metin olarak döndür.
 Metin:
+"""
 ${mycontent}
+"""
 `;
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
@@ -121,6 +137,7 @@ ${mycontent}
     res.status(500).json({ error: "Tek soru üretilemedi" });
   }
 });
+
 
 
 // === ANAHTAR KELİME ÜRETME ===
