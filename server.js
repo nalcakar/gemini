@@ -116,7 +116,7 @@ app.post('/generate-single-question', async (req, res) => {
 
     const prompt = customPrompt
       ? `
-"${customPrompt}" konusuna özel olarak, sadece 1 adet çoktan seçmeli soru üret.
+"${customPrompt}" konusuna özel olarak, ${questionLanguage} dilinde sadece 1 adet çoktan seçmeli soru üret.
 Kurallar:
 - Her soru *** ile başlasın.
 - Her şık /// ile başlasın.
@@ -129,7 +129,7 @@ ${mycontent}
 """
 `
       : `
-Metin ${questionLanguage} dilindedir. Bu metne göre sadece 1 adet çoktan seçmeli soru üret.
+Metin ${questionLanguage} dilindedir. Bu metne göre ${questionLanguage} dilinde sadece 1 adet çoktan seçmeli soru üret.
 Kurallar:
 - Her soru *** ile başlasın.
 - Her şık /// ile başlasın.
