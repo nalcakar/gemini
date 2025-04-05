@@ -37,65 +37,67 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
-app.post('/generate-questions', async (req, res) => {
-  try {
-    const { mycontent } = req.body;
+app.post("/generate-questions", async (req, res) => {
+  const { mycontent } = req.body;
+  const langCode = franc(mycontent);
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+  const questionLanguage = languageMap[langCode] || "ingilizce";
 
-    const langCode = franc(mycontent);
-    const languageMap = {
-      "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-      "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-      "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-      "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-      "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
-    };
-    const questionLanguage = languageMap[langCode] || "İngilizce";
-
-    const prompt = `
-Metin ${questionLanguage} dilindedir.
-Aşağıdaki metne dayalı olarak 10 adet çoktan seçmeli soru üret.
-Her soru aşağıdaki kurallara kesinlikle uymalıdır:
-
-KURALLAR:
-1. Her soru *** ile başlamalıdır.
-2. Soru cümlesinden sonra şıklar şu şekilde yazılmalıdır:
-/// a) Şık 1
-/// b) Şık 2
-/// c) Şık 3
-/// d) Şık 4
-3. Doğru cevabı belirtmek için şu satır gelmelidir:
-~~Cevap: a
-4. Ardından açıklama şu şekilde verilmelidir:
-&&Açıklama: Kısa ve açık açıklama.
-5. HTML, "Soru 1" gibi ek metinler veya farklı biçimlendirme ekleme.
-
-Örnek:
-***
-Hangi organ oksijenli kanı tüm vücuda pompalar?
-/// a) Akciğer
-/// b) Karaciğer
-/// c) Kalp
-/// d) Mide
-~~Cevap: c
-&&Açıklama: Kalp, oksijenli kanı vücuda pompalar.
-
+  const prompt = `
+Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli 10 ile 20 arası soru üret.
+Kurallar:
+- Her soru *** ile başlasın.
+- 4 şık /// ile başlasın.
+- Cevap ~~Cevap: [cevap]
+- Açıklama &&Açıklama: [açıklama]
+- Sadece metin olarak döndür.
 Metin:
-"""
-${mycontent}
-"""
-`;
+${mycontent}`;
 
+  try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    const text = await result.response.text();
-
-    res.json({ questions: text });
+    res.json({ questions: await result.response.text() });
   } catch (err) {
-    console.error("Gemini generate questions error:", err.message);
-    res.status(500).json({ error: "Sorular üretilemedi" });
+    console.error("Gemini hata:", err.message);
+    res.status(500).json({ error: "Soru üretilemedi" });
   }
 });
 
+
+app.post('/generate-single-question', async (req, res) => {
+  try {
+    const { mycontent, questionLanguage = "Türkçe" } = req.body;
+
+    const prompt = `
+Metin ${questionLanguage} dilindedir. Bu metne göre sadece 1 adet çoktan seçmeli soru üret.
+Kurallar:
+- Her soru *** ile başlasın.
+- Her şık /// ile başlasın.
+- Cevap ~~Cevap: [cevap]
+- Açıklama &&Açıklama: [açıklama]
+- Sadece metin olarak döndür.
+Metin:
+${mycontent}
+`;
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" }); // ✅ ADD THIS
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    res.json({ questions: text });
+  } catch (err) {
+    console.error("Gemini single question error:", err.message);
+    res.status(500).json({ error: "Tek soru üretilemedi" });
+  }
+});
 
 
 app.post('/generate-single-question', async (req, res) => {
@@ -151,9 +153,6 @@ ${mycontent}
     res.status(500).json({ error: "Tek soru üretilemedi" });
   }
 });
-
-
-
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
   const { mycontent } = req.body;
