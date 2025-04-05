@@ -70,6 +70,33 @@ ${mycontent}`;
   }
 });
 
+
+app.post('/generate-single-question', async (req, res) => {
+  try {
+    const { mycontent, questionLanguage = "Türkçe" } = req.body;
+
+    const prompt = `
+Metin ${questionLanguage} dilindedir. Bu metne göre sadece 1 adet çoktan seçmeli soru üret.
+Kurallar:
+- Her soru *** ile başlasın.
+- Her şık /// ile başlasın.
+- Cevap ~~Cevap: [cevap]
+- Açıklama &&Açıklama: [açıklama]
+- Sadece metin olarak döndür.
+Metin:
+${mycontent}
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    res.json({ questions: text });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error generating single question');
+  }
+});
+
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
   const { mycontent } = req.body;
