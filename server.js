@@ -217,7 +217,18 @@ Avoid list format, give a direct definition only.
 app.post("/generate-docx", (req, res) => {
   const questions = req.body.questions;
 
-  // template.docx dosyasını oku
+  // Her soruya Soru 1., Soru 2. için index ekle
+  const withIndex = questions.map((q, i) => ({
+    index: i + 1,
+    question: q.question,
+    a: q.a,
+    b: q.b,
+    c: q.c,
+    d: q.d,
+    answer: q.answer,
+    explanation: q.explanation
+  }));
+
   const content = fs.readFileSync(path.join(__dirname, "template.docx"), "binary");
   const zip = new PizZip(content);
   const doc = new Docxtemplater(zip, {
@@ -225,8 +236,7 @@ app.post("/generate-docx", (req, res) => {
     linebreaks: true,
   });
 
-  // Tek belgeye tüm soruları ekle
-  doc.render({ questions });
+  doc.render({ questions: withIndex });
 
   const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
@@ -237,6 +247,7 @@ app.post("/generate-docx", (req, res) => {
 
   res.send(buffer);
 });
+
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
