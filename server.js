@@ -70,75 +70,39 @@ ${mycontent}`;
   }
 });
 
+app.post("/generate-single-question", async (req, res) => {
+  const { mycontent } = req.body;
+  const langCode = franc(mycontent);
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+  const questionLanguage = languageMap[langCode] || "ingilizce";
 
-app.post('/generate-single-question', async (req, res) => {
-  try {
-    const { mycontent, questionLanguage = "Türkçe" } = req.body;
-
-    const prompt = `
-Metin ${questionLanguage} dilindedir. Bu metne göre sadece 1 adet çoktan seçmeli soru üret.
+  const prompt = `
+Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli 1 soru üret.
 Kurallar:
 - Her soru *** ile başlasın.
-- Her şık /// ile başlasın.
+- 4 şık /// ile başlasın.
 - Cevap ~~Cevap: [cevap]
 - Açıklama &&Açıklama: [açıklama]
 - Sadece metin olarak döndür.
 Metin:
-${mycontent}
-`;
+${mycontent}`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" }); // ✅ ADD THIS
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    res.json({ questions: text });
-  } catch (err) {
-    console.error("Gemini single question error:", err.message);
-    res.status(500).json({ error: "Tek soru üretilemedi" });
-  }
-});
-
-
-app.post('/generate-single-question', async (req, res) => {
   try {
-    const { mycontent, customPrompt } = req.body;
-
-    const langCode = franc(mycontent);
-    const questionLanguage = langCode === "tur" ? "Türkçe" : langCode === "eng" ? "English" : "Same language as the text";
-
-    const prompt = `
-You will generate only **one multiple-choice question**.
-The question language should be the **same as the input text**.
-Follow this strict format:
-***
-Question text
-/// a) Choice A
-/// b) Choice B
-/// c) Choice C
-/// d) Choice D
-~~Cevap: a
-&&Açıklama: Short and clear explanation.
-
-${customPrompt ? `Focus only on this topic: "${customPrompt}".` : ""}
-Use the following reference text to generate your question:
-"""
-${mycontent}
-"""
-Return only the question in the above format. Do not include anything else.
-`;
-
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    res.json({ questions: text });
+    res.json({ questions: await result.response.text() });
   } catch (err) {
-    console.error("Gemini single question error:", err.message);
-    res.status(500).json({ error: "Tek soru üretilemedi" });
+    console.error("Gemini hata:", err.message);
+    res.status(500).json({ error: "Soru üretilemedi" });
   }
 });
+
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
