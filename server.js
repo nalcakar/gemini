@@ -215,9 +215,8 @@ Avoid list format, give a direct definition only.
 });
 
 app.post("/generate-docx", (req, res) => {
-  const questions = req.body.questions;
+  const { questions, title } = req.body;
 
-  // Her soruya Soru 1., Soru 2. için index ekle
   const withIndex = questions.map((q, i) => ({
     index: i + 1,
     question: q.question,
@@ -236,13 +235,14 @@ app.post("/generate-docx", (req, res) => {
     linebreaks: true,
   });
 
-  doc.render({ questions: withIndex });
+  // 🔥 Şablona başlığı da gönder
+  doc.render({ questions: withIndex, title: title || "Quiz" });
 
   const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
   res.set({
     "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "Content-Disposition": 'attachment; filename="quiz.docx"'
+    "Content-Disposition": `attachment; filename="${title || 'quiz'}.docx"`
   });
 
   res.send(buffer);
