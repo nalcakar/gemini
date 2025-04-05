@@ -37,38 +37,51 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
-app.post("/generate-questions", async (req, res) => {
-  const { mycontent } = req.body;
-  const langCode = franc(mycontent);
-  const languageMap = {
-    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
-  };
-  const questionLanguage = languageMap[langCode] || "ingilizce";
-
-  const prompt = `
-Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli 10 ile 20 arası soru üret.
-Kurallar:
-- Her soru *** ile başlasın.
-- 4 şık /// ile başlasın.
-- Cevap ~~Cevap: [cevap]
-- Açıklama &&Açıklama: [açıklama]
-- Sadece metin olarak döndür.
-Metin:
-${mycontent}`;
-
+app.post('/generate-questions', async (req, res) => {
   try {
+    const { mycontent } = req.body;
+
+    const langCode = franc(mycontent);
+    const languageMap = {
+      "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+      "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+      "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+      "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+      "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+    };
+    const questionLanguage = languageMap[langCode] || "İngilizce";
+
+    const prompt = `
+Metin ${questionLanguage} dilindedir.
+Aşağıdaki metne dayalı olarak 10 adet çoktan seçmeli soru üret. Her soruyu aşağıdaki biçimde üret ve aralarına "***" koyarak ayır:
+
+***
+Soru cümlesi
+/// a) Şık 1
+/// b) Şık 2
+/// c) Şık 3
+/// d) Şık 4
+~~Cevap: [şık harfi örn: b]
+&&Açıklama: [kısa ve açık açıklama]
+
+Metin:
+"""
+${mycontent}
+"""
+Sadece yukarıdaki biçimde düz metin döndür. HTML, kod veya fazladan açıklama ekleme.
+`;
+
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    res.json({ questions: await result.response.text() });
+    const text = await result.response.text();
+
+    res.json({ questions: text });
   } catch (err) {
-    console.error("Gemini hata:", err.message);
-    res.status(500).json({ error: "Soru üretilemedi" });
+    console.error("Gemini generate questions error:", err.message);
+    res.status(500).json({ error: "Sorular üretilemedi" });
   }
 });
+
 
 
 app.post('/generate-single-question', async (req, res) => {
