@@ -157,6 +157,30 @@ app.post("/generate-keywords", async (req, res) => {
   }
 });
 
+
+app.post("/define-keyword", async (req, res) => {
+  const { keyword } = req.body;
+
+  if (!keyword || keyword.length < 2) {
+    return res.status(400).json({ error: "Anahtar kelime eksik veya çok kısa." });
+  }
+
+  const prompt = `
+Give a short, clear explanation for the term "${keyword}" in 2-3 sentences. 
+Start directly with the definition, do not include an intro or list format.
+`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const result = await model.generateContent(prompt);
+    const explanation = await result.response.text();
+    res.json({ explanation: explanation.trim() });
+  } catch (err) {
+    console.error("Define Keyword Error:", err.message);
+    res.status(500).json({ error: "Tanım alınamadı." });
+  }
+});
+
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
