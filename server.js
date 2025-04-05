@@ -53,22 +53,36 @@ app.post('/generate-questions', async (req, res) => {
 
     const prompt = `
 Metin ${questionLanguage} dilindedir.
-Aşağıdaki metne dayalı olarak 10 adet çoktan seçmeli soru üret. Her soruyu aşağıdaki biçimde üret ve aralarına "***" koyarak ayır:
+Aşağıdaki metne dayalı olarak 10 adet çoktan seçmeli soru üret.
+Her soru aşağıdaki kurallara kesinlikle uymalıdır:
 
-***
-Soru cümlesi
+KURALLAR:
+1. Her soru *** ile başlamalıdır.
+2. Soru cümlesinden sonra şıklar şu şekilde yazılmalıdır:
 /// a) Şık 1
 /// b) Şık 2
 /// c) Şık 3
 /// d) Şık 4
-~~Cevap: [şık harfi örn: b]
-&&Açıklama: [kısa ve açık açıklama]
+3. Doğru cevabı belirtmek için şu satır gelmelidir:
+~~Cevap: a
+4. Ardından açıklama şu şekilde verilmelidir:
+&&Açıklama: Kısa ve açık açıklama.
+5. HTML, "Soru 1" gibi ek metinler veya farklı biçimlendirme ekleme.
+
+Örnek:
+***
+Hangi organ oksijenli kanı tüm vücuda pompalar?
+/// a) Akciğer
+/// b) Karaciğer
+/// c) Kalp
+/// d) Mide
+~~Cevap: c
+&&Açıklama: Kalp, oksijenli kanı vücuda pompalar.
 
 Metin:
 """
 ${mycontent}
 """
-Sadece yukarıdaki biçimde düz metin döndür. HTML, kod veya fazladan açıklama ekleme.
 `;
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
