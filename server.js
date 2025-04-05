@@ -4,9 +4,17 @@ const path = require("path");
 const rateLimit = require("express-rate-limit");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { franc } = require("franc");
+const fs = require("fs"); // ✅ Eksik olan bu satır
 require("dotenv").config();
 
+const PizZip = require("pizzip");
+const Docxtemplater = require("docxtemplater");
 const app = express();
+
+app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
+
+// Rate limit middleware’i bundan sonra gelsin
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // === CORS KONTROLÜ (Sadece doitwithai.org erişebilsin) ===
@@ -206,7 +214,29 @@ Avoid list format, give a direct definition only.
   }
 });
 
+app.post("/generate-docx", (req, res) => {
+  const questions = req.body.questions;
 
+  // template.docx dosyasını oku
+  const content = fs.readFileSync(path.join(__dirname, "template.docx"), "binary");
+  const zip = new PizZip(content);
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+  });
+
+  // Tek belgeye tüm soruları ekle
+  doc.render({ questions });
+
+  const buffer = doc.getZip().generate({ type: "nodebuffer" });
+
+  res.set({
+    "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "Content-Disposition": 'attachment; filename="quiz.docx"'
+  });
+
+  res.send(buffer);
+});
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
