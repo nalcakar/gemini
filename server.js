@@ -73,7 +73,17 @@ ${mycontent}`;
 
 app.post('/generate-single-question', async (req, res) => {
   try {
-    const { mycontent, questionLanguage = "Türkçe" } = req.body;
+    const { mycontent } = req.body;
+
+    const langCode = franc(mycontent);
+    const languageMap = {
+      "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+      "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+      "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+      "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+      "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+    };
+    const questionLanguage = languageMap[langCode] || "ingilizce";
 
     const prompt = `
 Metin ${questionLanguage} dilindedir. Bu metne göre sadece 1 adet çoktan seçmeli soru üret.
@@ -87,7 +97,7 @@ Metin:
 ${mycontent}
 `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" }); // ✅ ADD THIS
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
@@ -98,6 +108,7 @@ ${mycontent}
     res.status(500).json({ error: "Tek soru üretilemedi" });
   }
 });
+
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
