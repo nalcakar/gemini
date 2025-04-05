@@ -105,41 +105,27 @@ app.post('/generate-single-question', async (req, res) => {
     const { mycontent, customPrompt } = req.body;
 
     const langCode = franc(mycontent);
-    const languageMap = {
-      "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-      "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-      "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-      "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-      "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
-    };
-    const questionLanguage = languageMap[langCode] || "İngilizce";
+    const questionLanguage = langCode === "tur" ? "Türkçe" : langCode === "eng" ? "English" : "Same language as the text";
 
-    const prompt = customPrompt
-      ? `
-"${customPrompt}" konusuna özel olarak, ${questionLanguage} dilinde sadece 1 adet çoktan seçmeli soru üret.
-Kurallar:
-- Her soru *** ile başlasın.
-- Her şık /// ile başlasın.
-- Cevap ~~Cevap: [cevap]
-- Açıklama &&Açıklama: [açıklama]
-- Sadece metin olarak döndür.
-Referans metin:
+    const prompt = `
+You will generate only **one multiple-choice question**.
+The question language should be the **same as the input text**.
+Follow this strict format:
+***
+Question text
+/// a) Choice A
+/// b) Choice B
+/// c) Choice C
+/// d) Choice D
+~~Cevap: a
+&&Açıklama: Short and clear explanation.
+
+${customPrompt ? `Focus only on this topic: "${customPrompt}".` : ""}
+Use the following reference text to generate your question:
 """
 ${mycontent}
 """
-`
-      : `
-Metin ${questionLanguage} dilindedir. Bu metne göre ${questionLanguage} dilinde sadece 1 adet çoktan seçmeli soru üret.
-Kurallar:
-- Her soru *** ile başlasın.
-- Her şık /// ile başlasın.
-- Cevap ~~Cevap: [cevap]
-- Açıklama &&Açıklama: [açıklama]
-- Sadece metin olarak döndür.
-Metin:
-"""
-${mycontent}
-"""
+Return only the question in the above format. Do not include anything else.
 `;
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
@@ -153,6 +139,7 @@ ${mycontent}
     res.status(500).json({ error: "Tek soru üretilemedi" });
   }
 });
+
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
   const { mycontent } = req.body;
