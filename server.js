@@ -242,6 +242,74 @@ ${content}
 
 //// sql//////////
 
+const languageMap = {
+  "eng": "İngilizce",
+  "tur": "Türkçe",
+  "spa": "İspanyolca",
+  "fra": "Fransızca",
+  "deu": "Almanca",
+  "ita": "İtalyanca",
+  "por": "Portekizce",
+  "rus": "Rusça",
+  "jpn": "Japonca",
+  "kor": "Korece",
+  "nld": "Flemenkçe",
+  "pol": "Lehçe",
+  "ara": "Arapça",
+  "hin": "Hintçe",
+  "ben": "Bengalce",
+  "zho": "Çince",
+  "vie": "Vietnamca",
+  "tha": "Tayca",
+  "ron": "Romence",
+  "ukr": "Ukraynaca"
+};
+
+function buildPrompt(content, language, level, instructions = "") {
+  let levelText = "";
+  if (level === "Easy") {
+    levelText = "The questions should be easy and cover basic-level concepts suitable for beginners or early learners.";
+  } else if (level === "Medium") {
+    levelText = "The questions should be of medium difficulty and involve some reasoning, problem-solving, or moderate-level math skills.";
+  } else if (level === "Hard") {
+    levelText = "The questions should be hard and include multi-step problems, conceptual understanding, or advanced reasoning.";
+  }
+
+  const randomSeed = Math.floor(Math.random() * 100000);
+
+  return `
+You are an expert math teacher and educational content creator.
+
+### Goal:
+Create one creative, complete, and original multiple-choice math question in **${language}**.  
+The question must relate to: **${content}**  
+Use the following instructional guidance to shape the tone and style:  
+${instructions || "Use standard formatting and educational tone."}
+
+### Question difficulty:
+${levelText}
+
+### Format (follow this strictly):
+- Start with: \`***\`
+- Include exactly 4 answer choices: \`/// A)\`, \`/// B)\`, etc.
+- Mark the correct answer: \`~~Answer: ...\`
+- Add an explanation: \`&&Explanation:\`  
+  Use bullet points or line breaks between steps.  
+  Each explanation must clearly justify why the answer is correct using at least 4 logical steps.
+- End with: \`%%Check:\`
+
+### Variation Rules:
+- Use new numbers, settings, names, and question types every time
+- Use creative classroom scenarios or real-world themes
+- Vary the structure: comparisons, calculations, missing values, logic puzzles
+- Use LaTeX for math
+- Avoid repeating similar phrases
+
+### Random Seed:
+${randomSeed}
+`;
+}
+
 function buildFixPrompt(originalText) {
   return `
 You previously generated the following math question and answer:
@@ -292,7 +360,7 @@ app.post("/generate-math-question", async (req, res) => {
     let resultText = "";
     let checkPassed = false;
 
-    // İlk üretim denemeleri
+    // Orijinal üretim denemesi
     while (attempts < 3 && !checkPassed) {
       const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -308,15 +376,13 @@ app.post("/generate-math-question", async (req, res) => {
       resultText = rawText.replaceAll("\\(", "\\(").replaceAll("\\)", "\\)");
 
       const checkLine = resultText.split("\n").find(line => line.trim().startsWith("%%Check:"));
-      const checkMessage = checkLine?.toLowerCase().trim() || "";
-
-      // ❗ Sadece açıkça "pass" yazıyorsa doğru kabul et
+      const checkMessage = checkLine?.toLowerCase() || "";
       checkPassed = checkMessage.includes("pass");
 
       attempts++;
     }
 
-    // Eğer 3 kez denendiyse ve hala geçerli değilse, otomatik düzeltme
+    // Otomatik düzeltme gerekirse
     if (!checkPassed) {
       const fixPrompt = buildFixPrompt(resultText);
       const fixResult = await model.generateContent({
@@ -333,7 +399,6 @@ app.post("/generate-math-question", async (req, res) => {
       return res.json({ result: fixedText, fixed: true });
     }
 
-    // Her şey yolundaysa ilk sonuçla dön
     res.json({ result: resultText, fixed: false });
   } catch (err) {
     console.error("MathJax question generation error:", err.message);
