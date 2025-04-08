@@ -294,8 +294,8 @@ ${levelText}
 - Include exactly 4 answer choices: \`/// A)\`, \`/// B)\`, etc.
 - Mark the correct answer: \`~~Answer: ...\`
 - Add an explanation: \`&&Explanation:\`  
-  Use bullet points or line breaks between steps.  
-  Each explanation must clearly justify why the answer is correct using at least 4 logical steps.
+- Each explanation must clearly justify why the answer is correct using at least 4 logical steps.
+- Use bullet points or line breaks <br> between steps.
 - End with: \`%%Check:\`
 
 ### Variation Rules:
