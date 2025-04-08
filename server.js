@@ -295,7 +295,7 @@ ${levelText}
 - Mark the correct answer: \`~~Answer: ...\`
 - Add an explanation: \`&&Explanation:\`  
 - Each explanation must clearly justify why the answer is correct using at least 4 logical steps.
-- Use bullet points or line breaks <br> between steps.
+- Use bullet points or line breaks <br> between explanation steps only.
 - End with: \`%%Check:\`
 
 ### Variation Rules:
