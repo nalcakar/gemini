@@ -242,74 +242,28 @@ ${content}
 
 //// sql//////////
 
-const languageMap = {
-  "eng": "İngilizce",
-  "tur": "Türkçe",
-  "spa": "İspanyolca",
-  "fra": "Fransızca",
-  "deu": "Almanca",
-  "ita": "İtalyanca",
-  "por": "Portekizce",
-  "rus": "Rusça",
-  "jpn": "Japonca",
-  "kor": "Korece",
-  "nld": "Flemenkçe",
-  "pol": "Lehçe",
-  "ara": "Arapça",
-  "hin": "Hintçe",
-  "ben": "Bengalce",
-  "zho": "Çince",
-  "vie": "Vietnamca",
-  "tha": "Tayca",
-  "ron": "Romence",
-  "ukr": "Ukraynaca"
-};
-
-// ✅ Prompt oluşturucu fonksiyon
-function buildPrompt(content, language, level, instructions = "") {
-  let levelText = "";
-  if (level === "Easy") {
-    levelText = "The questions should be easy and cover basic-level concepts suitable for beginners or early learners.";
-  } else if (level === "Medium") {
-    levelText = "The questions should be of medium difficulty and involve some reasoning, problem-solving, or moderate-level math skills.";
-  } else if (level === "Hard") {
-    levelText = "The questions should be hard and include multi-step problems, conceptual understanding, or advanced reasoning.";
-  }
-
-  const randomSeed = Math.floor(Math.random() * 100000);
-
+function buildFixPrompt(originalText) {
   return `
-You are an expert math teacher and educational content creator.
+You previously generated the following math question and answer:
 
-### Goal:
-Create 1 complete, original, multiple-choice math question** in **${language}** on topic ${content} using ${instructions}.
+${originalText}
 
-### Question difficulty:
-${levelText}
+However, the explanation does not match the correct answer, or there is a logical inconsistency.
 
+Your task:
+- Keep the theme and context the same.
+- Fix any calculation or reasoning mistakes.
+- Update the correct answer and explanation accordingly.
+- Keep the same format:
+  - Start with \`***\`
+  - 4 choices: \`/// A)\`, etc.
+  - Correct answer: \`~~Answer: ...\`
+  - Explanation: \`&&Explanation:\`
+  - End with \`%%Check: pass\`
 
-### Each question must follow this strict format:
-- Start the question with: \`***\`
-- Include exactly four answer choices, starting with: \`/// A)\`, \`/// B)\`, \`/// C)\`, \`/// D)\`
-- Provide the correct answer: \`~~Answer: ...\` (match one of the choices exactly)
-- Provide a clear explanation: \`&&Explanation:\` (minimum 4 sentences)
-- End with: \`%%Check:\`
-
-### Variation rules:
-- Use different question structures (missing value, comparison, etc.)
-- Avoid repeating wording or numbers from earlier examples
-- Use LaTeX for math expressions
-- Be clear, creative, and context-rich
-
----
-### Additional Instructions:
-${instructions || "Use standard formatting and educational tone."}
-
-### Topic:
-${content}
+Please regenerate a clean and accurate version of the question.
 `;
 }
-
 
 app.post("/generate-math-question", async (req, res) => {
   const { content, language, level, instructions } = req.body;
@@ -321,33 +275,66 @@ app.post("/generate-math-question", async (req, res) => {
 
   try {
     const langCode = franc(content || "");
-    const questionLanguage =
-      language ||
-      (languageMap[langCode] && langCode !== "und" ? languageMap[langCode] : "English");
+    let questionLanguage = "English";
+
+    if (language) {
+      questionLanguage = language;
+    } else if (langCode !== "und" && languageMap[langCode]) {
+      const fallbackEnglish = ["fra", "deu", "spa", "ita"].includes(langCode) &&
+        /\b(the|is|are|what|how|many|which)\b/i.test(content);
+      questionLanguage = fallbackEnglish ? "English" : languageMap[langCode];
+    }
 
     const prompt = buildPrompt(content, questionLanguage, difficulty, instructions);
-
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }]
+    let attempts = 0;
+    let resultText = "";
+    let checkPassed = false;
+
+    // İlk üretim denemeleri
+    while (attempts < 3 && !checkPassed) {
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.9,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024
         }
-      ],
-      generationConfig: {
-        temperature: 0.9,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 1024
-      }
-    });
+      });
 
-    const text = await result.response.text();
-    const formattedText = text.replaceAll("\\(", "\\(").replaceAll("\\)", "\\)");
-    res.json({ result: formattedText });
+      const rawText = await result.response.text();
+      resultText = rawText.replaceAll("\\(", "\\(").replaceAll("\\)", "\\)");
 
+      const checkLine = resultText.split("\n").find(line => line.trim().startsWith("%%Check:"));
+      const checkMessage = checkLine?.toLowerCase().trim() || "";
+
+      // ❗ Sadece açıkça "pass" yazıyorsa doğru kabul et
+      checkPassed = checkMessage.includes("pass");
+
+      attempts++;
+    }
+
+    // Eğer 3 kez denendiyse ve hala geçerli değilse, otomatik düzeltme
+    if (!checkPassed) {
+      const fixPrompt = buildFixPrompt(resultText);
+      const fixResult = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: fixPrompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.9,
+          maxOutputTokens: 1024
+        }
+      });
+
+      const fixedText = await fixResult.response.text();
+      return res.json({ result: fixedText, fixed: true });
+    }
+
+    // Her şey yolundaysa ilk sonuçla dön
+    res.json({ result: resultText, fixed: false });
   } catch (err) {
     console.error("MathJax question generation error:", err.message);
     res.status(500).json({
