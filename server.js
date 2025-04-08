@@ -281,8 +281,8 @@ function buildPrompt(content, language, level, instructions = "") {
 You are an expert math teacher and educational content creator.
 
 ### Goal:
-Create one creative, complete, and original multiple-choice math question in **${language}**.  
-The question must relate to: **${content}**  
+Create one creative, complete, and original multiple-choice math question in ${language}.  
+The question must relate to: ${content}  
 Use the following instructional guidance to shape the tone and style:  
 ${instructions || "Use standard formatting and educational tone."}
 
@@ -295,7 +295,6 @@ ${levelText}
 - Mark the correct answer: \`~~Answer: ...\`
 - Add an explanation: \`&&Explanation:\`  
 - Each explanation must clearly justify why the answer is correct using at least 4 logical steps.
-- Use bullet points or line breaks <br> between explanation steps only.
 - End with: \`%%Check:\`
 
 ### Variation Rules:
