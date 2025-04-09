@@ -7,7 +7,8 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { franc } = require("franc");
 const fs = require("fs"); // ✅ Eksik olan bu satır
 require("dotenv").config();
-
+const session = require("express-session");
+const cookieParser = require("cookie-parser");
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const app = express();
@@ -20,6 +21,16 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // === CORS KONTROLÜ (Sadece doitwithai.org erişebilsin) ===
 const allowedOrigins = ["https://doitwithai.org"];
+app.use(session({
+  secret: process.env.SESSION_SECRET || "gizli-session-degeri",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: true,
+    httpOnly: true,
+    sameSite: "none"
+  }
+}));
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
