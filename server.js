@@ -304,17 +304,9 @@ You are an educational content creator. Please generate a multiple-choice math q
    - Is the answer format correct?
    - Does the answer match one of the options?
    - Does the explanation support the answer?
----
+   - Ask the question to yourself again, check if the Answer is correct.
 
-### Extra Task:
-- If there is an incorrect example or question, correct it before generating the others.
-- If a question has a mistake, display it first with the label “$$$ Correction Note:”.
-- If the mistake is in an option, correct both the option and the correct answer accordingly.
-- Then show the corrected version and include it with the other valid questions.
-- So the structure is: mistake → correction → all valid questions → with %%Check lines.
-- Ask the question to yourself again, check if the Answer is correct.
 
----
 
 Topic:
 ${content}
