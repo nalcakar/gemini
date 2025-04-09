@@ -306,7 +306,10 @@ You are an educational content creator. Please generate 15 multiple-choice quest
    - Does the answer match one of the options?
    - Does the explanation support the answer?
   
-
+Important Rules:
+- The correct answer MUST match one of the choices exactly. If the correct answer is not listed among A) to D), regenerate the options.
+- Avoid inconsistency between answer and choices. Check carefully.
+- If %Check shows any errors, regenerate the question before returning.
 
 
 Topic:
