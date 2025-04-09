@@ -291,7 +291,7 @@ app.post("/generate-math-question", async (req, res) => {
 You are an educational content creator. Please generate a multiple-choice math question in ${questionLanguage} based on the topic below and optionally similar to the provided example.
 
 ### Task:
-1. First, 5 multiple-choice questions in ${questionLanguage}.
+1. First, 10 multiple-choice questions in ${questionLanguage}.
 2. Each question must start with ***.
 3. Each choice should be listed on a new line starting with letters like: "/// A) ...". The options must be A), B), C), and D).
 4. The answer line should be written as: ~~Answer: A [text]. For example: ~~Answer: C) 25
@@ -300,11 +300,12 @@ You are an educational content creator. Please generate a multiple-choice math q
 5. The explanation line must start with &&Explanation:. It should include at least 2 to 5 full sentences with opic explanation.
 6. Use LaTeX formatting where needed, like \\( ... \\) or \\[ ... \\].
 7. At the end of each question, add a %%Check: line. This should verify:
+   - Ask the question to yourself again, check if the Answer is correct.
    - Is there an answer line?
    - Is the answer format correct?
    - Does the answer match one of the options?
    - Does the explanation support the answer?
-   - Ask the question to yourself again, check if the Answer is correct.
+  
 
 
 
