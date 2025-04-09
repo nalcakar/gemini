@@ -312,6 +312,7 @@ You are an educational content creator. Please generate a multiple-choice math q
 - If the mistake is in an option, correct both the option and the correct answer accordingly.
 - Then show the corrected version and include it with the other valid questions.
 - So the structure is: mistake → correction → all valid questions → with %%Check lines.
+- Question text and answer is ok.
 
 ---
 
@@ -320,7 +321,7 @@ ${content}
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
     res.json({ result: text });
