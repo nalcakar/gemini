@@ -269,36 +269,25 @@ app.post("/generate-docx", (req, res) => {
 
 
 app.post("/generate-math-question", async (req, res) => {
-  const { content } = req.body;
+  const { content, language } = req.body;
 
-  // franc ile dili tespit et
-  const langCode = franc(content);
+  const langCode = franc(content); // fallback language detection
   const languageMap = {
-    "eng": "İngilizce",
-    "tur": "Türkçe",
-    "spa": "İspanyolca",
-    "fra": "Fransızca",
-    "deu": "Almanca",
-    "ita": "İtalyanca",
-    "por": "Portekizce",
-    "rus": "Rusça",
-    "jpn": "Japonca",
-    "kor": "Korece",
-    "nld": "Flemenkçe",
-    "pol": "Lehçe",
-    "ara": "Arapça",
-    "hin": "Hintçe",
-    "ben": "Bengalce",
-    "zho": "Çince",
-    "vie": "Vietnamca",
-    "tha": "Tayca",
-    "ron": "Romence",
-    "ukr": "Ukraynaca"
+    eng: "English", tur: "Turkish", spa: "Spanish", fra: "French",
+    deu: "German", ita: "Italian", por: "Portuguese", rus: "Russian",
+    jpn: "Japanese", kor: "Korean", nld: "Dutch", pol: "Polish",
+    ara: "Arabic", hin: "Hindi", ben: "Bengali", zho: "Chinese",
+    vie: "Vietnamese", tha: "Thai", ron: "Romanian", ukr: "Ukrainian"
   };
-  const questionLanguage = languageMap[langCode] || "İngilizce";
 
+  let questionLanguage = "English";
+  if (language && typeof language === "string") {
+    questionLanguage = language;
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
 
-const prompt = `
+  const prompt = `
 You are an educational content creator. Please generate a multiple-choice math question in ${questionLanguage} based on the topic below and optionally similar to the provided example.
 
 ### Task:
@@ -330,18 +319,17 @@ Topic:
 ${content}
 `;
 
-
-
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
     res.json({ result: text });
   } catch (err) {
-    console.error("MathJax soru üretme hatası:", err.message);
-    res.status(500).json({ error: "MathJax soruları üretilemedi." });
+    console.error("MathJax question generation error:", err.message);
+    res.status(500).json({ error: "Failed to generate MathJax questions." });
   }
 });
+
 
 
 
