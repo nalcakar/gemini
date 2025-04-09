@@ -1,3 +1,4 @@
+const pool = require("./pool");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -327,10 +328,78 @@ ${content}
   }
 });
 
+/////////////Sql////////
 
+app.post("/save-question", async (req, res) => {
+  const { question, options, answer, explanation, title_id, user_email } = req.body;
 
+  if (!question || !options || !answer || !title_id || !user_email) {
+    return res.status(400).json({ error: "Eksik alanlar var." });
+  }
 
+  try {
+    // Aynı soru daha önce bu title altında eklenmiş mi?
+    const check = await pool.query(
+      "SELECT id FROM questions WHERE question = $1 AND title_id = $2",
+      [question, title_id]
+    );
 
+    if (check.rows.length > 0) {
+      return res.status(409).json({ error: "Bu soru zaten mevcut." });
+    }
+
+    // Ekle
+    await pool.query(
+      `INSERT INTO questions (title_id, question, options, answer, explanation, user_email)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [title_id, question, options, answer, explanation, user_email]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Kayıt hatası:", err.message);
+    res.status(500).json({ error: "Soru kaydedilemedi." });
+  }
+});
+app.post("/create-title", async (req, res) => {
+  const { name, category_id } = req.body;
+  if (!name || !category_id) return res.status(400).json({ error: "Eksik alanlar var." });
+
+  try {
+    const check = await pool.query(
+      "SELECT id FROM titles WHERE name = $1 AND category_id = $2",
+      [name, category_id]
+    );
+
+    if (check.rows.length > 0) return res.json({ id: check.rows[0].id });
+
+    const result = await pool.query(
+      "INSERT INTO titles (name, category_id) VALUES ($1, $2) RETURNING id",
+      [name, category_id]
+    );
+
+    res.json({ id: result.rows[0].id });
+  } catch (err) {
+    console.error("Title eklenemedi:", err.message);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+app.get("/list-titles", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT titles.id, titles.name, categories.name AS category_name, main_topics.name AS topic_name
+      FROM titles
+      JOIN categories ON titles.category_id = categories.id
+      JOIN main_topics ON categories.main_topic_id = main_topics.id
+      ORDER BY main_topics.name, categories.name, titles.name
+    `);
+
+    res.json({ titles: result.rows });
+  } catch (err) {
+    console.error("Başlıklar listelenemedi:", err.message);
+    res.status(500).json({ error: "Başlıklar alınamadı." });
+  }
+});
 
 
 
