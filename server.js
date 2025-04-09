@@ -297,7 +297,7 @@ You are an educational content creator. Please generate a multiple-choice math q
 4. The answer line should be written as: ~~Answer: A [text]. For example: ~~Answer: C) 25
    - The answer must always start with ~~Answer:
    - The option and the text in the answer line must match exactly one of the above choices.
-5. The explanation line must start with &&Explanation:. It should include at least 2 full sentences.
+5. The explanation line must start with &&Explanation:. It should include at least 2 to 5 full sentences with opic explanation.
 6. Use LaTeX formatting where needed, like \\( ... \\) or \\[ ... \\].
 7. At the end of each question, add a %%Check: line. This should verify:
    - Is there an answer line?
@@ -320,7 +320,7 @@ ${content}
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
     res.json({ result: text });
