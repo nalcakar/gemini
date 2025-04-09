@@ -268,8 +268,7 @@ app.post("/generate-docx", (req, res) => {
 
 
 
-app.post("/generate-math-question", async (req, res) => {
-
+pp.post("/generate-math-question", async (req, res) => {
   const { content } = req.body;
 
   // franc ile dili tespit et
@@ -309,7 +308,7 @@ You are an educational content creator. Please generate a multiple-choice math q
 4. The answer line should be written as: ~~Answer: A [text]. For example: ~~Answer: C) 25
    - The answer must always start with ~~Answer:
    - The option and the text in the answer line must match exactly one of the above choices.
-5. The explanation line must start with &&Explanation:. It should include at least from 2 full sentences and 2 sentences topic short explanation. 
+5. The explanation line must start with &&Explanation:. It should include at least 2 full sentences.
 6. Use LaTeX formatting where needed, like \\( ... \\) or \\[ ... \\].
 7. At the end of each question, add a %%Check: line. This should verify:
    - Is there an answer line?
@@ -343,6 +342,8 @@ ${content}
     res.status(500).json({ error: "MathJax soruları üretilemedi." });
   }
 });
+
+
 
 
 
