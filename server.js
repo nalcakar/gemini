@@ -268,7 +268,7 @@ app.post("/generate-docx", (req, res) => {
 
 
 
-pp.post("/generate-math-question", async (req, res) => {
+app.post("/generate-math-question", async (req, res) => {
   const { content } = req.body;
 
   // franc ile dili tespit et
