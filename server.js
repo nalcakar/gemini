@@ -312,7 +312,7 @@ You are an educational content creator. Please generate a multiple-choice math q
 - If the mistake is in an option, correct both the option and the correct answer accordingly.
 - Then show the corrected version and include it with the other valid questions.
 - So the structure is: mistake → correction → all valid questions → with %%Check lines.
-- Question text and answer is ok.
+- Ask the question to yourself again, check if the Answer is correct.
 
 ---
 
