@@ -207,7 +207,7 @@ app.post("/generate-keywords", async (req, res) => {
     "ron": "Romence",
     "ukr": "Ukraynaca"
   };
-  const questionLanguage = languageMap[langCode] || "Türkçe";
+  const questionLanguage = languageMap[langCode] || "İngilizce";
 
   const prompt = `
 Metin ${questionLanguage} dilindedir.
@@ -242,171 +242,83 @@ ${content}
 
 //// sql//////////
 
-const languageMap = {
-  "eng": "İngilizce",
-  "tur": "Türkçe",
-  "spa": "İspanyolca",
-  "fra": "Fransızca",
-  "deu": "Almanca",
-  "ita": "İtalyanca",
-  "por": "Portekizce",
-  "rus": "Rusça",
-  "jpn": "Japonca",
-  "kor": "Korece",
-  "nld": "Flemenkçe",
-  "pol": "Lehçe",
-  "ara": "Arapça",
-  "hin": "Hintçe",
-  "ben": "Bengalce",
-  "zho": "Çince",
-  "vie": "Vietnamca",
-  "tha": "Tayca",
-  "ron": "Romence",
-  "ukr": "Ukraynaca"
-};
-
-function buildPrompt(content, language, level, instructions = "") {
-  let levelText = "";
-  if (level === "Easy") {
-    levelText = "The questions should be easy and cover basic-level concepts suitable for beginners or early learners.";
-  } else if (level === "Medium") {
-    levelText = "The questions should be of medium difficulty and involve some reasoning, problem-solving, or moderate-level math skills.";
-  } else if (level === "Hard") {
-    levelText = "The questions should be hard and include multi-step problems, conceptual understanding, or advanced reasoning.";
-  }
-
-  const randomSeed = Math.floor(Math.random() * 100000);
-
-  return `
-You are an expert math teacher and educational content creator.
-
-### Goal:
-Create one creative, complete, and original multiple-choice math question in ${language}.  
-The question must relate to: ${content}  
-Use the following instructional guidance to shape the tone and style:  
-${instructions || "Use standard formatting and educational tone."}
-
-### Question difficulty:
-${levelText}
-
-### Format (follow this strictly):
-- Start with: \`***\`
-- Include exactly 4 answer choices: \`/// A)\`, \`/// B)\`, etc.
-- Mark the correct answer: \`~~Answer: ...\`
-- Add an explanation: \`&&Explanation:\`  
-- Each explanation must clearly justify why the answer is correct using at least 4 logical steps.
-- End with: \`%%Check:\`
-
-### Variation Rules:
-- Use new numbers, settings, names, and question types every time
-- Use creative classroom scenarios or real-world themes
-- Vary the structure: comparisons, calculations, missing values, logic puzzles
-- Use LaTeX for math
-- Avoid repeating similar phrases
-
-### Random Seed:
-${randomSeed}
-`;
-}
-
-function buildFixPrompt(originalText) {
-  return `
-You previously generated the following math question and answer:
-
-${originalText}
-
-However, the explanation does not match the correct answer, or there is a logical inconsistency.
-
-Your task:
-- Keep the theme and context the same.
-- Fix any calculation or reasoning mistakes.
-- Update the correct answer and explanation accordingly.
-- Keep the same format:
-  - Start with \`***\`
-  - 4 choices: \`/// A)\`, etc.
-  - Correct answer: \`~~Answer: ...\`
-  - Explanation: \`&&Explanation:\`
-  - End with \`%%Check: pass\`
-
-Please regenerate a clean and accurate version of the question.
-`;
-}
-
 app.post("/generate-math-question", async (req, res) => {
-  const { content, language, level, instructions } = req.body;
-  const difficulty = level || "Easy";
+  
+  const { content } = req.body;
 
-  if (!content || typeof content !== "string" || content.trim() === "") {
-    return res.status(400).json({ error: "Content field is required." });
-  }
+  // franc ile dili tespit et
+  const langCode = franc(content);
+  const languageMap = {
+    "eng": "İngilizce",
+    "tur": "Türkçe",
+    "spa": "İspanyolca",
+    "fra": "Fransızca",
+    "deu": "Almanca",
+    "ita": "İtalyanca",
+    "por": "Portekizce",
+    "rus": "Rusça",
+    "jpn": "Japonca",
+    "kor": "Korece",
+    "nld": "Flemenkçe",
+    "pol": "Lehçe",
+    "ara": "Arapça",
+    "hin": "Hintçe",
+    "ben": "Bengalce",
+    "zho": "Çince",
+    "vie": "Vietnamca",
+    "tha": "Tayca",
+    "ron": "Romence",
+    "ukr": "Ukraynaca"
+  };
+  const questionLanguage = languageMap[langCode] || "İngilizce";
+
+
+const prompt = `
+You are an educational content creator. Please generate a multiple-choice math question in ${questionLanguage} based on the topic below and optionally similar to the provided example.
+
+### Task:
+1. First, 5 multiple-choice questions in ${questionLanguage}.
+2. Each question must start with ***.
+3. Each choice should be listed on a new line starting with letters like: "/// A) ...". The options must be A), B), C), and D).
+4. The answer line should be written as: ~~Answer: A [text]. For example: ~~Answer: C) 25
+   - The answer must always start with ~~Answer:
+   - The option and the text in the answer line must match exactly one of the above choices.
+5. The explanation line must start with &&Explanation:. It should include at least 2 full sentences.
+6. Use LaTeX formatting where needed, like \\( ... \\) or \\[ ... \\].
+7. At the end of each question, add a %%Check: line. This should verify:
+   - Is there an answer line?
+   - Is the answer format correct?
+   - Does the answer match one of the options?
+   - Does the explanation support the answer?
+---
+
+### Extra Task:
+- If there is an incorrect example or question, correct it before generating the others.
+- If a question has a mistake, display it first with the label “$$$ Correction Note:”.
+- If the mistake is in an option, correct both the option and the correct answer accordingly.
+- Then show the corrected version and include it with the other valid questions.
+- So the structure is: mistake → correction → all valid questions → with %%Check lines.
+
+---
+
+Topic:
+${content}
+`;
+
+
 
   try {
-    const langCode = franc(content || "");
-    let questionLanguage = "English";
-
-    if (language) {
-      questionLanguage = language;
-    } else if (langCode !== "und" && languageMap[langCode]) {
-      const fallbackEnglish = ["fra", "deu", "spa", "ita"].includes(langCode) &&
-        /\b(the|is|are|what|how|many|which)\b/i.test(content);
-      questionLanguage = fallbackEnglish ? "English" : languageMap[langCode];
-    }
-
-    const prompt = buildPrompt(content, questionLanguage, difficulty, instructions);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    let attempts = 0;
-    let resultText = "";
-    let checkPassed = false;
-
-    // Orijinal üretim denemesi
-    while (attempts < 3 && !checkPassed) {
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.9,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024
-        }
-      });
-
-      const rawText = await result.response.text();
-      resultText = rawText.replaceAll("\\(", "\\(").replaceAll("\\)", "\\)");
-
-      const checkLine = resultText.split("\n").find(line => line.trim().startsWith("%%Check:"));
-      const checkMessage = checkLine?.toLowerCase() || "";
-      checkPassed = checkMessage.includes("pass");
-
-      attempts++;
-    }
-
-    // Otomatik düzeltme gerekirse
-    if (!checkPassed) {
-      const fixPrompt = buildFixPrompt(resultText);
-      const fixResult = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: fixPrompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.9,
-          maxOutputTokens: 1024
-        }
-      });
-
-      const fixedText = await fixResult.response.text();
-      return res.json({ result: fixedText, fixed: true });
-    }
-
-    res.json({ result: resultText, fixed: false });
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
+    res.json({ result: text });
   } catch (err) {
-    console.error("MathJax question generation error:", err.message);
-    res.status(500).json({
-      error: "Failed to generate MathJax questions.",
-      details: err.message
-    });
+    console.error("MathJax soru üretme hatası:", err.message);
+    res.status(500).json({ error: "MathJax soruları üretilemedi." });
   }
 });
+
+
 
 
 

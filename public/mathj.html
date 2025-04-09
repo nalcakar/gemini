@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>📘 MathJax Canlı Editör</title>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    textarea, button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+      box-sizing: border-box;
+    }
+    .question-block {
+      background: white;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .section {
+      margin: 10px 0;
+    }
+    .label {
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    .mathjax-box {
+      padding: 6px;
+      border: 1px dashed #ccc;
+      border-radius: 5px;
+      background: #fafafa;
+      cursor: pointer;
+      min-height: 20px;
+      margin-bottom: 5px;
+    }
+    .live-input {
+      margin-top: 5px;
+      width: 100%;
+      padding: 6px;
+      font-family: monospace;
+      font-size: 15px;
+      border: 1px solid #999;
+      border-radius: 4px;
+    }
+    .input-wrapper .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .input-wrapper button {
+  padding: 2px 6px;
+  font-size: 13px;
+  border: 1px solid #bbb;
+  background: #f0f0f0;
+  cursor: pointer;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  width: auto; /* Buton genişliği sadece içeriği kadar olsun */
+}
+    .input-wrapper button:hover {
+      background: #e0e0e0;
+    }
+    .delete-button {
+  margin-top: 10px;
+  background-color: #ffdddd;
+  color: #a00;
+  border: 1px solid #a00;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-block;
+  width: auto;
+}
+    .delete-button:hover {
+      background-color: #ffcccc;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      textarea, button, .live-input {
+        font-size: 15px;
+      }
+      .question-block {
+        padding: 10px;
+      }
+      .label {
+        font-size: 16px;
+      }
+    }
+    .check-notes {
+  margin-top: 10px;
+  font-size: 14px;
+  background: #eef5ff;
+  border-left: 4px solid #339;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.check-notes summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #003366;
+  outline: none;
+  user-select: none;
+  margin-bottom: 6px;
+}
+
+.check-notes ul {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.check-notes li {
+  margin-bottom: 4px;
+}
+.check-notes.has-error {
+  background: #ffeaea;
+  border-left-color: #d00;
+}
+
+.check-notes.has-error summary {
+  color: #a00;
+}
+.warning-msg {
+  background-color: #fff4e5;
+  border-left: 4px solid #f90;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  color: #a65c00;
+  font-weight: bold;
+}
+#generateBtn {
+    width: auto !important;        /* İçeriğe göre genişlik */
+    display: inline-block;
+    white-space: nowrap;
+    padding: 8px 14px;
+    font-size: 15px;
+    background-color: #f0f0f0;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #generateBtn:hover {
+    background-color: #e0e0e0;
+  }
+  /* Responsive düzenleme: daha esnek düzen için */
+body {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Daha iyi görünüm için textarea ve butonlar responsive */
+@media (min-width: 768px) {
+  .textarea-and-button {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  textarea {
+    flex: 1;
+  }
+
+  #generateBtn {
+    align-self: flex-start;
+    margin-top: 0;
+  }
+}
+
+/* Mobil uyumluluk için her şey tam genişlik */
+@media (max-width: 768px) {
+  .input-wrapper .actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mathjax-box {
+    font-size: 16px;
+  }
+
+  .live-input {
+    font-size: 15px;
+  }
+
+  .label {
+    font-size: 16px;
+  }
+
+  .delete-button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <h2>📘 MathJax Canlı Editör</h2>
+
+  <textarea id="inputText" rows="6">
+    Make similar questions:
+    Joshua told his friend that his sister is nine years older than himself. If Joshua is nine
+    at the moment, how old is his sister?
+    Make the questions for Grade 4.
+    Use English Language
+    </textarea>
+  <div style="margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+    <button id="generateBtn" onclick="generate()">📤 Soruları Yükle ve Düzenle</button>
+    <div id="aiNotice" style="display: none; margin-top: 10px; font-weight: bold; color: #555; background: #ffffe0; border-left: 4px solid orange; padding: 8px 12px; border-radius: 5px; animation: fadein 0.5s ease;">🤖 AI tarafından hazırlanıyor, lütfen bekleyin...</div>
+  </div>
+
+  <div id="questions"></div>
+
+  <script>
+    function createEditableSection(title, content) {
+      if (Array.isArray(content)) {
+        return `
+          <div class="section">
+            <div class="label">${title}</div>
+            ${content.map(c => editableMathDiv(c)).join("")}
+          </div>`;
+      } else {
+        return `
+          <div class="section">
+            <div class="label">${title}</div>
+            ${editableMathDiv(content)}
+          </div>`;
+      }
+    }
+
+    function editableMathDiv(value) {
+      const escapedValue = value.replace(/"/g, '&quot;');
+      return `
+        <div class="mathjax-box" onclick="showInput(this)" data-raw="${escapedValue}" data-original="${escapedValue}">
+          ${value}
+        </div>
+      `;
+    }
+
+    function showInput(div) {
+      let raw = div.dataset.raw || div.innerText;
+      const original = div.dataset.original || raw;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "input-wrapper";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "live-input";
+      input.value = raw;
+
+      const icons = document.createElement("div");
+      icons.className = "actions";
+      icons.innerHTML = `
+        <button onclick="saveEdit(this)">💾 Kaydet</button>
+        <button onclick="undoEdit(this)">↩️ Geri</button>
+        <button onclick="cancelEdit(this)">❌ İptal</button>
+      `;
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(icons);
+
+      const next = div.nextElementSibling;
+      if (next && next.classList.contains("input-wrapper")) next.remove();
+
+      div.insertAdjacentElement("afterend", wrapper);
+      input.focus();
+    }
+
+    function saveEdit(button) {
+      const wrapper = button.closest(".input-wrapper");
+      const input = wrapper.querySelector("input");
+      const newVal = input.value;
+      const div = wrapper.previousElementSibling;
+
+      div.dataset.raw = newVal;
+      div.dataset.original = newVal;
+      div.innerText = newVal;
+      wrapper.remove();
+      MathJax.typesetPromise([div]);
+    }
+
+    function undoEdit(button) {
+      const wrapper = button.closest(".input-wrapper");
+      const div = wrapper.previousElementSibling;
+      const original = div.dataset.original || div.dataset.raw;
+      const input = wrapper.querySelector("input");
+      input.value = original;
+    }
+
+    function cancelEdit(button) {
+      const wrapper = button.closest(".input-wrapper");
+      wrapper.remove();
+    }
+
+    async function generate() {
+  const notice = document.getElementById("aiNotice");
+  const btn = document.getElementById("generateBtn");
+  const container = document.getElementById("questions");
+
+  // Mesajı göster
+  notice.style.display = "block";
+  notice.style.opacity = 0;
+  notice.innerText = "🤖 AI tarafından hazırlanıyor, lütfen bekleyin...";
+  notice.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: "forwards" });
+
+  container.innerHTML = ""; // Eski soruları temizle
+  const content = document.getElementById("inputText").value;
+
+  try {
+    const res = await fetch("/generate-math-question", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+
+    const data = await res.json();
+    if (!data.result) {
+      notice.innerText = "❌ Soru üretilemedi. Sunucudan veri alınamadı.";
+      notice.style.color = "darkred";
+      notice.style.borderLeftColor = "darkred";
+      return;
+    }
+
+    const raw = data.result;
+    const blocks = raw.split(/\n\s*\*{3}/).map(q => q.trim()).filter(q => q.includes("///"));
+
+    blocks.forEach((block, index) => {
+      const lines = block.split("\n").map(l => l.trim());
+
+      const questionLine = lines.find(l =>
+        !l.startsWith("///") && !l.startsWith("~~") && !l.startsWith("&&") && !l.startsWith("%") && !l.startsWith("-")
+      ) || "";
+
+      const choices = lines.filter(l => l.startsWith("///")).map(c => c.replace("///", "").trim());
+      const answer = lines.find(l => l.startsWith("~~Answer:"))?.replace("~~Answer:", "").trim() || "";
+      const explanation = lines.find(l => l.startsWith("&&Explanation:"))?.replace("&&Explanation:", "").trim() || "";
+
+      const checkStart = lines.findIndex(l => l.startsWith("%%Check:"));
+      const checkNotes = checkStart !== -1
+        ? lines.slice(checkStart + 1).filter(line => line.startsWith("-")).map(line => line.trim())
+        : [];
+
+      const hasNo = checkNotes.some(note => note.toLowerCase().includes("no"));
+      const checkClass = hasNo ? "check-notes has-error" : "check-notes";
+
+      const warningHtml = hasNo
+        ? `<div class="warning-msg">⚠️ Lütfen bu sorudaki hataları düzeltiniz.</div>`
+        : "";
+
+      const checkHtml = checkNotes.length > 0
+        ? `<details class="${checkClass}"><summary>🔍 View AI Check Notes</summary><ul>${checkNotes.map(c => `<li>${c}</li>`).join("")}</ul></details>`
+        : "";
+
+      const div = document.createElement("div");
+      div.className = "question-block";
+
+      div.innerHTML = `
+        ${warningHtml}
+        <div class="label">🧮 Soru ${index + 1}</div>
+        ${createEditableSection("Soru", questionLine)}
+        ${createEditableSection("Şıklar", choices)}
+        ${createEditableSection("Cevap", answer)}
+        ${createEditableSection("Açıklama", explanation)}
+        ${checkHtml}
+        <button class="delete-button" onclick="this.closest('.question-block').remove()">❌ Soru Sil</button>
+      `;
+
+      container.appendChild(div);
+    });
+
+    await MathJax.typesetPromise();
+    notice.innerText = "✔️ AI tarafından başarıyla hazırlandı!";
+    notice.style.color = "green";
+    notice.style.borderLeftColor = "green";
+
+  } catch (err) {
+    notice.innerText = "⚠️ Bir hata oluştu: " + err.message;
+    notice.style.color = "darkred";
+    notice.style.borderLeftColor = "darkred";
+  }
+}
+
+
+
+
+  </script>
+</body>
+</html>
