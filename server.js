@@ -432,7 +432,54 @@ async function checkPatreonLogin() {
   }
 }
 
+app.get("/auth/patreon/callback", async (req, res) => {
+  const code = req.query.code;
 
+  // 1. Token al
+  const tokenRes = await fetch("https://www.patreon.com/api/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      grant_type: "authorization_code",
+      client_id: process.env.PATREON_CLIENT_ID,
+      client_secret: process.env.PATREON_CLIENT_SECRET,
+      redirect_uri: process.env.PATREON_REDIRECT_URI,
+    })
+  });
+
+  const tokenData = await tokenRes.json();
+  const accessToken = tokenData.access_token;
+
+  // 2. Kullanıcı bilgilerini al
+  const userRes = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  const userData = await userRes.json();
+  const user = userData.data;
+  const email = user.attributes.email;
+  const name = user.attributes.full_name;
+
+  // ✅ 3. Giriş yapan kullanıcı bilgilerini kaydet
+  req.session.user = { email, name };
+
+  // 4. İsteğe bağlı: veritabanına da kaydedebilirsin
+  // await pool.query(...)
+
+  // 5. Girişten sonra frontend'e dön
+  res.redirect("https://doitwithai.org/editor"); // veya hangi frontend sayfansa
+});
+
+app.get("/me", (req, res) => {
+  if (req.session?.user?.email) {
+    res.json(req.session.user);
+  } else {
+    res.json({});
+  }
+});
 
 
 // === SPA (Tek Sayfa) Yönlendirme ===
