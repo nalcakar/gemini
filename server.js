@@ -288,7 +288,7 @@ app.post("/generate-math-question", async (req, res) => {
   }
 
   const prompt = `
-You are an educational content creator. Please generate a multiple-choice math question in ${questionLanguage} based on the topic below and optionally similar to the provided example.
+You are an educational content creator. Please generate 10 multiple-choice math questions in ${questionLanguage} based on the topic below and optionally similar to the provided example.
 
 ### Task:
 1. First, 10 multiple-choice questions in ${questionLanguage}.
