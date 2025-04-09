@@ -292,7 +292,7 @@ You are an educational content creator. Please generate 15 multiple-choice quest
 
 ### Task:
 1. Each question must be in ${questionLanguage}.
-2. Each question must start with ***. Don't add 1. 2. before question.
+2. Each question must start with ***. Don't add 1. 2. listing before question.
 3. Each choice should be listed on a new line starting with letters like: "/// A) ...". The options must be A), B), C), and D).
 4. The answer line should be written as: ~~Answer: A [text]. For example: ~~Answer: C) 25
    - The answer must always start with ~~Answer:
