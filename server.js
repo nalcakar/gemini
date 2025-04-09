@@ -331,24 +331,31 @@ ${content}
 /////////////Sql////////
 
 app.post("/save-question", async (req, res) => {
-  const { question, options, answer, explanation, title_id, user_email } = req.body;
-
-  if (!question || !options || !answer || !title_id || !user_email) {
-    return res.status(400).json({ error: "Eksik alanlar var." });
-  }
-
   try {
-    // Aynı soru daha önce bu title altında eklenmiş mi?
-    const check = await pool.query(
-      "SELECT id FROM questions WHERE question = $1 AND title_id = $2",
+    // 1. Giriş yapılmış mı?
+    if (!req.session?.user?.email) {
+      return res.status(403).json({ error: "Giriş yapılmamış." });
+    }
+
+    const { question, options, answer, explanation, title_id } = req.body;
+    const user_email = req.session.user.email;
+
+    // 2. Zorunlu alanlar var mı?
+    if (!question || !options || !answer || !title_id) {
+      return res.status(400).json({ error: "Zorunlu alanlar eksik." });
+    }
+
+    // 3. Aynı soru daha önce kaydedilmiş mi?
+    const duplicateCheck = await pool.query(
+      `SELECT id FROM questions WHERE question = $1 AND title_id = $2`,
       [question, title_id]
     );
 
-    if (check.rows.length > 0) {
-      return res.status(409).json({ error: "Bu soru zaten mevcut." });
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(409).json({ error: "Bu soru zaten kayıtlı." });
     }
 
-    // Ekle
+    // 4. Soruyu ekle
     await pool.query(
       `INSERT INTO questions (title_id, question, options, answer, explanation, user_email)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -357,10 +364,13 @@ app.post("/save-question", async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Kayıt hatası:", err.message);
-    res.status(500).json({ error: "Soru kaydedilemedi." });
+    console.error("❌ Soru kayıt hatası:", err.message);
+    res.status(500).json({ error: "Sunucu hatası." });
   }
 });
+
+
+
 app.post("/create-title", async (req, res) => {
   const { name, category_id } = req.body;
   if (!name || !category_id) return res.status(400).json({ error: "Eksik alanlar var." });
@@ -401,7 +411,28 @@ app.get("/list-titles", async (req, res) => {
   }
 });
 
+async function checkPatreonLogin() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/me`, {
+      credentials: "include"
+    });
+    const data = await res.json();
 
+    if (data && data.email) {
+      localStorage.setItem("userEmail", data.email);
+      localStorage.setItem("patreonLoggedIn", "true");
+      console.log("✅ Giriş yapan kullanıcı:", data.email);
+    } else {
+      localStorage.removeItem("userEmail");
+      localStorage.setItem("patreonLoggedIn", "false");
+    }
+  } catch (err) {
+    console.error("🛑 Oturum kontrolü başarısız:", err.message);
+    localStorage.setItem("patreonLoggedIn", "false");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", checkPatreonLogin);
 
 
 // === SPA (Tek Sayfa) Yönlendirme ===
