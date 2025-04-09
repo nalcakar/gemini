@@ -432,7 +432,7 @@ async function checkPatreonLogin() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", checkPatreonLogin);
+
 
 
 // === SPA (Tek Sayfa) Yönlendirme ===
