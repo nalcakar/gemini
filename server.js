@@ -4,7 +4,7 @@ const path = require("path");
 const rateLimit = require("express-rate-limit");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-
+const pool = require("./pool");
 const { franc } = require("franc");
 const fs = require("fs");
 require("dotenv").config();
