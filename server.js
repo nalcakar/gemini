@@ -51,16 +51,20 @@ app.post("/patreon-me", async (req, res) => {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // === CORS KONTROLÜ (Sadece doitwithai.org erişebilsin) ===
+const allowedOrigins = ["https://doitwithai.org"];
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin"); // CDN'ler için vary header
   }
 
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization"); // ← BURAYA Authorization EKLE!
-  
-  // Preflight OPTIONS isteğine anında cevap ver
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // Preflight (OPTIONS) isteğine anında 200 dön
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
