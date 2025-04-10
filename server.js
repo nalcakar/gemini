@@ -624,7 +624,72 @@ app.put("/update-question", async (req, res) => {
   }
 });
 
+// Yeni ana başlık oluştur
+app.post("/add-main-category", async (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) return res.status(400).json({ success: false });
 
+  try {
+    await pool.query("INSERT INTO main_topics (name, user_email) VALUES ($1, $2)", [name, email]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Ana başlık eklenemedi:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Yeni kategori oluştur
+app.post("/add-category", async (req, res) => {
+  const { name, main_id, email } = req.body;
+  if (!name || !main_id || !email) return res.status(400).json({ success: false });
+
+  try {
+    await pool.query("INSERT INTO categories (name, main_id, user_email) VALUES ($1, $2, $3)", [name, main_id, email]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Kategori eklenemedi:", err);
+    res.status(500).json({ success: false });
+  }
+});
+// Ana başlık adı güncelleme
+app.put("/update-main-category", async (req, res) => {
+  const { id, name } = req.body;
+  if (!id || !name) return res.status(400).json({ success: false });
+
+  try {
+    await pool.query("UPDATE main_topics SET name = $1 WHERE id = $2", [name, id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Main başlık güncellenemedi:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Kategori adı güncelleme
+app.put("/update-category", async (req, res) => {
+  const { id, name } = req.body;
+  if (!id || !name) return res.status(400).json({ success: false });
+
+  try {
+    await pool.query("UPDATE categories SET name = $1 WHERE id = $2", [name, id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Kategori güncellenemedi:", err);
+    res.status(500).json({ success: false });
+  }
+});
+app.put("/move-title", async (req, res) => {
+  const { titleId, newCategoryId } = req.body;
+  if (!titleId || !newCategoryId) return res.status(400).json({ success: false });
+
+  try {
+    await pool.query("UPDATE titles SET category_id = $1 WHERE id = $2", [newCategoryId, titleId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Başlık taşınamadı:", err);
+    res.status(500).json({ success: false });
+  }
+});
 
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
