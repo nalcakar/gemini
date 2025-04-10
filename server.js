@@ -454,9 +454,10 @@ app.post("/save-questions", async (req, res) => {
     const catInsert = await client.query(`
       INSERT INTO categories(name, main_topic_id)
       VALUES ($1, $2)
-      ON CONFLICT(name) DO NOTHING
+      ON CONFLICT(name, main_topic_id) DO NOTHING
       RETURNING id
     `, [defaultCategory, main_topic_id]);
+    
 
     let category_id = catInsert.rows[0]?.id;
 
