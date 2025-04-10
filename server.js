@@ -25,8 +25,9 @@ const allowedOrigins = ["https://doitwithai.org"];
 app.use(cors({
   origin: "https://doitwithai.org",
   credentials: true,
-  methods: ["GET", "POST", "DELETE", "OPTIONS"]
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 }));
+
 
 // ✅ JSON parse işlemi
 app.use(express.json());
@@ -602,7 +603,7 @@ app.delete("/delete-question/:id", async (req, res) => {
   }
 });
 
-app.post("/update-question", async (req, res) => {
+app.put("/update-question", async (req, res) => {
   const { id, question, options, answer, explanation } = req.body;
 
   if (!id) return res.status(400).json({ success: false, message: "Eksik ID" });
@@ -620,6 +621,8 @@ app.post("/update-question", async (req, res) => {
     res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
+
+
 
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
