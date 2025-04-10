@@ -385,7 +385,7 @@ app.get("/oauth/callback", async (req, res) => {
         grant_type: "authorization_code",
         client_id: process.env.PATREON_CLIENT_ID,
         client_secret: process.env.PATREON_CLIENT_SECRET,
-        redirect_uri: "https://gemini-j8xd.onrender.com/oauth/callback"
+        redirect_uri: "https://gemini-j8xd.onrender.com/auth/patreon/callback"
       })
     });
 
