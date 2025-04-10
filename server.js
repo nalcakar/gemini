@@ -3,7 +3,7 @@ const cors = require("cors");
 const path = require("path");
 const rateLimit = require("express-rate-limit");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 const { franc } = require("franc");
 const fs = require("fs");
@@ -14,6 +14,7 @@ const Docxtemplater = require("docxtemplater");
 const app = express();
 
 app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const fetch = require("node-fetch");
 
 // ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
