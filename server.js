@@ -476,12 +476,11 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
   // ✅ 3. Giriş yapan kullanıcı bilgilerini kaydet
   req.session.user = { email, name };
-
-  // 4. İsteğe bağlı: veritabanına da kaydedebilirsin
-  // await pool.query(...)
-
-  // 5. Girişten sonra frontend'e dön
-  res.redirect("https://doitwithai.org/editor"); // veya hangi frontend sayfansa
+res.send(`
+  <script>
+    window.location.href = "https://doitwithai.org/editor";
+  </script>
+`);
 });
 
 app.get("/me", (req, res) => {
