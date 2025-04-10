@@ -474,14 +474,25 @@ app.get("/auth/patreon/callback", async (req, res) => {
   const email = user.attributes.email;
   const name = user.attributes.full_name;
 
-  // ✅ 3. Giriş yapan kullanıcı bilgilerini kaydet
+  // 3. Oturumu oluştur
   req.session.user = { email, name };
-res.send(`
-  <script>
-    window.location.href = "https://doitwithai.org/editor";
-  </script>
-`);
+
+  // 4. Tarayıcıya Set-Cookie'yi göndermek için redirect yerine HTML kullan
+  res.send(`
+    <html>
+      <head>
+        <meta http-equiv="refresh" content="0; url=https://doitwithai.org/editor" />
+        <script>
+          window.location.href = "https://doitwithai.org/editor";
+        </script>
+      </head>
+      <body>
+        Giriş yapıldı. Yönlendiriliyorsunuz...
+      </body>
+    </html>
+  `);
 });
+
 
 app.get("/me", (req, res) => {
   if (req.session?.user?.email) {
