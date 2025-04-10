@@ -508,45 +508,68 @@ app.post("/save-questions", async (req, res) => {
   }
 });
 app.get("/list-main-categories", async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ success: false, message: "Email gerekli" });
+
   try {
-    const result = await pool.query("SELECT id, name FROM main_topics ORDER BY name");
+    const result = await pool.query(`
+      SELECT DISTINCT mt.id, mt.name
+      FROM main_topics mt
+      JOIN categories c ON c.main_topic_id = mt.id
+      JOIN titles t ON t.category_id = c.id
+      JOIN questions q ON q.title_id = t.id
+      WHERE q.user_email = $1
+      ORDER BY mt.name
+    `, [email]);
+
     res.json(result.rows);
   } catch (err) {
-    console.error("Ana başlık listelenemedi:", err.message);
-    res.status(500).json([]);
+    console.error("Ana başlıklar alınamadı:", err.message);
+    res.status(500).json({ success: false });
   }
 });
+
 
 app.get("/list-categories", async (req, res) => {
-  const { main_id } = req.query;
-  if (!main_id) return res.status(400).json([]);
+  const { main_id, email } = req.query;
+  if (!main_id || !email) return res.status(400).json({ success: false, message: "main_id ve email gerekli" });
 
   try {
-    const result = await pool.query(
-      "SELECT id, name FROM categories WHERE main_topic_id = $1 ORDER BY name",
-      [main_id]
-    );
+    const result = await pool.query(`
+      SELECT DISTINCT c.id, c.name
+      FROM categories c
+      JOIN titles t ON t.category_id = c.id
+      JOIN questions q ON q.title_id = t.id
+      WHERE c.main_topic_id = $1 AND q.user_email = $2
+      ORDER BY c.name
+    `, [main_id, email]);
+
     res.json(result.rows);
   } catch (err) {
-    console.error("Kategori listelenemedi:", err.message);
-    res.status(500).json([]);
+    console.error("Kategoriler alınamadı:", err.message);
+    res.status(500).json({ success: false });
   }
 });
+
 
 
 app.get("/list-titles", async (req, res) => {
-  const { category_id } = req.query;
-  if (!category_id) return res.status(400).json([]);
+  const { category_id, email } = req.query;
+  if (!category_id || !email) return res.status(400).json({ success: false, message: "category_id ve email gerekli" });
 
   try {
-    const result = await pool.query(
-      "SELECT id, name FROM titles WHERE category_id = $1 ORDER BY created_at DESC",
-      [category_id]
-    );
+    const result = await pool.query(`
+      SELECT DISTINCT t.id, t.name
+      FROM titles t
+      JOIN questions q ON q.title_id = t.id
+      WHERE t.category_id = $1 AND q.user_email = $2
+      ORDER BY t.name
+    `, [category_id, email]);
+
     res.json(result.rows);
   } catch (err) {
-    console.error("Başlık listelenemedi:", err.message);
-    res.status(500).json([]);
+    console.error("Başlıklar alınamadı:", err.message);
+    res.status(500).json({ success: false });
   }
 });
 
