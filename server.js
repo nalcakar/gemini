@@ -625,18 +625,25 @@ app.put("/update-question", async (req, res) => {
 });
 
 // Yeni ana başlık oluştur
+// ✅ Ana başlık ekle
 app.post("/add-main-category", async (req, res) => {
   const { name, email } = req.body;
-  if (!name || !email) return res.status(400).json({ success: false });
+  if (!name || !email) return res.status(400).json({ success: false, message: "Eksik bilgi" });
 
   try {
-    await pool.query("INSERT INTO main_topics (name, user_email) VALUES ($1, $2)", [name, email]);
-    res.json({ success: true });
+    const result = await pool.query(`
+      INSERT INTO main_topics (name, user_email)
+      VALUES ($1, $2)
+      RETURNING id
+    `, [name, email]);
+
+    res.json({ success: true, id: result.rows[0].id });
   } catch (err) {
-    console.error("Ana başlık eklenemedi:", err);
-    res.status(500).json({ success: false });
+    console.error("Ana başlık ekleme hatası:", err.message);
+    res.status(500).json({ success: false, message: "Sunucu hatası: Başlık oluşturulamadı." });
   }
 });
+
 
 // Yeni kategori oluştur
 app.post("/add-category", async (req, res) => {
@@ -662,6 +669,24 @@ app.put("/update-main-category", async (req, res) => {
   } catch (err) {
     console.error("Main başlık güncellenemedi:", err);
     res.status(500).json({ success: false });
+  }
+});
+// ✅ Kategori ekle
+app.post("/add-category", async (req, res) => {
+  const { name, main_id, email } = req.body;
+  if (!name || !main_id || !email) return res.status(400).json({ success: false, message: "Eksik bilgi" });
+
+  try {
+    const result = await pool.query(`
+      INSERT INTO categories (name, main_id, user_email)
+      VALUES ($1, $2, $3)
+      RETURNING id
+    `, [name, main_id, email]);
+
+    res.json({ success: true, id: result.rows[0].id });
+  } catch (err) {
+    console.error("Kategori ekleme hatası:", err.message);
+    res.status(500).json({ success: false, message: "Sunucu hatası: Kategori oluşturulamadı." });
   }
 });
 
