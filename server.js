@@ -418,9 +418,9 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
 /////////////Sql////////
 app.post("/save-questions", async (req, res) => {
-  const { titleId, title, questions, userEmail } = req.body;
+  const { title, questions, userEmail } = req.body;
 
-  if ((!titleId && !title) || !questions || !userEmail) {
+  if (!title || !questions || !userEmail) {
     return res.status(400).json({ success: false, message: "Eksik bilgi" });
   }
 
@@ -428,21 +428,55 @@ app.post("/save-questions", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    let resolvedTitleId = titleId;
+    let resolvedTitleId;
 
-    // Eğer titleId yoksa, title ile sorgula
-    if (!resolvedTitleId && title) {
-      const titleSelect = await client.query(
-        "SELECT id FROM titles WHERE name = $1 LIMIT 1",
-        [title]
-      );
-      resolvedTitleId = titleSelect.rows[0]?.id;
-    }
+    // 1. Başlık zaten var mı?
+    const titleSelect = await client.query(
+      "SELECT id FROM titles WHERE name = $1 LIMIT 1",
+      [title]
+    );
+    resolvedTitleId = titleSelect.rows[0]?.id;
 
+    // 2. Başlık yoksa oluştur (AI > General altında)
     if (!resolvedTitleId) {
-      throw new Error("Başlık bulunamadı. Lütfen önce başlığı oluşturun.");
+      // a) Ana başlık: AI
+      const mainRes = await client.query(`
+        INSERT INTO main_topics(name)
+        VALUES ('AI')
+        ON CONFLICT(name) DO NOTHING
+        RETURNING id
+      `);
+      const main_topic_id = mainRes.rows[0]?.id || (
+        await client.query("SELECT id FROM main_topics WHERE name = 'AI'")
+      ).rows[0]?.id;
+
+      if (!main_topic_id) throw new Error("Ana başlık oluşturulamadı.");
+
+      // b) Kategori: General
+      const catRes = await client.query(`
+        INSERT INTO categories(name, main_topic_id)
+        VALUES ('General', $1)
+        ON CONFLICT(name, main_topic_id) DO NOTHING
+        RETURNING id
+      `, [main_topic_id]);
+      const category_id = catRes.rows[0]?.id || (
+        await client.query("SELECT id FROM categories WHERE name = 'General' AND main_topic_id = $1", [main_topic_id])
+      ).rows[0]?.id;
+
+      if (!category_id) throw new Error("Kategori oluşturulamadı.");
+
+      // c) Başlık ekle
+      const titleInsert = await client.query(`
+        INSERT INTO titles(name, category_id)
+        VALUES ($1, $2)
+        RETURNING id
+      `, [title, category_id]);
+      resolvedTitleId = titleInsert.rows[0]?.id;
+
+      if (!resolvedTitleId) throw new Error("Başlık oluşturulamadı.");
     }
 
+    // 3. Soruları ekle
     let insertCount = 0;
     for (const q of questions) {
       if (!q.question || !q.options || !q.answer) continue;
