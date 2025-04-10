@@ -564,9 +564,35 @@ app.get("/get-questions", async (req, res) => {
     res.status(500).json({ success: false, questions: [] });
   }
 });
+app.delete("/delete-question/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM questions WHERE id = $1", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Silme hatası:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
 
+app.post("/update-question", async (req, res) => {
+  const { id, question, options, answer, explanation } = req.body;
 
+  if (!id) return res.status(400).json({ success: false, message: "Eksik ID" });
 
+  try {
+    const result = await pool.query(`
+      UPDATE questions 
+      SET question = $1, options = $2, answer = $3, explanation = $4 
+      WHERE id = $5
+    `, [question, JSON.stringify(options), answer, explanation, id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Güncelleme hatası:", err.message);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
+});
 
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
