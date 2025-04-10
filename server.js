@@ -369,12 +369,10 @@ ${content}
 
 
 
-app.get("/oauth/callback", async (req, res) => {
-  const code = req.query.code;
 
-  if (!code) {
-    return res.status(400).send("❌ Kod alınamadı.");
-  }
+app.get("/auth/patreon/callback", async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).send("❌ Kod alınamadı.");
 
   try {
     const response = await fetch("https://www.patreon.com/api/oauth2/token", {
@@ -406,15 +404,14 @@ app.get("/oauth/callback", async (req, res) => {
     const email = userData.data.attributes.email;
     const name = userData.data.attributes.full_name;
 
-    // Tarayıcıda token'ı kaydet ve yönlendir
-    res.send(`
-      <script>
-        localStorage.setItem("accessToken", "${tokenData.access_token}");
-        localStorage.setItem("userEmail", "${email}");
-        localStorage.setItem("userName", "${name}");
-        window.location.href = "https://doitwithai.org/editor";
-      </script>
-    `);
+    // ✅ YENİ yönlendirme kodu burada
+    const redirectUrl = new URL("https://doitwithai.org/editor");
+    redirectUrl.searchParams.set("accessToken", tokenData.access_token);
+    redirectUrl.searchParams.set("userEmail", email);
+    redirectUrl.searchParams.set("userName", name);
+
+    res.redirect(302, redirectUrl.toString()); // 🔁 yönlendirme
+
   } catch (err) {
     console.error("OAuth callback hatası:", err);
     res.status(500).send("❌ Hata oluştu.");
