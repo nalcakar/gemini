@@ -363,7 +363,6 @@ ${content}
   }
 });
 
-/////////////Sql////////
 
 
 
@@ -415,6 +414,85 @@ app.get("/auth/patreon/callback", async (req, res) => {
   } catch (err) {
     console.error("OAuth callback hatası:", err);
     res.status(500).send("❌ Hata oluştu.");
+  }
+});
+
+
+/////////////Sql////////
+app.post("/save-questions", async (req, res) => {
+  const { title, questions, userEmail } = req.body;
+
+  if (!title || !questions || !userEmail) {
+    return res.status(400).json({ success: false, message: "Eksik bilgi" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Varsayılan topic ve kategori
+    const defaultMain = "AI";
+    const defaultCategory = "General";
+
+    const mainRes = await client.query(`
+      INSERT INTO main_topics(name)
+      VALUES ($1)
+      ON CONFLICT(name) DO NOTHING
+      RETURNING id
+    `, [defaultMain]);
+
+    const main_topic_id = mainRes.rows[0]?.id || (
+      await client.query(`SELECT id FROM main_topics WHERE name=$1`, [defaultMain])
+    ).rows[0].id;
+
+    const catRes = await client.query(`
+      INSERT INTO categories(name, main_topic_id)
+      VALUES ($1, $2)
+      ON CONFLICT(name) DO NOTHING
+      RETURNING id
+    `, [defaultCategory, main_topic_id]);
+
+    const category_id = catRes.rows[0]?.id || (
+      await client.query(`SELECT id FROM categories WHERE name=$1`, [defaultCategory])
+    ).rows[0].id;
+
+    // 2. Title varsa alma, yoksa oluştur
+    const titleRes = await client.query(`
+      SELECT id FROM titles WHERE name=$1 AND category_id=$2
+    `, [title, category_id]);
+
+    let title_id;
+    if (titleRes.rows.length > 0) {
+      title_id = titleRes.rows[0].id;
+    } else {
+      const insert = await client.query(`
+        INSERT INTO titles(name, category_id) VALUES ($1, $2) RETURNING id
+      `, [title, category_id]);
+      title_id = insert.rows[0].id;
+    }
+
+    // 3. Seçilen soruları ekle (varsa atla)
+    for (const q of questions) {
+      const exists = await client.query(`
+        SELECT id FROM questions WHERE question=$1 AND title_id=$2
+      `, [q.question, title_id]);
+
+      if (exists.rows.length === 0) {
+        await client.query(`
+          INSERT INTO questions(title_id, question, options, answer, explanation, user_email)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [title_id, q.question, JSON.stringify(q.options), q.answer, q.explanation, userEmail]);
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Soru kaydetme hatası:", err);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
+  } finally {
+    client.release();
   }
 });
 
