@@ -4,7 +4,7 @@ const path = require("path");
 const rateLimit = require("express-rate-limit");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { franc } = require("franc");
-const fs = require("fs"); // ✅ Eksik olan bu satır
+const fs = require("fs");
 require("dotenv").config();
 
 const PizZip = require("pizzip");
@@ -14,45 +14,8 @@ const app = express();
 app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
 const fetch = require("node-fetch");
 
-async function verifyPatreonToken(token) {
-  try {
-    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const user = data.data.attributes;
-    return {
-      email: user.email,
-      name: user.full_name
-    };
-  } catch (err) {
-    console.error("Patreon token doğrulama hatası:", err.message);
-    return null;
-  }
-}
-
-app.post("/patreon-me", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(400).json({ error: "Token eksik" });
-
-  const userInfo = await verifyPatreonToken(token);
-  if (!userInfo) return res.status(401).json({ error: "Geçersiz token" });
-
-  res.json(userInfo); // Örnek: { email: "...", name: "..." }
-});
-
-// Rate limit middleware’i bundan sonra gelsin
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// === CORS KONTROLÜ (Sadece doitwithai.org erişebilsin) ===
+// ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
 const allowedOrigins = ["https://doitwithai.org"];
-
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -65,6 +28,10 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
+
+// ✅ JSON parse işlemi
+app.use(express.json());
+
 
 
 // === RATE LIMIT (Dakikada en fazla 10 istek) ===
