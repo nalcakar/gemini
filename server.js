@@ -474,7 +474,9 @@ app.post("/save-questions", async (req, res) => {
         VALUES ($1, $2, $3)
         RETURNING id
       `, [title, category_id, promptText || null]);
-
+      
+      resolvedTitleId = titleInsert.rows[0]?.id;
+      
       if (!resolvedTitleId) throw new Error("Başlık oluşturulamadı.");
     }
 
