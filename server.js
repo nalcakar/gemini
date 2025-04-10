@@ -32,6 +32,39 @@ app.use(cors({
 // ✅ JSON parse işlemi
 app.use(express.json());
 
+// ✅ Patreon token'ı doğrulayan fonksiyon
+async function verifyPatreonToken(token) {
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const user = data.data.attributes;
+    return {
+      email: user.email,
+      name: user.full_name
+    };
+  } catch (err) {
+    console.error("Patreon token doğrulama hatası:", err.message);
+    return null;
+  }
+}
+
+// ✅ /patreon-me endpoint’i — Token ile giriş yapan kullanıcıyı döner
+app.post("/patreon-me", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(400).json({ error: "Token eksik" });
+
+  const userInfo = await verifyPatreonToken(token);
+  if (!userInfo) return res.status(401).json({ error: "Geçersiz token" });
+
+  res.json(userInfo); // Örnek çıktı: { email: "...", name: "..." }
+});
 
 
 // === RATE LIMIT (Dakikada en fazla 10 istek) ===
