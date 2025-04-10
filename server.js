@@ -369,6 +369,57 @@ ${content}
 
 
 
+app.get("/oauth/callback", async (req, res) => {
+  const code = req.query.code;
+
+  if (!code) {
+    return res.status(400).send("❌ Kod alınamadı.");
+  }
+
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        grant_type: "authorization_code",
+        client_id: process.env.PATREON_CLIENT_ID,
+        client_secret: process.env.PATREON_CLIENT_SECRET,
+        redirect_uri: "https://doitwithai.org/oauth/callback"
+      })
+    });
+
+    const tokenData = await response.json();
+
+    if (!tokenData.access_token) {
+      console.error("Token alınamadı:", tokenData);
+      return res.status(500).send("❌ Access token alınamadı.");
+    }
+
+    const userRes = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`
+      }
+    });
+
+    const userData = await userRes.json();
+    const email = userData.data.attributes.email;
+    const name = userData.data.attributes.full_name;
+
+    // Tarayıcıda token'ı kaydet ve yönlendir
+    res.send(`
+      <script>
+        localStorage.setItem("accessToken", "${tokenData.access_token}");
+        localStorage.setItem("userEmail", "${email}");
+        localStorage.setItem("userName", "${name}");
+        window.location.href = "/editor"; // Giriş sonrası sayfan
+      </script>
+    `);
+  } catch (err) {
+    console.error("OAuth callback hatası:", err);
+    res.status(500).send("❌ Hata oluştu.");
+  }
+});
 
 
 // === SPA (Tek Sayfa) Yönlendirme ===
