@@ -1,4 +1,3 @@
-const pool = require("./pool");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -7,13 +6,45 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { franc } = require("franc");
 const fs = require("fs"); // ✅ Eksik olan bu satır
 require("dotenv").config();
-const session = require("express-session");
-const cookieParser = require("cookie-parser");
+
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const app = express();
 
 app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
+const fetch = require("node-fetch");
+
+async function verifyPatreonToken(token) {
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const user = data.data.attributes;
+    return {
+      email: user.email,
+      name: user.full_name
+    };
+  } catch (err) {
+    console.error("Patreon token doğrulama hatası:", err.message);
+    return null;
+  }
+}
+
+app.post("/patreon-me", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(400).json({ error: "Token eksik" });
+
+  const userInfo = await verifyPatreonToken(token);
+  if (!userInfo) return res.status(401).json({ error: "Geçersiz token" });
+
+  res.json(userInfo); // Örnek: { email: "...", name: "..." }
+});
 
 // Rate limit middleware’i bundan sonra gelsin
 
@@ -21,23 +52,13 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // === CORS KONTROLÜ (Sadece doitwithai.org erişebilsin) ===
 const allowedOrigins = ["https://doitwithai.org"];
-app.use(session({
-  secret: process.env.SESSION_SECRET || "gizli-session-degeri",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: true,
-    httpOnly: true,
-    sameSite: "none"
-  }
-}));
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Credentials", "true"); // ✅ EKLENDİ
   }
+  // Diğer gerekli CORS başlıkları
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   next();
@@ -341,166 +362,10 @@ ${content}
 
 /////////////Sql////////
 
-app.post("/save-question", async (req, res) => {
-  try {
-    // 1. Giriş yapılmış mı?
-    if (!req.session?.user?.email) {
-      return res.status(403).json({ error: "Giriş yapılmamış." });
-    }
-
-    const { question, options, answer, explanation, title_id } = req.body;
-    const user_email = req.session.user.email;
-
-    // 2. Zorunlu alanlar var mı?
-    if (!question || !options || !answer || !title_id) {
-      return res.status(400).json({ error: "Zorunlu alanlar eksik." });
-    }
-
-    // 3. Aynı soru daha önce kaydedilmiş mi?
-    const duplicateCheck = await pool.query(
-      `SELECT id FROM questions WHERE question = $1 AND title_id = $2`,
-      [question, title_id]
-    );
-
-    if (duplicateCheck.rows.length > 0) {
-      return res.status(409).json({ error: "Bu soru zaten kayıtlı." });
-    }
-
-    // 4. Soruyu ekle
-    await pool.query(
-      `INSERT INTO questions (title_id, question, options, answer, explanation, user_email)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [title_id, question, options, answer, explanation, user_email]
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("❌ Soru kayıt hatası:", err.message);
-    res.status(500).json({ error: "Sunucu hatası." });
-  }
-});
 
 
 
-app.post("/create-title", async (req, res) => {
-  const { name, category_id } = req.body;
-  if (!name || !category_id) return res.status(400).json({ error: "Eksik alanlar var." });
 
-  try {
-    const check = await pool.query(
-      "SELECT id FROM titles WHERE name = $1 AND category_id = $2",
-      [name, category_id]
-    );
-
-    if (check.rows.length > 0) return res.json({ id: check.rows[0].id });
-
-    const result = await pool.query(
-      "INSERT INTO titles (name, category_id) VALUES ($1, $2) RETURNING id",
-      [name, category_id]
-    );
-
-    res.json({ id: result.rows[0].id });
-  } catch (err) {
-    console.error("Title eklenemedi:", err.message);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
-});
-app.get("/list-titles", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT titles.id, titles.name, categories.name AS category_name, main_topics.name AS topic_name
-      FROM titles
-      JOIN categories ON titles.category_id = categories.id
-      JOIN main_topics ON categories.main_topic_id = main_topics.id
-      ORDER BY main_topics.name, categories.name, titles.name
-    `);
-
-    res.json({ titles: result.rows });
-  } catch (err) {
-    console.error("Başlıklar listelenemedi:", err.message);
-    res.status(500).json({ error: "Başlıklar alınamadı." });
-  }
-});
-
-async function checkPatreonLogin() {
-  try {
-    const res = await fetch(`${BACKEND_URL}/me`, {
-      credentials: "include"
-    });
-    const data = await res.json();
-
-    if (data && data.email) {
-      localStorage.setItem("userEmail", data.email);
-      localStorage.setItem("patreonLoggedIn", "true");
-      console.log("✅ Giriş yapan kullanıcı:", data.email);
-    } else {
-      localStorage.removeItem("userEmail");
-      localStorage.setItem("patreonLoggedIn", "false");
-    }
-  } catch (err) {
-    console.error("🛑 Oturum kontrolü başarısız:", err.message);
-    localStorage.setItem("patreonLoggedIn", "false");
-  }
-}
-
-app.get("/auth/patreon/callback", async (req, res) => {
-  const code = req.query.code;
-
-  // 1. Token al
-  const tokenRes = await fetch("https://www.patreon.com/api/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      grant_type: "authorization_code",
-      client_id: process.env.PATREON_CLIENT_ID,
-      client_secret: process.env.PATREON_CLIENT_SECRET,
-      redirect_uri: process.env.PATREON_REDIRECT_URI,
-    })
-  });
-
-  const tokenData = await tokenRes.json();
-  const accessToken = tokenData.access_token;
-
-  // 2. Kullanıcı bilgilerini al
-  const userRes = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    }
-  });
-
-  const userData = await userRes.json();
-  const user = userData.data;
-  const email = user.attributes.email;
-  const name = user.attributes.full_name;
-
-  // 3. Oturumu oluştur
-  req.session.user = { email, name };
-
-  // 4. Tarayıcıya Set-Cookie'yi göndermek için redirect yerine HTML kullan
-  res.send(`
-    <html>
-      <head>
-        <meta http-equiv="refresh" content="0; url=https://doitwithai.org/editor" />
-        <script>
-          window.location.href = "https://doitwithai.org/editor";
-        </script>
-      </head>
-      <body>
-        Giriş yapıldı. Yönlendiriliyorsunuz...
-      </body>
-    </html>
-  `);
-});
-
-
-app.get("/me", (req, res) => {
-  if (req.session?.user?.email) {
-    res.json(req.session.user);
-  } else {
-    res.json({});
-  }
-});
 
 
 // === SPA (Tek Sayfa) Yönlendirme ===
