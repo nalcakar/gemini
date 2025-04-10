@@ -418,9 +418,9 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
 /////////////Sql////////
 app.post("/save-questions", async (req, res) => {
-  const { titleId, questions, userEmail } = req.body;
+  const { titleId, title, questions, userEmail } = req.body;
 
-  if (!titleId || !questions || !userEmail) {
+  if ((!titleId && !title) || !questions || !userEmail) {
     return res.status(400).json({ success: false, message: "Eksik bilgi" });
   }
 
@@ -428,19 +428,34 @@ app.post("/save-questions", async (req, res) => {
   try {
     await client.query("BEGIN");
 
+    let resolvedTitleId = titleId;
+
+    // Eğer titleId yoksa, title ile sorgula
+    if (!resolvedTitleId && title) {
+      const titleSelect = await client.query(
+        "SELECT id FROM titles WHERE name = $1 LIMIT 1",
+        [title]
+      );
+      resolvedTitleId = titleSelect.rows[0]?.id;
+    }
+
+    if (!resolvedTitleId) {
+      throw new Error("Başlık bulunamadı. Lütfen önce başlığı oluşturun.");
+    }
+
     let insertCount = 0;
     for (const q of questions) {
       if (!q.question || !q.options || !q.answer) continue;
 
       const exists = await client.query(
         "SELECT id FROM questions WHERE question = $1 AND title_id = $2",
-        [q.question, titleId]
+        [q.question, resolvedTitleId]
       );
 
       if (exists.rows.length === 0) {
         await client.query(
           "INSERT INTO questions(title_id, question, options, answer, explanation, user_email) VALUES ($1, $2, $3, $4, $5, $6)",
-          [titleId, q.question, JSON.stringify(q.options), q.answer, q.explanation, userEmail]
+          [resolvedTitleId, q.question, JSON.stringify(q.options), q.answer, q.explanation, userEmail]
         );
         insertCount++;
       }
@@ -457,6 +472,7 @@ app.post("/save-questions", async (req, res) => {
     client.release();
   }
 });
+
 
 
 
