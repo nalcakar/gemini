@@ -20,11 +20,12 @@ const fetch = require("node-fetch");
 
 // ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
 const allowedOrigins = ["https://doitwithai.org"];
+const cors = require("cors");
+
 app.use(cors({
   origin: "https://doitwithai.org",
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
+  methods: ["GET", "POST", "DELETE", "OPTIONS"]
 }));
 
 // ✅ JSON parse işlemi
@@ -551,17 +552,20 @@ app.get("/list-titles", async (req, res) => {
 
 app.get("/get-questions", async (req, res) => {
   const { title_id } = req.query;
-  if (!title_id) return res.status(400).json({ success: false, questions: [] });
+  if (!title_id) return res.status(400).json({ success: false, message: "Eksik başlık ID" });
 
   try {
-    const result = await pool.query(
-      "SELECT question, options, answer, explanation FROM questions WHERE title_id = $1 ORDER BY created_at DESC",
-      [title_id]
-    );
-    res.json({ success: true, questions: result.rows });
+    const result = await pool.query(`
+      SELECT id, question, options, answer, explanation 
+      FROM questions 
+      WHERE title_id = $1
+      ORDER BY id DESC
+    `, [title_id]);
+
+    res.json({ questions: result.rows });
   } catch (err) {
-    console.error("Sorular getirilemedi:", err.message);
-    res.status(500).json({ success: false, questions: [] });
+    console.error("❌ Soru getirme hatası:", err.message);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
 app.delete("/delete-question/:id", async (req, res) => {
