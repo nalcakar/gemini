@@ -420,7 +420,8 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
 /////////////Sql////////
 app.post("/save-questions", async (req, res) => {
-  const { title, questions, userEmail } = req.body;
+  const { title, questions, userEmail, promptText } = req.body;
+
 
   if (!title || !questions || !userEmail) {
     return res.status(400).json({ success: false, message: "Eksik bilgi" });
@@ -469,11 +470,10 @@ app.post("/save-questions", async (req, res) => {
 
       // c) Başlık ekle
       const titleInsert = await client.query(`
-        INSERT INTO titles(name, category_id)
-        VALUES ($1, $2)
+        INSERT INTO titles(name, category_id, prompt_text)
+        VALUES ($1, $2, $3)
         RETURNING id
-      `, [title, category_id]);
-      resolvedTitleId = titleInsert.rows[0]?.id;
+      `, [title, category_id, promptText || null]);
 
       if (!resolvedTitleId) throw new Error("Başlık oluşturulamadı.");
     }
