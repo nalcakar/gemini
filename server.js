@@ -506,6 +506,64 @@ app.post("/save-questions", async (req, res) => {
     client.release();
   }
 });
+app.get("/list-main-categories", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT id, name FROM main_topics ORDER BY name");
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Ana başlık listelenemedi:", err.message);
+    res.status(500).json([]);
+  }
+});
+
+app.get("/list-categories", async (req, res) => {
+  const { main_id } = req.query;
+  if (!main_id) return res.status(400).json([]);
+
+  try {
+    const result = await pool.query(
+      "SELECT id, name FROM categories WHERE main_topic_id = $1 ORDER BY name",
+      [main_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Kategori listelenemedi:", err.message);
+    res.status(500).json([]);
+  }
+});
+
+
+app.get("/list-titles", async (req, res) => {
+  const { category_id } = req.query;
+  if (!category_id) return res.status(400).json([]);
+
+  try {
+    const result = await pool.query(
+      "SELECT id, name FROM titles WHERE category_id = $1 ORDER BY created_at DESC",
+      [category_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Başlık listelenemedi:", err.message);
+    res.status(500).json([]);
+  }
+});
+
+app.get("/get-questions", async (req, res) => {
+  const { title_id } = req.query;
+  if (!title_id) return res.status(400).json({ success: false, questions: [] });
+
+  try {
+    const result = await pool.query(
+      "SELECT question, options, answer, explanation FROM questions WHERE title_id = $1 ORDER BY created_at DESC",
+      [title_id]
+    );
+    res.json({ success: true, questions: result.rows });
+  } catch (err) {
+    console.error("Sorular getirilemedi:", err.message);
+    res.status(500).json({ success: false, questions: [] });
+  }
+});
 
 
 
