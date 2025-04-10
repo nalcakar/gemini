@@ -372,7 +372,15 @@ ${content}
 
 
 // === SPA (Tek Sayfa) Yönlendirme ===
-app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("*", (req, res, next) => {
+  // Eğer istek bir API endpoint'iyse yönlendirme yapma
+  if (req.path.startsWith("/generate") || req.path.startsWith("/define") || req.path.startsWith("/patreon")) {
+    return next();
+  }
+
+  // Aksi halde index.html'e yönlendir
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 // === SUNUCU BAŞLAT ===
 const PORT = process.env.PORT || 3001;
