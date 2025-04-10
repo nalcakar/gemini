@@ -412,7 +412,7 @@ app.get("/oauth/callback", async (req, res) => {
         localStorage.setItem("accessToken", "${tokenData.access_token}");
         localStorage.setItem("userEmail", "${email}");
         localStorage.setItem("userName", "${name}");
-        window.location.href = "/editor"; // Giriş sonrası sayfan
+        window.location.href = "https://doitwithai.org/editor";
       </script>
     `);
   } catch (err) {
