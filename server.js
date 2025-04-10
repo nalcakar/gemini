@@ -20,13 +20,7 @@ const fetch = require("node-fetch");
 // ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
 const allowedOrigins = ["https://doitwithai.org"];
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS hatası: izin verilmeyen origin"));
-    }
-  },
+  origin: "https://doitwithai.org",
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
