@@ -608,7 +608,18 @@ app.delete("/delete-question/:id", async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+app.delete("/delete-questions-by-title/:id", async (req, res) => {
+  const { id } = req.params;
+  const email = req.query.email;
 
+  try {
+    await pool.query("DELETE FROM questions WHERE title_id = $1 AND user_email = $2", [id, email]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Silme hatası:", err.message);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
+});
 
 app.put("/update-question", async (req, res) => {
   const { id, question, options, answer, explanation, email } = req.body;
