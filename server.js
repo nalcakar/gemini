@@ -642,19 +642,7 @@ app.post("/add-main-category", async (req, res) => {
 });
 
 
-// Yeni kategori oluştur
-app.post("/add-category", async (req, res) => {
-  const { name, main_id, email } = req.body;
-  if (!name || !main_id || !email) return res.status(400).json({ success: false });
 
-  try {
-    await pool.query("INSERT INTO categories (name, main_id, user_email) VALUES ($1, $2, $3)", [name, main_id, email]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Kategori eklenemedi:", err);
-    res.status(500).json({ success: false });
-  }
-});
 // Ana başlık adı güncelleme
 app.put("/update-main-category", async (req, res) => {
   const { id, name } = req.body;
