@@ -707,6 +707,129 @@ app.put("/move-title", async (req, res) => {
   }
 });
 
+
+// Bu kod bloğu server.js'e eklenmelidir. (Zaten son versiyona eklendiyse atlanabilir)
+
+// === Başlık silme (eğer altında soru yoksa)
+app.delete("/delete-title/:id", async (req, res) => {
+  const { id } = req.params;
+  const email = req.query.email;
+  if (!id || !email) return res.status(400).json({ success: false });
+
+  try {
+    const questionCheck = await pool.query(
+      "SELECT 1 FROM questions WHERE title_id = $1 LIMIT 1",
+      [id]
+    );
+    if (questionCheck.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Bu başlığa ait sorular var." });
+    }
+
+    const result = await pool.query("DELETE FROM titles WHERE id = $1 AND user_email = $2", [id, email]);
+    res.json({ success: result.rowCount > 0 });
+  } catch (err) {
+    console.error("Başlık silme hatası:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// === Kategori silme (eğer altında başlık yoksa)
+app.delete("/delete-category/:id", async (req, res) => {
+  const { id } = req.params;
+  const email = req.query.email;
+  if (!id || !email) return res.status(400).json({ success: false });
+
+  try {
+    const titleCheck = await pool.query(
+      "SELECT 1 FROM titles WHERE category_id = $1 LIMIT 1",
+      [id]
+    );
+    if (titleCheck.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Bu kategoriye ait başlıklar var." });
+    }
+
+    const result = await pool.query("DELETE FROM categories WHERE id = $1 AND user_email = $2", [id, email]);
+    res.json({ success: result.rowCount > 0 });
+  } catch (err) {
+    console.error("Kategori silme hatası:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// === Ana başlık silme (eğer altında kategori yoksa)
+app.delete("/delete-main-category/:id", async (req, res) => {
+  const { id } = req.params;
+  const email = req.query.email;
+  if (!id || !email) return res.status(400).json({ success: false });
+
+  try {
+    const categoryCheck = await pool.query(
+      "SELECT 1 FROM categories WHERE main_topic_id = $1 LIMIT 1",
+      [id]
+    );
+    if (categoryCheck.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Bu ana başlığa ait kategoriler var." });
+    }
+
+    const result = await pool.query("DELETE FROM main_topics WHERE id = $1 AND user_email = $2", [id, email]);
+    res.json({ success: result.rowCount > 0 });
+  } catch (err) {
+    console.error("Ana başlık silme hatası:", err);
+    res.status(500).json({ success: false });
+  }
+});
+// === Başlık (title) adını güncelle
+app.put("/update-title-name", async (req, res) => {
+  const { id, newName, email } = req.body;
+  if (!id || !newName || !email) return res.status(400).json({ success: false });
+
+  try {
+    await pool.query(
+      "UPDATE titles SET name = $1 WHERE id = $2 AND user_email = $3",
+      [newName, id, email]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Başlık güncelleme hatası:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// === Kategori adını güncelle
+app.put("/update-category-name", async (req, res) => {
+  const { id, newName, email } = req.body;
+  if (!id || !newName || !email) return res.status(400).json({ success: false });
+
+  try {
+    await pool.query(
+      "UPDATE categories SET name = $1 WHERE id = $2 AND user_email = $3",
+      [newName, id, email]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Kategori güncelleme hatası:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// === Ana başlık adını güncelle
+app.put("/update-main-topic-name", async (req, res) => {
+  const { id, newName, email } = req.body;
+  if (!id || !newName || !email) return res.status(400).json({ success: false });
+
+  try {
+    await pool.query(
+      "UPDATE main_topics SET name = $1 WHERE id = $2 AND user_email = $3",
+      [newName, id, email]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Ana başlık güncelleme hatası:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
   // Eğer istek bir API endpoint'iyse yönlendirme yapma
