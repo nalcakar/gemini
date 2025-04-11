@@ -532,24 +532,20 @@ app.get("/list-main-categories", async (req, res) => {
 
 app.get("/list-categories", async (req, res) => {
   const { main_id, email } = req.query;
-  if (!main_id || !email) return res.status(400).json({ success: false, message: "main_id ve email gerekli" });
+  if (!main_id || !email) return res.status(400).json({ success: false, message: "Eksik veri" });
 
   try {
-    const result = await pool.query(`
-      SELECT DISTINCT c.id, c.name
-      FROM categories c
-      JOIN titles t ON t.category_id = c.id
-      JOIN questions q ON q.title_id = t.id
-      WHERE c.main_topic_id = $1 AND q.user_email = $2
-      ORDER BY c.name
-    `, [main_id, email]);
-
+    const result = await pool.query(
+      "SELECT id, name FROM categories WHERE main_topic_id = $1 AND user_email = $2 ORDER BY id DESC",
+      [main_id, email]
+    );
     res.json(result.rows);
   } catch (err) {
-    console.error("Kategoriler alınamadı:", err.message);
-    res.status(500).json({ success: false });
+    console.error("Kategori listeleme hatası:", err);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
+
 
 
 
@@ -657,23 +653,22 @@ app.put("/update-main-category", async (req, res) => {
   }
 });
 // ✅ Kategori ekle
-app.post("/add-category", async (req, res) => {
+pp.post("/add-category", async (req, res) => {
   const { name, main_id, email } = req.body;
   if (!name || !main_id || !email) return res.status(400).json({ success: false, message: "Eksik bilgi" });
 
   try {
-    const result = await pool.query(`
-      INSERT INTO categories (name, main_topic_id, user_email)
-      VALUES ($1, $2, $3)
-      RETURNING id
-    `, [name, main_id, email]);
-
-    res.json({ success: true, id: result.rows[0].id });
+    await pool.query(
+      "INSERT INTO categories (name, main_topic_id, user_email) VALUES ($1, $2, $3)",
+      [name, main_id, email]
+    );
+    res.json({ success: true });
   } catch (err) {
-    console.error("Kategori ekleme hatası:", err.message);
-    res.status(500).json({ success: false, message: "Sunucu hatası: Kategori oluşturulamadı." });
+    console.error("Kategori ekleme hatası:", err);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
+
 
 // Kategori adı güncelleme
 app.put("/update-category", async (req, res) => {
