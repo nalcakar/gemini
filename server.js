@@ -711,6 +711,9 @@ app.put("/move-title", async (req, res) => {
 // Bu kod bloğu server.js'e eklenmelidir. (Zaten son versiyona eklendiyse atlanabilir)
 
 // === Başlık silme (eğer altında soru yoksa)
+// Bu kod bloğu server.js'e eklenmelidir. (Zaten son versiyona eklendiyse atlanabilir)
+
+// === Başlık silme (eğer altında soru yoksa)
 app.delete("/delete-title/:id", async (req, res) => {
   const { id } = req.params;
   const email = req.query.email;
@@ -778,7 +781,8 @@ app.delete("/delete-main-category/:id", async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
-// === Başlık (title) adını güncelle
+
+// === Başlık adını güncelle
 app.put("/update-title-name", async (req, res) => {
   const { id, newName, email } = req.body;
   if (!id || !newName || !email) return res.status(400).json({ success: false });
