@@ -516,13 +516,10 @@ app.get("/list-main-categories", async (req, res) => {
 
   try {
     const result = await pool.query(`
-      SELECT DISTINCT mt.id, mt.name
-      FROM main_topics mt
-      JOIN categories c ON c.main_topic_id = mt.id
-      JOIN titles t ON t.category_id = c.id
-      JOIN questions q ON q.title_id = t.id
-      WHERE q.user_email = $1
-      ORDER BY mt.name
+      SELECT id, name
+      FROM main_topics
+      WHERE user_email = $1
+      ORDER BY name
     `, [email]);
 
     res.json(result.rows);
