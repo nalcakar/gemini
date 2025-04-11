@@ -444,11 +444,11 @@ app.post("/save-questions", async (req, res) => {
     if (!resolvedTitleId) {
       // a) Ana başlık: AI
       const mainRes = await client.query(`
-        INSERT INTO main_topics(name)
-        VALUES ('AI')
+        INSERT INTO main_topics(name, user_email)
+        VALUES ('AI', $1)
         ON CONFLICT(name) DO NOTHING
         RETURNING id
-      `);
+      `, [userEmail]);
       const main_topic_id = mainRes.rows[0]?.id || (
         await client.query("SELECT id FROM main_topics WHERE name = 'AI'")
       ).rows[0]?.id;
@@ -566,16 +566,16 @@ app.get("/list-titles", async (req, res) => {
 });
 
 app.get("/get-questions", async (req, res) => {
-  const { title_id } = req.query;
-  if (!title_id) return res.status(400).json({ success: false, message: "Eksik başlık ID" });
+  const { title_id, email } = req.query;
+  if (!title_id || !email) return res.status(400).json({ success: false, message: "Eksik veri" });
 
   try {
     const result = await pool.query(`
       SELECT id, question, options, answer, explanation 
       FROM questions 
-      WHERE title_id = $1
+      WHERE title_id = $1 AND user_email = $2
       ORDER BY id DESC
-    `, [title_id]);
+    `, [title_id, email]);
 
     res.json({ questions: result.rows });
   } catch (err) {
@@ -583,10 +583,19 @@ app.get("/get-questions", async (req, res) => {
     res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
+
+
 app.delete("/delete-question/:id", async (req, res) => {
   const { id } = req.params;
+  const email = req.query.email;
+
+  if (!email) return res.status(400).json({ success: false, message: "Email eksik" });
+
   try {
-    await pool.query("DELETE FROM questions WHERE id = $1", [id]);
+    const result = await pool.query("DELETE FROM questions WHERE id = $1 AND user_email = $2", [id, email]);
+    if (result.rowCount === 0) {
+      return res.status(403).json({ success: false, message: "Bu soruyu silme yetkiniz yok" });
+    }
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Silme hatası:", err.message);
@@ -594,39 +603,27 @@ app.delete("/delete-question/:id", async (req, res) => {
   }
 });
 
-app.put("/update-question", async (req, res) => {
-  const { id, question, options, answer, explanation } = req.body;
 
-  if (!id) return res.status(400).json({ success: false, message: "Eksik ID" });
+app.put("/update-question", async (req, res) => {
+  const { id, question, options, answer, explanation, email } = req.body;
+
+  if (!id || !email) return res.status(400).json({ success: false, message: "Eksik ID veya email" });
 
   try {
     const result = await pool.query(`
       UPDATE questions 
       SET question = $1, options = $2, answer = $3, explanation = $4 
-      WHERE id = $5
-    `, [question, JSON.stringify(options), answer, explanation, id]);
+      WHERE id = $5 AND user_email = $6
+    `, [question, JSON.stringify(options), answer, explanation, id, email]);
+
+    if (result.rowCount === 0) {
+      return res.status(403).json({ success: false, message: "Bu soruyu güncelleme yetkiniz yok" });
+    }
 
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Güncelleme hatası:", err.message);
     res.status(500).json({ success: false, message: "Sunucu hatası" });
-  }
-});
-
-// Yeni ana başlık oluştur
-// ✅ Ana başlık ekle
-app.post('/add-main-category', async (req, res) => {
-  const { name, email } = req.body;
-
-  try {
-    const result = await pool.query(
-      'INSERT INTO main_topics (name, user_email) VALUES ($1, $2) RETURNING *',
-      [name, email]
-    );
-    res.json({ success: true, topic: result.rows[0] });
-  } catch (error) {
-    console.error('Ana başlık ekleme hatası:', error);
-    res.status(500).json({ success: false, message: error.message });
   }
 });
 
