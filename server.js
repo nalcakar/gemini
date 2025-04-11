@@ -874,7 +874,25 @@ app.put("/update-main-topic-name", async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+app.get("/list-all-titles", async (req, res) => {
+  const { email, order_by, sort } = req.query;
 
+  try {
+    const result = await pool.query(`
+      SELECT t.id, t.name, c.name AS category_name, m.name AS main_name
+      FROM titles t
+      JOIN categories c ON t.category_id = c.id
+      JOIN main_topics m ON c.main_topic_id = m.id
+      WHERE t.user_email = $1
+      ORDER BY ${order_by || "created_at"} ${sort || "DESC"}
+    `, [email]);
+
+    res.json({ success: true, titles: result.rows });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
 
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
@@ -885,29 +903,6 @@ app.get("*", (req, res, next) => {
 
   // Aksi halde index.html'e yönlendir
   res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-app.get("/list-all-titles", async (req, res) => {
-  const email = req.query.email;
-  const order_by = req.query.order_by || "created_at";
-  const sort = req.query.sort === "asc" ? "ASC" : "DESC";
-
-  const validOrderBys = ["name", "created_at"];
-  const orderByColumn = validOrderBys.includes(order_by) ? order_by : "created_at";
-
-  try {
-    const result = await pool.query(
-      `SELECT titles.id, titles.name, titles.created_at, categories.name AS category_name, main_topics.name AS main_name
-       FROM titles
-       JOIN categories ON titles.category_id = categories.id
-       JOIN main_topics ON categories.main_topic_id = main_topics.id
-       WHERE titles.user_email = $1
-       ORDER BY ${orderByColumn} ${sort}`, [email]);
-
-    res.json({ success: true, titles: result.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
-  }
 });
 
 // === SUNUCU BAŞLAT ===
