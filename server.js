@@ -875,24 +875,30 @@ app.put("/update-main-topic-name", async (req, res) => {
   }
 });
 app.get("/list-all-titles", async (req, res) => {
-  const { email, order_by, sort } = req.query;
+  const { email, order_by = "created_at", sort = "desc" } = req.query;
+
+  if (!email) return res.status(400).json({ success: false, message: "Email gereklidir." });
+
+  const orderField = ["name", "created_at"].includes(order_by) ? order_by : "created_at";
+  const sortDirection = sort.toLowerCase() === "asc" ? "ASC" : "DESC";
 
   try {
     const result = await pool.query(`
-      SELECT t.id, t.name, c.name AS category_name, m.name AS main_name
-      FROM titles t
-      JOIN categories c ON t.category_id = c.id
-      JOIN main_topics m ON c.main_topic_id = m.id
-      WHERE t.user_email = $1
-      ORDER BY ${order_by || "created_at"} ${sort || "DESC"}
+      SELECT titles.*, categories.name AS category_name, main_topics.name AS main_name
+      FROM titles
+      JOIN categories ON titles.category_id = categories.id
+      JOIN main_topics ON categories.main_topic_id = main_topics.id
+      WHERE titles.user_email = $1
+      ORDER BY ${orderField} ${sortDirection}
     `, [email]);
 
     res.json({ success: true, titles: result.rows });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
+  } catch (err) {
+    console.error("Başlıkları listelerken hata:", err.message);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
+
 
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
