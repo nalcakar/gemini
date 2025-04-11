@@ -620,6 +620,27 @@ app.delete("/delete-questions-by-title/:id", async (req, res) => {
     res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
+app.put("/move-title", async (req, res) => {
+  const { id, newCategoryId, email } = req.body;
+  try {
+    await pool.query("UPDATE titles SET category_id = $1 WHERE id = $2 AND user_email = $3", [newCategoryId, id, email]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Title taşıma hatası:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+app.put("/move-category", async (req, res) => {
+  const { id, newMainId, email } = req.body;
+  try {
+    await pool.query("UPDATE categories SET main_topic_id = $1 WHERE id = $2 AND user_email = $3", [newMainId, id, email]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Kategori taşıma hatası:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
 
 app.put("/update-question", async (req, res) => {
   const { id, question, options, answer, explanation, email } = req.body;
