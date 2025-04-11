@@ -663,7 +663,7 @@ app.post("/add-category", async (req, res) => {
 
   try {
     const result = await pool.query(`
-      INSERT INTO categories (name, main_id, user_email)
+      INSERT INTO categories (name, main_topic_id, user_email)
       VALUES ($1, $2, $3)
       RETURNING id
     `, [name, main_id, email]);
