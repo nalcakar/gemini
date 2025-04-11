@@ -422,7 +422,6 @@ app.get("/auth/patreon/callback", async (req, res) => {
 app.post("/save-questions", async (req, res) => {
   const { title, questions, userEmail, promptText } = req.body;
 
-
   if (!title || !questions || !userEmail) {
     return res.status(400).json({ success: false, message: "Eksik bilgi" });
   }
@@ -435,8 +434,8 @@ app.post("/save-questions", async (req, res) => {
 
     // 1. Başlık zaten var mı?
     const titleSelect = await client.query(
-      "SELECT id FROM titles WHERE name = $1 LIMIT 1",
-      [title]
+      "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
+      [title, userEmail]
     );
     resolvedTitleId = titleSelect.rows[0]?.id;
 
@@ -446,37 +445,42 @@ app.post("/save-questions", async (req, res) => {
       const mainRes = await client.query(`
         INSERT INTO main_topics(name, user_email)
         VALUES ('AI', $1)
-        ON CONFLICT(name) DO NOTHING
+        ON CONFLICT(name, user_email) DO NOTHING
         RETURNING id
       `, [userEmail]);
+
       const main_topic_id = mainRes.rows[0]?.id || (
-        await client.query("SELECT id FROM main_topics WHERE name = 'AI'")
+        await client.query("SELECT id FROM main_topics WHERE name = 'AI' AND user_email = $1", [userEmail])
       ).rows[0]?.id;
 
       if (!main_topic_id) throw new Error("Ana başlık oluşturulamadı.");
 
       // b) Kategori: General
       const catRes = await client.query(`
-        INSERT INTO categories(name, main_topic_id)
-        VALUES ('General', $1)
-        ON CONFLICT(name, main_topic_id) DO NOTHING
+        INSERT INTO categories(name, main_topic_id, user_email)
+        VALUES ('General', $1, $2)
+        ON CONFLICT(name, main_topic_id, user_email) DO NOTHING
         RETURNING id
-      `, [main_topic_id]);
+      `, [main_topic_id, userEmail]);
+
       const category_id = catRes.rows[0]?.id || (
-        await client.query("SELECT id FROM categories WHERE name = 'General' AND main_topic_id = $1", [main_topic_id])
+        await client.query("SELECT id FROM categories WHERE name = 'General' AND main_topic_id = $1 AND user_email = $2", [main_topic_id, userEmail])
       ).rows[0]?.id;
 
       if (!category_id) throw new Error("Kategori oluşturulamadı.");
 
       // c) Başlık ekle
       const titleInsert = await client.query(`
-        INSERT INTO titles(name, category_id, prompt_text)
-        VALUES ($1, $2, $3)
+        INSERT INTO titles(name, category_id, prompt_text, user_email)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT(name, category_id, user_email) DO NOTHING
         RETURNING id
-      `, [title, category_id, promptText || null]);
-      
-      resolvedTitleId = titleInsert.rows[0]?.id;
-      
+      `, [title, category_id, promptText || null, userEmail]);
+
+      resolvedTitleId = titleInsert.rows[0]?.id || (
+        await client.query("SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3", [title, category_id, userEmail])
+      ).rows[0]?.id;
+
       if (!resolvedTitleId) throw new Error("Başlık oluşturulamadı.");
     }
 
@@ -486,8 +490,8 @@ app.post("/save-questions", async (req, res) => {
       if (!q.question || !q.options || !q.answer) continue;
 
       const exists = await client.query(
-        "SELECT id FROM questions WHERE question = $1 AND title_id = $2",
-        [q.question, resolvedTitleId]
+        "SELECT id FROM questions WHERE question = $1 AND title_id = $2 AND user_email = $3",
+        [q.question, resolvedTitleId, userEmail]
       );
 
       if (exists.rows.length === 0) {
@@ -510,6 +514,7 @@ app.post("/save-questions", async (req, res) => {
     client.release();
   }
 });
+
 app.get('/list-main-categories', async (req, res) => {
   const email = req.query.email;
 
