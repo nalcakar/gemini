@@ -471,11 +471,12 @@ app.post("/save-questions", async (req, res) => {
 
       // c) Başlık ekle
       const titleInsert = await client.query(`
-        INSERT INTO titles(name, category_id, prompt_text, user_email)
+        INSERT INTO titles(name, category_id, user_email, prompt_text)
         VALUES ($1, $2, $3, $4)
         ON CONFLICT(name, category_id, user_email) DO NOTHING
         RETURNING id
-      `, [title, category_id, promptText || null, userEmail]);
+      `, [title, category_id, userEmail, promptText || null]);
+      
 
       resolvedTitleId = titleInsert.rows[0]?.id || (
         await client.query("SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3", [title, category_id, userEmail])
