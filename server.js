@@ -847,6 +847,16 @@ app.put("/update-category-name", async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+app.put("/move-title-to-category", async (req, res) => {
+  const { titleId, newCategoryId, email } = req.body;
+  try {
+    await pool.query("UPDATE titles SET category_id = $1 WHERE id = $2 AND user_email = $3", [newCategoryId, titleId, email]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 // === Ana başlık adını güncelle
 app.put("/update-main-topic-name", async (req, res) => {
