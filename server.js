@@ -633,6 +633,21 @@ app.put("/update-question", async (req, res) => {
   }
 });
 
+app.post("/add-main-category", async (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) return res.status(400).json({ success: false, message: "Eksik bilgi" });
+
+  try {
+    await pool.query(
+      "INSERT INTO main_topics (name, user_email) VALUES ($1, $2) ON CONFLICT(name, user_email) DO NOTHING",
+      [name, email]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Ana başlık ekleme hatası:", err);
+    res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
+});
 
 
 // Ana başlık adı güncelleme
