@@ -1,839 +1,473 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📘 Admin Panel - Başlık ve Kategori Yönetimi</title>
+  <title>AI Question Generator</title>
   <style>
-    body {
+    #geminiApp {
       font-family: Arial, sans-serif;
+      background: #f9fafb;
       padding: 20px;
-      background: #f5f5f5;
-      max-width: 1200px;
+      border-radius: 16px;
+      max-width: 800px;
       margin: auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    h2 {
-      text-align: center;
-    }
-    .panel {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    .column {
-      background: white;
-      border-radius: 8px;
-      padding: 15px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-    }
-    .column h3 {
-      margin-top: 0;
-      font-size: 18px;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 5px;
-    }
-    .item {
-      padding: 8px 10px;
-      border: 1px solid #ddd;
-      margin-bottom: 8px;
-      border-radius: 6px;
-      background: #f9f9f9;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .item span {
-      flex-grow: 1;
-      cursor: pointer;
-    }
-    .actions {
-      display: none;
-    }
-    .edit-mode .actions {
-      display: flex;
-    }
-    .actions button {
-      margin-left: 5px;
-      padding: 4px 6px;
-      font-size: 13px;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    .edit-btn {
-      background: #e0f7fa;
-      border: 1px solid #00bcd4;
-    }
-    .delete-btn {
-      background: #ffebee;
-      border: 1px solid #f44336;
-    }
-    .edit-mode-toggle {
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .status-msg {
+    #geminiApp textarea, #geminiApp input {
+      width: 100%;
+      padding: 8px;
       font-size: 14px;
-      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      margin-bottom: 10px;
+      line-height: 1.4;
+      min-height: 32px;
+      resize: vertical;
+      overflow: auto;
+    }
+    #geminiApp button {
+      padding: 10px 16px;
+      font-size: 15px;
+      border-radius: 10px;
+      background-color: #4f46e5;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin: 6px;
+    }
+    .keyword-card, .question-card {
+      background: white;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .keyword-card {
+      border-left: 5px solid #3b82f6;
+      background: #f0f9ff;
+    }
+    #loading, #success {
+      text-align: center;
       font-weight: bold;
     }
-    @media (max-width: 900px) {
-      .panel {
-        grid-template-columns: 1fr 1fr;
-      }
+    #success {
+      color: green;
     }
-    @media (max-width: 600px) {
-      .panel {
-        grid-template-columns: 1fr;
-      }
+    #mycontent {
+      min-height: 150px;
+      max-height: 300px;
+      overflow: auto;
     }
-.question-list {
-    margin-top: 15px;
-    background: #fff;
-    padding: 10px;
-    border-radius: 6px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.1);
-  }
-  .question-block {
-    margin-top: 10px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    background-color: #f9f9f9;
-  }
-  .question-block ul {
-    padding-left: 20px;
-  }
-  .question-block b {
-    display: inline-block;
-    margin-top: 5px;
-  }
-.full-width {
-  grid-column: span 3;
+.button {
+  padding: 10px 16px;
+  font-size: 15px;
+  border-radius: 10px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin: 6px;
 }
+.manual-card {
+  background: #fff7ed;
+  border-left: 5px solid #f97316;
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  margin-top: 24px;
+  transition: all 0.3s ease;
+}
+
+.manual-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.manual-card h3 {
+  color: #b45309;
+  margin-top: 0;
+  font-size: 18px;
+}
+
+.manual-card input {
+  background-color: white;
+  border: 1px solid #facc15;
+  margin-bottom: 12px;
+  padding-left: 10px;
+}
+
+.manual-card input:focus {
+  border-color: #fb923c;
+  outline: none;
+}
+
+.manual-card button {
+  background-color: #f97316;
+  border: none;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.manual-card button:hover {
+  background-color: #ea580c;
+}
+#mycontent {
+  background-color: #fff7ed;           /* soft orange background */
+  color: #3b0764;                      /* dark purple text */
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  line-height: 1.6;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  transition: box-shadow 0.3s ease;
+}
+#mycontent:focus {
+  outline: none;
+  border-color: #fb923c;
+  box-shadow: 0 0 4px rgba(251, 146, 60, 0.6);
+}
+
+#mycontent {
+  background-color: #fff7ed;           /* soft orange background */
+  color: #3b0764;                      /* dark purple text */
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  line-height: 1.6;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  transition: box-shadow 0.3s ease;
+}
+#mycontent:focus {
+  outline: none;
+  border-color: #fb923c;
+  box-shadow: 0 0 4px rgba(251, 146, 60, 0.6);
+}
+.dot-typing {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 80px;
+  height: 24px;
+  position: relative;
+}
+.dot-typing::before,
+.dot-typing::after,
+.dot-typing div {
+  content: '';
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: #4f46e5;
+  border-radius: 50%;
+  position: absolute;
+  animation: blink 1.4s infinite ease-in-out both;
+}
+.dot-typing::before { left: -20px; animation-delay: -0.32s; }
+.dot-typing div     { left:   0px; animation-delay: -0.16s; }
+.dot-typing::after  { left:  20px; }
+
+@keyframes blink {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40%          { transform: scale(1); opacity: 1; }
+}
+
   </style>
 </head>
 <body>
-<h2>📂 Başlık / Kategori / Ana Başlık Yönetimi</h2>
-<div class="panel">
-  <div class="column">
-    <h3>Ana Başlıklar</h3>
-    <input type="search" id="searchMain" placeholder="🔍 Ana başlık ara..." oninput="filterItems('mainTopics', this.value)">
-    <div id="mainTopics"></div>
+  <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; display:flex; align-items:center; justify-content:center;">
+    <div class="dot-typing"><div></div></div>
+  </div>
+<div id="geminiApp">
+  <h3>📘 Enter Your Text:</h3>
+  <textarea id="mycontent" rows="16" placeholder="Paste or type your content here..."></textarea>
+<div style="font-size: 13px; color: gray; margin-top: 4px;">
+  <span id="mycontentCharCount">0</span> / 10,000 characters
+</div>
+<div id="mycontentCharWarning" style="color: red; font-weight: bold; display: none; margin-top: 4px;">
+  ⚠️ Maximum character limit reached. Extra text will be trimmed automatically.
+</div>
+  <div style="text-align:center">
+    <button onclick="generateGeminiKeywords()">Generate Keywords</button>
   </div>
 
-  <div class="column">
-    <h3>Kategoriler</h3>
-    <input type="search" id="searchCat" placeholder="🔍 Kategori ara..." oninput="filterItems('categories', this.value)">
-    <div id="categories"></div>
-  </div>
+  <div id="loading" style="display:none;">⏳ Processing...</div>
+  <div id="success"></div>
 
-  <div class="column">
-    <h3>Başlıklar</h3>
-    <input type="search" id="searchTitle" placeholder="🔍 Başlık ara..." oninput="filterItems('titles', this.value)">
-    <div id="titles"></div>
+  <div id="keywordsResult"></div>
+
+
+<div id="manualKeywordSection" style="display: none;" class="manual-card">
+  <h3>➕ Add Manual Keyword</h3>
+  <input type="text" id="manualKeyword" placeholder="✏️ Type your keyword here..." />
+  <div style="text-align: center;">
+    <button onclick="addManualKeyword()">🔍 Add with AI Explanation</button>
   </div>
 </div>
 
-<div class="edit-mode-toggle">
-  <input type="checkbox" id="editToggle">
-  <label for="editToggle">🛠️ Edit Modu Aktif</label>
+<div style="text-align:center; margin-top:10px;">
+  <button id="downloadKeywordsBtn" class="button" onclick="downloadKeywordsTXT()" style="display:none;">
+    📥 Download Keywords as .TXT
+  </button>
 </div>
-<div class="panel">
-  <div class="column" id="mainTopics">
-    <h3>Ana Başlıklar</h3>
-  </div>
-  <div class="column" id="categories">
-    <h3>Kategoriler</h3>
-  </div>
-  <div class="column" id="titles">
-    <h3>Başlıklar</h3>
-  </div>
-</div>
-<div class="status-msg" id="status"></div>
-<div id="questionList" class="question-list"></div>
+
+  <h4>📌 File Title (required):</h4>
+  <input type="text" id="fileTitle" placeholder="e.g., Heart Review" />
+  <p id="warning" style="color:red; display:none;">⚠️ Please enter a title.</p>
+
+
 <script>
-const email = localStorage.getItem("userEmail");
-const API = "https://gemini-j8xd.onrender.com";
-const mainBox = document.getElementById("mainTopics");
-const catBox = document.getElementById("categories");
-const titleBox = document.getElementById("titles");
-const statusDiv = document.getElementById("status");
-const editToggle = document.getElementById("editToggle");
-
-let currentMainId = null;
-let currentCatId = null;
-
-editToggle.addEventListener("change", () => {
-  document.body.classList.toggle("edit-mode", editToggle.checked);
-});
-
-async function loadPanel() {
-  mainBox.innerHTML = '<h3>Ana Başlıklar</h3>';
-  catBox.innerHTML = '<h3>Kategoriler</h3>';
-  titleBox.innerHTML = '<h3>Başlıklar</h3>';
-
-  const res = await fetch(`${API}/list-main-categories?email=${email}`);
-  const data = await res.json();
-
-  for (const m of data) {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <span onclick="selectMain(${m.id})">${m.name}</span>
-      <div class="actions">
-        <button class="edit-btn" onclick="editMain(${m.id}, '${m.name}')">✏️</button>
-        <button class="delete-btn" onclick="deleteMain(${m.id})">🗑️</button>
-      </div>
-    `;
-    mainBox.appendChild(div);
+  function showLoading() {
+  const overlay = document.getElementById("loadingOverlay");
+  if (overlay) {
+    overlay.style.display = "flex";
+    document.body.style.overflow = "hidden"; // kaydırmayı engelle
   }
 }
 
-window.selectMain = async function(id) {
-  currentMainId = id;
-  catBox.innerHTML = '<h3>Kategoriler</h3>';
-  titleBox.innerHTML = '<h3>Başlıklar</h3>';
-
-  const res = await fetch(`${API}/list-categories?main_id=${id}&email=${email}`);
-  const data = await res.json();
-
-  for (const c of data) {
-  const div = document.createElement("div");
-  div.className = "item";
-  div.innerHTML = `
-    <span onclick="selectCategory(${c.id})">${c.name}</span>
-    <div class="actions">
-      <button class="edit-btn" onclick="editCategory(${c.id}, '${c.name}')">✏️</button>
-      <button class="delete-btn" onclick="deleteCategory(${c.id})">🗑️</button>
-      <button class="edit-btn" onclick="moveCategoryToAnotherMain(${c.id})">📂 Taşı</button>
-    </div>
-  `;
-  catBox.appendChild(div);
+function hideLoading() {
+  const overlay = document.getElementById("loadingOverlay");
+  if (overlay) {
+    overlay.style.display = "none";
+    document.body.style.overflow = "";
+  }
 }
-};
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    document.querySelectorAll("textarea").forEach(t => {
+      if (t.id !== "mycontent") {
+        t.setAttribute("rows", "1");
+        autoResize(t);
+      }
+    });
+  }, 200);
 
-window.selectCategory = async function(id) {
-  currentCatId = id;
-  titleBox.innerHTML = '<h3>Başlıklar</h3>';
+  const textarea = document.getElementById("mycontent");
+  const saved = localStorage.getItem("mycontentText");
+  if (saved) {
+    textarea.value = saved.slice(0, maxChars);
+    mycontentCharCount.textContent = textarea.value.length;
+    if (textarea.value.length >= maxChars) {
+      mycontentCharWarning.style.display = "block";
+    }
+  }
 
-  const res = await fetch(`${API}/list-titles?category_id=${id}&email=${email}`);
-  const data = await res.json();
-
-  for (const t of data) {
-  const div = document.createElement("div");
-  div.className = "item";
-  div.innerHTML = `
-    <span onclick="selectTitle(${t.id})">${t.name}</span>
-
-    <div class="actions">
-      <button class="edit-btn" onclick="editTitle(${t.id}, '${t.name}')">✏️</button>
-      <button class="delete-btn" onclick="deleteTitle(${t.id})">🗑️</button>
-      <button class="edit-btn" onclick="moveTitleToAnotherCategory(${t.id})">📂 Taşı</button>
-    </div>
-  `;
-  titleBox.appendChild(div);
-}
-};
-
-window.editTitle = async function(id, oldName) {
-  if (!editToggle.checked) return;
-  const newName = prompt("Yeni başlık adı:", oldName);
-  if (!newName || newName === oldName) return;
-  const res = await fetch(`${API}/update-title-name`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, newName, email })
+  textarea.addEventListener("input", () => {
+    localStorage.setItem("mycontentText", textarea.value);
   });
-  const data = await res.json();
-  if (data.success) loadPanel();
-  else alert("❌ Güncelleme başarısız: " + (data.message || "Sunucu hatası"));
+});
+
+function autoResize(el) {
+  el.style.height = "auto";
+  el.style.height = (el.scrollHeight) + "px";
 }
 
-window.editCategory = async function(id, oldName) {
-  if (!editToggle.checked) return;
-  const newName = prompt("Yeni kategori adı:", oldName);
-  if (!newName || newName === oldName) return;
-  const res = await fetch(`${API}/update-category-name`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, newName, email })
+function validateTitle() {
+  const title = document.getElementById("fileTitle").value.trim();
+  const warning = document.getElementById("warning");
+  if (!title) {
+    warning.style.display = "block";
+    return null;
+  }
+  warning.style.display = "none";
+  return title;
+}
+
+function formatKeywordsOnly() {
+  let result = "www.doitwithai.org\n\n📌 Keywords:\n\n";
+  document.querySelectorAll(".keyword-card").forEach(card => {
+    const keyword = card.querySelector(".kword").innerText.trim();
+    const explanation = card.querySelector(".explanation").innerText.trim();
+    result += `- ${keyword}: ${explanation}\n`;
   });
-  const data = await res.json();
-  if (data.success) loadPanel();
-  else alert("❌ Güncelleme başarısız: " + (data.message || "Sunucu hatası"));
+  result += "\nwww.doitwithai.org";
+  return result;
 }
 
-window.editMain = async function(id, oldName) {
-  if (!editToggle.checked) return;
-  const newName = prompt("Yeni ana başlık adı:", oldName);
-  if (!newName || newName === oldName) return;
-  const res = await fetch(`${API}/update-main-topic-name`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, newName, email })
-  });
-  const data = await res.json();
-  if (data.success) loadPanel();
-  else alert("❌ Güncelleme başarısız: " + (data.message || "Sunucu hatası"));
+function downloadKeywordsTXT() {
+  const title = validateTitle();
+  if (!title) return;
+
+  showLoading(); // ✨ göster
+
+  setTimeout(() => {
+    const formatted = formatKeywordsOnly();
+    const blob = new Blob(["\uFEFF" + formatted], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title}_keywords.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    hideLoading(); // ✨ gizle
+  }, 300); // kısa bir bekleme süresi ile daha yumuşak
 }
 
-window.deleteTitle = async function(id) {
-  if (!editToggle.checked) return;
-  if (!confirm("Bu başlığı silmek istiyor musunuz?")) return;
-  const res = await fetch(`${API}/delete-title/${id}?email=${email}`, { method: "DELETE" });
-  const data = await res.json();
-  if (data.success) loadPanel();
-  else alert("❌ Silme başarısız: " + (data.message || "Sunucu hatası"));
+
+function editKeyword(btn) {
+  const card = btn.closest(".keyword-card");
+  card.querySelector(".view-mode").style.display = "none";
+  card.querySelector(".edit-mode").style.display = "block";
 }
 
-window.deleteCategory = async function(id) {
-  if (!editToggle.checked) return;
-  if (!confirm("Bu kategoriyi (başlık yoksa) silmek istiyor musunuz?")) return;
-  const res = await fetch(`${API}/delete-category/${id}?email=${email}`, { method: "DELETE" });
-  const data = await res.json();
-  if (data.success) loadPanel();
-  else alert("❌ Silinemedi: " + (data.message || "Başlık olabilir veya sunucu hatası"));
+function deleteKeyword(btn) {
+  const card = btn.closest(".keyword-card");
+  card.remove();
 }
 
-window.deleteMain = async function(id) {
-  if (!editToggle.checked) return;
-  if (!confirm("Bu ana başlığı (kategori yoksa) silmek istiyor musunuz?")) return;
-  const res = await fetch(`${API}/delete-main-topic/${id}?email=${email}`, { method: "DELETE" });
-  const data = await res.json();
-  if (data.success) loadPanel();
-  else alert("❌ Silinemedi: " + (data.message || "Kategori olabilir veya sunucu hatası"));
+function saveKeyword(btn) {
+  const card = btn.closest(".keyword-card");
+  const newKeyword = card.querySelector(".edit-kword").value.trim();
+  const newExplanation = card.querySelector(".edit-explanation").value.trim();
+  card.querySelector(".kword").textContent = newKeyword;
+  card.querySelector(".explanation").textContent = newExplanation;
+  card.querySelector(".view-mode").style.display = "block";
+  card.querySelector(".edit-mode").style.display = "none";
 }
 
-loadPanel();
+function cancelEdit(btn) {
+  const card = btn.closest(".keyword-card");
+  card.querySelector(".view-mode").style.display = "block";
+  card.querySelector(".edit-mode").style.display = "none";
+}
 
-window.selectTitle = async function (id) {
-  const email = localStorage.getItem("userEmail");
-  const res = await fetch(`${API}/get-questions?title_id=${id}&email=${encodeURIComponent(email)}`);
-  const data = await res.json();
+async function generateGeminiKeywords() {
+  const mycontent = document.getElementById("mycontent").value.trim();
+  const loading = document.getElementById("loading");
+  const keywordsResult = document.getElementById("keywordsResult");
+  const success = document.getElementById("success");
+  const manualSection = document.getElementById("manualKeywordSection");
 
-  const container = document.getElementById("questionList");
-  container.innerHTML = `<h4>📋 Bu başlığa ait sorular:</h4>`;
+  showLoading(); // EKRANI GÖSTER
+  loading.style.display = "block";
+  success.textContent = "";
+  keywordsResult.innerHTML = "";
+  document.getElementById("downloadKeywordsBtn").style.display = "none";
 
-  if (!data.questions || data.questions.length === 0) {
-    container.innerHTML += `<p>❌ Hiç soru bulunamadı.</p>`;
+  if (!mycontent) {
+    success.textContent = "⚠️ Please enter some content before generating keywords.";
+    loading.style.display = "none";
+    hideLoading(); // EKRANI KAPAT
+    if (manualSection) manualSection.style.display = "none";
     return;
   }
 
-  // "Tümünü Sil" butonu
-  const deleteAllBtn = document.createElement("button");
-  deleteAllBtn.textContent = "🗑️ Tümünü Sil";
-  deleteAllBtn.style.marginBottom = "10px";
-  deleteAllBtn.onclick = async () => {
-    if (!confirm("Tüm soruları silmek istediğinize emin misiniz?")) return;
-    const res = await fetch(`${API}/delete-questions-by-title/${id}?email=${email}`, { method: "DELETE" });
-    const result = await res.json();
-    if (result.success) {
-      alert("✅ Tüm sorular silindi.");
-      container.innerHTML = "";
-    } else {
-      alert("❌ Silinemedi: " + (result.message || "Sunucu hatası"));
-    }
-  };
-  container.appendChild(deleteAllBtn);
-
-  // Soruları göster
-  data.questions.forEach((q, i) => {
-    const div = document.createElement("div");
-    div.className = "question-block";
-    div.innerHTML = `
-      <div><b>Soru ${i + 1}:</b></div>
-      <div contenteditable="true" class="q" data-id="${q.id}" data-key="question">${q.question}</div>
-      <ul>
-        ${q.options.map((opt, idx) => `<li contenteditable="true" class="q" data-id="${q.id}" data-key="option${idx}">${opt}</li>`).join("")}
-      </ul>
-      <div><b>Cevap:</b></div>
-      <div contenteditable="true" class="q" data-id="${q.id}" data-key="answer">${q.answer}</div>
-      <div><b>Açıklama:</b></div>
-      <div contenteditable="true" class="q" data-id="${q.id}" data-key="explanation">${q.explanation || ""}</div>
-      <button onclick="saveQuestion(${q.id})">💾 Kaydet</button>
-      <button onclick="deleteQuestion(${q.id}, this)">❌ Sil</button>
-    `;
-    container.appendChild(div);
-  });
-};
-async function saveQuestion(id) {
-  const blocks = document.querySelectorAll(`.q[data-id="${id}"]`);
-  const updated = { options: [] };
-
-  blocks.forEach(b => {
-    const key = b.dataset.key;
-    if (key.startsWith("option")) {
-      updated.options.push(b.innerText.trim());
-    } else {
-      updated[key] = b.innerText.trim();
-    }
-  });
-
-  const res = await fetch(`${API}/update-question`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      id,
-      question: updated.question,
-      options: updated.options,
-      answer: updated.answer,
-      explanation: updated.explanation,
-      email: localStorage.getItem("userEmail")
-    })
-  });
-
-  const data = await res.json();
-  if (data.success) {
-    alert("✅ Güncellendi");
-  } else {
-    alert("❌ Güncellenemedi");
-  }
-}
-async function deleteQuestion(id, btn) {
-  if (!confirm("Bu soruyu silmek istediğinize emin misiniz?")) return;
-
-  const res = await fetch(`${API}/delete-question/${id}?email=${encodeURIComponent(localStorage.getItem("userEmail"))}`, {
-    method: "DELETE"
-  });
-
-  const data = await res.json();
-  if (data.success) {
-    btn.closest(".question-block").remove();
-    alert("✅ Silindi");
-  } else {
-    alert("❌ Silinemedi");
-  }
-}
-// Title'ı başka kategoriye taşı
-window.moveTitleToAnotherCategory = async function(titleId) {
-  if (!editToggle.checked) return;
-
-  const newCategoryId = prompt("Yeni kategori ID'sini girin:");
-  if (!newCategoryId || isNaN(newCategoryId)) return alert("Geçerli bir ID girin.");
-
   try {
-    const res = await fetch(`${API}/move-title`, {
-      method: "PUT",
+    const keywordRes = await fetch("https://gemini-j8xd.onrender.com/generate-keywords", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ titleId, newCategoryId })
+      body: JSON.stringify({ mycontent })
     });
 
-    const data = await res.json();
-    if (data.success) {
-      alert("✅ Başlık başarıyla taşındı.");
-      loadPanel();
+    const kwData = await keywordRes.json();
+
+    if (kwData.keywords) {
+      const items = kwData.keywords.split("\n").filter(line => line.startsWith("-"));
+      items.forEach(line => {
+        const [keyword, explanation] = line.substring(1).split(":");
+        if (keyword && explanation) {
+          const div = document.createElement("div");
+          div.className = "keyword-card";
+          div.innerHTML = `
+            <div class="view-mode">
+              <strong class="kword">${keyword.trim()}</strong><br>
+              <span class="explanation">${explanation.trim()}</span><br>
+              <button onclick="editKeyword(this)">Edit</button>
+              <button onclick="deleteKeyword(this)">Delete</button>
+            </div>
+            <div class="edit-mode" style="display:none;">
+              <input type="text" class="edit-kword" value="${keyword.trim()}" />
+              <input type="text" class="edit-explanation" value="${explanation.trim()}" />
+              <button onclick="saveKeyword(this)">Save</button>
+              <button onclick="cancelEdit(this)">Cancel</button>
+            </div>
+          `;
+          keywordsResult.appendChild(div);
+        }
+      });
+
+      success.textContent = "✔ Keywords successfully generated.";
+      document.getElementById("downloadKeywordsBtn").style.display = "block";
+      if (manualSection) manualSection.style.display = "block";
     } else {
-      alert("❌ Taşıma başarısız.");
+      success.textContent = "⚠️ Failed to receive keywords.";
+      if (manualSection) manualSection.style.display = "none";
     }
   } catch (err) {
-    console.error("Taşıma hatası:", err);
-    alert("❌ Sunucu hatası.");
+    success.textContent = "❌ An error occurred: " + err.message;
+    if (manualSection) manualSection.style.display = "none";
+  } finally {
+    loading.style.display = "none";
+    hideLoading(); // İŞLEM TAMAM, KAPAT
   }
 }
 
-// Kategoriyi başka ana başlığa taşı
-window.moveCategoryToAnotherMain = async function(categoryId) {
-  if (!editToggle.checked) return;
 
-  const newMainId = prompt("Yeni ana başlık ID'sini girin:");
-  if (!newMainId || isNaN(newMainId)) return alert("Geçerli bir ID girin.");
+
+async function addManualKeyword() {
+  const keywordInput = document.getElementById("manualKeyword");
+  const keyword = keywordInput.value.trim();
+  const mycontent = document.getElementById("mycontent").value.trim();
+
+  if (!keyword) {
+    alert("Please enter a keyword.");
+    return;
+  }
+
+  showLoading(); // ✨ göster
+  const loading = document.getElementById("loading");
+  loading.style.display = "block";
 
   try {
-    const res = await fetch(`${API}/move-category`, {
-      method: "PUT",
+    const res = await fetch("https://gemini-j8xd.onrender.com/define-keyword", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: categoryId, newMainId, email })
+      body: JSON.stringify({ keyword, mycontent })
     });
 
     const data = await res.json();
-    if (data.success) {
-      alert("✅ Kategori başarıyla taşındı.");
-      loadPanel();
+
+    if (data.explanation) {
+      const div = document.createElement("div");
+      div.className = "keyword-card";
+      div.innerHTML = `
+        <div class="view-mode">
+          <strong class="kword">${keyword}</strong><br>
+          <span class="explanation">${data.explanation}</span><br>
+          <small style="color:gray">💬 Context-based explanation (${data.lang})</small><br>
+          <button onclick="editKeyword(this)">Edit</button>
+          <button onclick="deleteKeyword(this)">Delete</button>
+        </div>
+        <div class="edit-mode" style="display:none;">
+          <input type="text" class="edit-kword" value="${keyword}" />
+          <input type="text" class="edit-explanation" value="${data.explanation}" />
+          <button onclick="saveKeyword(this)">Save</button>
+          <button onclick="cancelEdit(this)">Cancel</button>
+        </div>
+      `;
+      document.getElementById("keywordsResult").appendChild(div);
+      document.getElementById("downloadKeywordsBtn").style.display = "block";
+      keywordInput.value = "";
     } else {
-      alert("❌ Taşıma başarısız.");
+      alert("No explanation received from AI.");
     }
   } catch (err) {
-    console.error("Taşıma hatası:", err);
-    alert("❌ Sunucu hatası.");
+    alert("❌ An error occurred: " + err.message);
+  } finally {
+    loading.style.display = "none";
+    hideLoading(); // ✨ gizle
   }
 }
-
-let selectedTitleIdForMove = null;
-
-window.moveTitleToAnotherCategory = async function(titleId) {
-  selectedTitleIdForMove = titleId;
-
-  // Ana başlıkları yükle
-  const res = await fetch(`${API}/list-main-categories?email=${email}`);
-  const data = await res.json();
-
-  const mainSel = document.getElementById("modalMainSelect");
-  mainSel.innerHTML = '<option disabled selected>Seçiniz</option>';
-  data.forEach(m => {
-    mainSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-  });
-
-  // Kategori select'i temizle
-  document.getElementById("modalCategorySelect").innerHTML = '<option disabled selected>Önce ana başlık seçin</option>';
-  document.getElementById("moveModal").style.display = "block";
-};
-
-// Ana başlık seçilince kategorileri yükle
-document.addEventListener("DOMContentLoaded", () => {
-  const modalMainSelect = document.getElementById("modalMainSelect");
-  if (modalMainSelect) {
-    modalMainSelect.addEventListener("change", async function () {
-      const mainId = this.value;
-      const res = await fetch(`${API}/list-categories?main_id=${mainId}&email=${email}`);
-      const data = await res.json();
-
-      const catSel = document.getElementById("modalCategorySelect");
-      catSel.innerHTML = '<option disabled selected>Seçiniz</option>';
-      data.forEach(c => {
-        catSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
-      });
-    });
-  }
-});
-
-
-// Taşıyı Onayla
-window.confirmMove = async function() {
-  const newCategoryId = document.getElementById("modalCategorySelect").value;
-  if (!newCategoryId) return alert("Lütfen kategori seçin.");
-
-  const res = await fetch(`${API}/move-title-to-category`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ titleId: selectedTitleIdForMove, newCategoryId, email })
-  });
-
-  const data = await res.json();
-  if (data.success) {
-    alert("✅ Başlık başarıyla taşındı.");
-    closeMoveModal();
-    loadPanel();
-  } else {
-    alert("❌ Taşıma başarısız: " + (data.message || "Sunucu hatası"));
-  }
-};
-
-window.closeMoveModal = function () {
-  document.getElementById("moveModal").style.display = "none";
-};
-function openAddModal() {
-  document.getElementById("addModal").style.display = "block";
-  loadMainOptions(); // dropdown'ları doldur
-}
-
-function closeAddModal() {
-  document.getElementById("addModal").style.display = "none";
-  document.getElementById("addStatus").innerText = "";
-}
-
-// Dropdown'lara ana başlık ve kategori verilerini yükle
-async function loadMainOptions() {
-  const resMain = await fetch(`${API}/list-main-categories?email=${email}`);
-  const mainData = await resMain.json();
-
-  const mainSel = document.getElementById("mainTopicForCategory");
-  const catSel = document.getElementById("categoryForTitle");
-
-  mainSel.innerHTML = '<option disabled selected>Ana başlık seç</option>';
-  mainData.forEach(m => {
-    mainSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-  });
-
-  mainSel.onchange = async () => {
-    const mainId = mainSel.value;
-    const resCats = await fetch(`${API}/list-categories?main_id=${mainId}&email=${email}`);
-    const catData = await resCats.json();
-
-    catSel.innerHTML = '<option disabled selected>Kategori seç</option>';
-    catData.forEach(c => {
-      catSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
-    });
-  };
-}
-
-// Tüm eklemeleri yapar
-async function addAll() {
-  const mainName = document.getElementById("newMainTopic").value.trim();
-  const categoryName = document.getElementById("newCategory").value.trim();
-  const categoryMainId = document.getElementById("mainTopicForCategory").value;
-  const titleName = document.getElementById("newTitle").value.trim();
-  const titleCategoryId = document.getElementById("categoryForTitle").value;
-  const status = document.getElementById("addStatus");
-
-  // Ana başlık ekle
-  if (mainName) {
-    const res = await fetch(`${API}/add-main-category`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: mainName, email })
-    });
-    const data = await res.json();
-    status.innerText = data.success ? "✅ Ana başlık eklendi." : "❌ " + data.message;
-  }
-
-  // Kategori ekle
-  if (categoryName && categoryMainId) {
-    const res = await fetch(`${API}/add-category`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: categoryName, main_id: categoryMainId, email })
-    });
-    const data = await res.json();
-    status.innerText += "\n" + (data.success ? "✅ Kategori eklendi." : "❌ " + data.message);
-  }
-
-  // Başlık ekle
-  if (titleName && titleCategoryId) {
-    const res = await fetch(`${API}/add-title`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: titleName, category_id: titleCategoryId, email })
-    });
-    const data = await res.json();
-    status.innerText += "\n" + (data.success ? "✅ Başlık eklendi." : "❌ " + data.message);
-  }
-
-  loadPanel(); // Ekranı güncelle
-}
-function openMainModal() {
-  document.getElementById("mainModal").style.display = "block";
-}
-function closeMainModal() {
-  document.getElementById("mainModal").style.display = "none";
-  document.getElementById("mainStatus").innerText = "";
-}
-function openCategoryModal() {
-  document.getElementById("categoryModal").style.display = "block";
-  loadMainTopicsForCategory();
-}
-function closeCategoryModal() {
-  document.getElementById("categoryModal").style.display = "none";
-  document.getElementById("categoryStatus").innerText = "";
-}
-
-async function addMainTopic() {
-  const name = document.getElementById("newMainTopic").value.trim();
-  if (!name) return alert("Ana başlık adı boş olamaz.");
-
-  const res = await fetch(`${API}/add-main-category`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email })
-  });
-
-  const data = await res.json();
-  const status = document.getElementById("mainStatus");
-  if (data.success) {
-    status.innerText = "✅ Ana başlık eklendi.";
-    document.getElementById("newMainTopic").value = "";
-    loadPanel();
-  } else {
-    status.innerText = "❌ " + (data.message || "Ana başlık eklenemedi.");
-  }
-}
-
-async function addCategory() {
-  const name = document.getElementById("newCategory").value.trim();
-  const main_id = document.getElementById("mainTopicForCategory").value;
-  if (!name || !main_id) return alert("Lütfen tüm alanları doldurun.");
-
-  const res = await fetch(`${API}/add-category`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, main_id, email })
-  });
-
-  const data = await res.json();
-  const status = document.getElementById("categoryStatus");
-  if (data.success) {
-    status.innerText = "✅ Kategori eklendi.";
-    document.getElementById("newCategory").value = "";
-    loadPanel();
-  } else {
-    status.innerText = "❌ " + (data.message || "Kategori eklenemedi.");
-  }
-}
-
-async function loadMainTopicsForCategory() {
-  const res = await fetch(`${API}/list-main-categories?email=${email}`);
-  const data = await res.json();
-  const sel = document.getElementById("mainTopicForCategory");
-  sel.innerHTML = `<option value="" disabled selected>Ana başlık seçin</option>`;
-  data.forEach(m => {
-    sel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-  });
-}
-function filterItems(containerId, searchTerm) {
-  const container = document.getElementById(containerId);
-  const items = container.querySelectorAll(".item");
-
-  items.forEach(item => {
-    const text = item.querySelector("span").textContent.toLowerCase();
-    if (text.includes(searchTerm.toLowerCase())) {
-      item.style.display = "flex";
-    } else {
-      item.style.display = "none";
-    }
-  });
-}
-async function loadPanel() {
-  document.getElementById("mainTopics").innerHTML = '';
-  document.getElementById("categories").innerHTML = '';
-  document.getElementById("titles").innerHTML = '';
-
-  const res = await fetch(`${API}/list-main-categories?email=${email}`);
-  const data = await res.json();
-
-  for (const m of data) {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <span onclick="selectMain(${m.id})">${m.name}</span>
-      <div class="actions">
-        <button class="edit-btn" onclick="editMain(${m.id}, '${m.name}')">✏️</button>
-        <button class="delete-btn" onclick="deleteMain(${m.id})">🗑️</button>
-      </div>
-    `;
-    document.getElementById("mainTopics").appendChild(div);
-  }
-}
-document.addEventListener("DOMContentLoaded", () => {
-  const modalMainSelect = document.getElementById("modalMainSelect");
-  if (modalMainSelect) {
-    modalMainSelect.addEventListener("change", async function () {
-      const mainId = this.value;
-      const res = await fetch(`${API}/list-categories?main_id=${mainId}&email=${email}`);
-      const data = await res.json();
-
-      const catSel = document.getElementById("modalCategorySelect");
-      catSel.innerHTML = '<option disabled selected>Seçiniz</option>';
-      data.forEach(c => {
-        catSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
-      });
-    });
-  }
-});
-  async function loadAllTitles() {
-    const email = localStorage.getItem("userEmail");
-    const orderValue = sortTitlesSelect.value;
-
-    let order_by = "created_at", sort = "desc";
-    if (orderValue === "name-asc") {
-      order_by = "name"; sort = "asc";
-    } else if (orderValue === "name-desc") {
-      order_by = "name"; sort = "desc";
-    }
-
-    try {
-      const res = await fetch(`${API}/list-all-titles?email=${encodeURIComponent(email)}&order_by=${order_by}&sort=${sort}`);
-      
-      if (!res.ok) {
-        throw new Error("API yanıtı başarısız");
-      }
-
-      const data = await res.json();
-
-      const container = document.getElementById("allTitlesContainer");
-      if (!container) {
-        console.error("allTitlesContainer bulunamadı!");
-        return;
-      }
-
-      container.innerHTML = "";
-
-      if (!data.success || data.titles.length === 0) {
-        container.innerHTML = "<p>Başlık bulunamadı.</p>";
-        return;
-      }
-
-      data.titles.forEach(title => {
-        container.innerHTML += `
-          <div class="item">
-            <span>${title.name}</span>
-            <small>(${title.main_name} / ${title.category_name})</small>
-          </div>
-        `;
-      });
-
-    } catch (err) {
-      console.error("Veri yükleme hatası:", err.message);
-    }
-  }
-
-  sortTitlesSelect.addEventListener("change", loadAllTitles);
-
-  loadAllTitles(); // Sayfa ilk yüklendiğinde otomatik çağır.
 
 
 </script>
-<!-- Modal -->
-<div id="moveModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999;">
-  <div style="background:#fff; padding:20px; max-width:400px; margin:80px auto; border-radius:10px; position:relative;">
-    <h3>📂 Başlığı Yeni Kategoriye Taşı</h3>
-
-    <label>Ana Başlık Seç:</label>
-    <select id="modalMainSelect" style="width:100%; padding:6px;"></select>
-
-    <label style="margin-top:8px;">Kategori Seç:</label>
-    <select id="modalCategorySelect" style="width:100%; padding:6px;"></select>
-
-    <div style="margin-top:12px; text-align:right;">
-      <button onclick="confirmMove()">✅ Taşı</button>
-      <button onclick="closeMoveModal()">❌ Vazgeç</button>
-    </div>
-  </div>
-</div>
-<!-- Ekleme Butonu -->
-<button onclick="openMainModal()" style="margin: 15px 0;">➕ Yeni Ana Başlık Ekle</button>
-<div id="mainModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;">
-  <div style="background:white; max-width:400px; margin:100px auto; padding:20px; border-radius:10px; position:relative;">
-    <h3>➕ Ana Başlık Ekle</h3>
-    <label>Yeni Ana Başlık:</label>
-    <input type="text" id="newMainTopic" placeholder="örnek: Matematik" style="width:100%; padding:6px;">
-    <div style="margin-top:10px; text-align:right;">
-      <button onclick="addMainTopic()">✅ Kaydet</button>
-      <button onclick="closeMainModal()">❌ Kapat</button>
-    </div>
-    <div id="mainStatus" style="margin-top:10px; font-weight:bold;"></div>
-  </div>
-</div>
-
-<!-- Yeni Kategori Ekle Butonu ve Modal -->
-<button onclick="openCategoryModal()" style="margin: 15px 10px;">➕ Yeni Kategori Ekle</button>
-<div id="categoryModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;">
-  <div style="background:white; max-width:400px; margin:100px auto; padding:20px; border-radius:10px; position:relative;">
-    <h3>➕ Kategori Ekle</h3>
-    <label>Yeni Kategori:</label>
-    <input type="text" id="newCategory" placeholder="örnek: 5. Sınıf - Sayılar" style="width:100%; padding:6px;">
-    <label style="margin-top:8px;">Ana Başlık Seç:</label>
-    <select id="mainTopicForCategory" style="width:100%; padding:6px; margin-top:5px;"></select>
-    <div style="margin-top:10px; text-align:right;">
-      <button onclick="addCategory()">✅ Kaydet</button>
-      <button onclick="closeCategoryModal()">❌ Kapat</button>
-    </div>
-    <div id="categoryStatus" style="margin-top:10px; font-weight:bold;"></div>
-  </div>
-</div>
-<div class="column full-width" style="margin-top:20px;">
-  <h3>Tüm Başlıklar</h3>
-  <div>
-    <select id="sortTitles">
-      <option value="created_at-desc">📅 En son eklenen</option>
-      <option value="name-asc">🔤 A-Z</option>
-      <option value="name-desc">🔡 Z-A</option>
-    </select>
-  </div>
-  <div id="allTitlesContainer"></div>
-</div>
-
-
 
 </body>
 </html>
