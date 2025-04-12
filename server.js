@@ -900,9 +900,9 @@ app.get("/list-all-titles", async (req, res) => {
 });
 
 app.post("/save-flashcards", async (req, res) => {
-  const { title, keywords, userEmail, promptText } = req.body;
+  const { title, title_id, keywords, userEmail, promptText } = req.body;
 
-  if (!title || !keywords || !userEmail) {
+  if ((!title_id && !title) || !keywords || !userEmail) {
     return res.status(400).json({ success: false, message: "Eksik bilgi" });
   }
 
@@ -910,61 +910,66 @@ app.post("/save-flashcards", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    let resolvedTitleId;
+    let resolvedTitleId = title_id;
 
-    // 1. Başlık kontrolü
-    const titleSelect = await client.query(
-      "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
-      [title, userEmail]
-    );
-    resolvedTitleId = titleSelect.rows[0]?.id;
-
-    // 2. Başlık yoksa oluştur
     if (!resolvedTitleId) {
-      // a) Ana başlık
-      const mainRes = await client.query(`
-        INSERT INTO main_topics(name, user_email)
-        VALUES ('AI', $1)
-        ON CONFLICT(name, user_email) DO NOTHING
-        RETURNING id
-      `, [userEmail]);
-      const main_topic_id = mainRes.rows[0]?.id || (
-        await client.query("SELECT id FROM main_topics WHERE name = 'AI' AND user_email = $1", [userEmail])
-      ).rows[0]?.id;
+      // 1. Başlık kontrolü
+      const titleSelect = await client.query(
+        "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
+        [title, userEmail]
+      );
+      resolvedTitleId = titleSelect.rows[0]?.id;
 
-      // b) Kategori
-      const catRes = await client.query(`
-        INSERT INTO categories(name, main_topic_id, user_email)
-        VALUES ('Flashcards', $1, $2)
-        ON CONFLICT(name, main_topic_id, user_email) DO NOTHING
-        RETURNING id
-      `, [main_topic_id, userEmail]);
-      const category_id = catRes.rows[0]?.id || (
-        await client.query("SELECT id FROM categories WHERE name = 'Flashcards' AND main_topic_id = $1 AND user_email = $2", [main_topic_id, userEmail])
-      ).rows[0]?.id;
+      // 2. Başlık yoksa oluştur
+      if (!resolvedTitleId) {
+        // a) Ana başlık
+        const mainRes = await client.query(`
+          INSERT INTO main_topics(name, user_email)
+          VALUES ('AI', $1)
+          ON CONFLICT(name, user_email) DO NOTHING
+          RETURNING id
+        `, [userEmail]);
+        const main_topic_id = mainRes.rows[0]?.id || (
+          await client.query("SELECT id FROM main_topics WHERE name = 'AI' AND user_email = $1", [userEmail])
+        ).rows[0]?.id;
 
-      // c) Başlık oluştur
-      const titleInsert = await client.query(`
-        INSERT INTO titles(name, category_id, user_email, prompt_text)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT(name, category_id, user_email) DO NOTHING
-        RETURNING id
-      `, [title, category_id, userEmail, promptText || null]);
-      resolvedTitleId = titleInsert.rows[0]?.id || (
-        await client.query("SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3", [title, category_id, userEmail])
-      ).rows[0]?.id;
+        // b) Kategori
+        const catRes = await client.query(`
+          INSERT INTO categories(name, main_topic_id, user_email)
+          VALUES ('Flashcards', $1, $2)
+          ON CONFLICT(name, main_topic_id, user_email) DO NOTHING
+          RETURNING id
+        `, [main_topic_id, userEmail]);
+        const category_id = catRes.rows[0]?.id || (
+          await client.query("SELECT id FROM categories WHERE name = 'Flashcards' AND main_topic_id = $1 AND user_email = $2", [main_topic_id, userEmail])
+        ).rows[0]?.id;
+
+        // c) Başlık oluştur
+        const titleInsert = await client.query(`
+          INSERT INTO titles(name, category_id, user_email, prompt_text)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT(name, category_id, user_email) DO NOTHING
+          RETURNING id
+        `, [title, category_id, userEmail, promptText || null]);
+        resolvedTitleId = titleInsert.rows[0]?.id || (
+          await client.query("SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3", [title, category_id, userEmail])
+        ).rows[0]?.id;
+      }
     }
 
     // 3. Soruları kaydet
     let insertCount = 0;
     for (const kw of keywords) {
-      if (!kw.keyword || !kw.explanation) continue;
+      const q = kw.keyword || kw.question;
+      const a = kw.explanation || kw.answer;
+
+      if (!q || !a) continue;
 
       await client.query(
         "INSERT INTO questions(title_id, question, options, answer, user_email) VALUES ($1, $2, $3, $4, $5)",
-        [resolvedTitleId, kw.keyword, JSON.stringify([]), kw.explanation, userEmail]
+        [resolvedTitleId, q, JSON.stringify([]), a, userEmail]
       );
-      
+
       insertCount++;
     }
 
