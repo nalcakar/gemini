@@ -420,83 +420,74 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
 /////////////Sql////////
 app.post("/save-questions", async (req, res) => {
-  const { title_id, title, questions, userEmail, promptText } = req.body;
-
-  if ((!title_id && !title) || !questions || !userEmail) {
-    return res.status(400).json({ success: false, message: "Eksik bilgi" });
-  }
-
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
+    const { title, title_id, questions, userEmail, promptText } = req.body;
 
-    let resolvedTitleId = title_id;
+    if (!userEmail || !title || !questions || questions.length === 0) {
+      return res.status(400).json({ success: false, message: "Eksik veri gönderildi." });
+    }
 
-    // Eğer title_id yoksa, yeni title oluşturulacak
+    let resolvedTitleId = title_id || null;
+
+    // Eğer title_id varsa, bu title gerçekten bu kullanıcıya mı ait kontrol et
+    if (resolvedTitleId) {
+      const check = await client.query(
+        "SELECT id FROM titles WHERE id = $1 AND user_email = $2",
+        [resolvedTitleId, userEmail]
+      );
+
+      if (check.rowCount === 0) {
+        return res.status(400).json({ success: false, message: "Bu başlık size ait değil veya bulunamadı." });
+      }
+    }
+
+    // Eğer title_id yoksa ve isimle kayıtlı başlık varsa, onu al
     if (!resolvedTitleId) {
-      // AI / Quiz gibi varsayılanları kullan
-      const mainRes = await client.query(`
-        INSERT INTO main_topics(name, user_email)
-        VALUES ('AI', $1)
-        ON CONFLICT(name, user_email) DO NOTHING
-        RETURNING id
-      `, [userEmail]);
+      const existing = await client.query(
+        "SELECT id FROM titles WHERE name = $1 AND user_email = $2",
+        [title, userEmail]
+      );
+      if (existing.rows.length > 0) {
+        resolvedTitleId = existing.rows[0].id;
+      } else {
+        // Yeni title oluştur
+        const defaultCategory = await client.query(
+          "SELECT id FROM categories WHERE user_email = $1 ORDER BY id LIMIT 1",
+          [userEmail]
+        );
 
-      const main_topic_id = mainRes.rows[0]?.id || (
-        await client.query("SELECT id FROM main_topics WHERE name = 'AI' AND user_email = $1", [userEmail])
-      ).rows[0]?.id;
+        const categoryId = defaultCategory.rows[0]?.id || null;
 
-      const catRes = await client.query(`
-        INSERT INTO categories(name, main_topic_id, user_email)
-        VALUES ('Quiz', $1, $2)
-        ON CONFLICT(name, main_topic_id, user_email) DO NOTHING
-        RETURNING id
-      `, [main_topic_id, userEmail]);
-
-      const category_id = catRes.rows[0]?.id || (
-        await client.query("SELECT id FROM categories WHERE name = 'Quiz' AND main_topic_id = $1 AND user_email = $2", [main_topic_id, userEmail])
-      ).rows[0]?.id;
-
-      const titleInsert = await client.query(`
-        INSERT INTO titles(name, category_id, user_email, prompt_text)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT(name, category_id, user_email) DO NOTHING
-        RETURNING id
-      `, [title, category_id, userEmail, promptText || null]);
-
-      resolvedTitleId = titleInsert.rows[0]?.id || (
-        await client.query("SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3", [title, category_id, userEmail])
-      ).rows[0]?.id;
+        const insertTitle = await client.query(
+          "INSERT INTO titles(name, category_id, user_email, prompt_text) VALUES($1, $2, $3, $4) RETURNING id",
+          [title, categoryId, userEmail, promptText || ""]
+        );
+        resolvedTitleId = insertTitle.rows[0].id;
+      }
     }
 
-    if (!resolvedTitleId) throw new Error("Başlık ID'si oluşturulamadı.");
+    // Şimdi soruları kaydet
+    const insertPromises = questions.map((q) =>
+      client.query(
+        "INSERT INTO questions(title_id, user_email, question, options, answer, explanation) VALUES($1, $2, $3, $4, $5, $6)",
+        [
+          resolvedTitleId,
+          userEmail,
+          q.question,
+          JSON.stringify(q.options),
+          q.answer,
+          q.explanation || ""
+        ]
+      )
+    );
 
-    // Soruları kaydet
-    let inserted = 0;
-    for (const q of questions) {
-      if (!q.question || !q.answer) continue;
+    await Promise.all(insertPromises);
 
-      await client.query(`
-        INSERT INTO questions(title_id, question, options, answer, explanation, user_email)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [
-        resolvedTitleId,
-        q.question,
-        JSON.stringify(q.options || []),
-        q.answer,
-        q.explanation || "",
-        userEmail
-      ]);
-
-      inserted++;
-    }
-
-    await client.query("COMMIT");
-    res.json({ success: true, inserted });
+    res.json({ success: true });
   } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("Soru kayıt hatası:", err.message);
-    res.status(500).json({ success: false, message: "Sunucu hatası: " + err.message });
+    console.error("Soru kaydederken hata:", err);
+    res.status(500).json({ success: false, message: "Sunucu hatası." });
   } finally {
     client.release();
   }
