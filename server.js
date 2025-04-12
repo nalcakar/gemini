@@ -539,22 +539,21 @@ app.get("/list-categories", async (req, res) => {
 
 
 app.get("/list-titles", async (req, res) => {
-  const { category_id, email } = req.query;
-  if (!category_id || !email) return res.status(400).json({ success: false, message: "category_id ve email gerekli" });
+  const email = req.query.email;
+  if (!email) {
+    return res.status(400).json({ error: "Email gerekli" });
+  }
 
   try {
-    const result = await pool.query(`
-      SELECT DISTINCT t.id, t.name
-      FROM titles t
-      JOIN questions q ON q.title_id = t.id
-      WHERE t.category_id = $1 AND q.user_email = $2
-      ORDER BY t.name
-    `, [category_id, email]);
+    const result = await pool.query(
+      "SELECT name FROM titles WHERE user_email = $1 ORDER BY created_at DESC",
+      [email]
+    );
 
-    res.json(result.rows);
+    res.json({ titles: result.rows });  // Bu kısmın mutlaka böyle olması gerekiyor!
   } catch (err) {
-    console.error("Başlıklar alınamadı:", err.message);
-    res.status(500).json({ success: false });
+    console.error("Title sorgusu hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
   }
 });
 
