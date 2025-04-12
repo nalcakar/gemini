@@ -961,9 +961,10 @@ app.post("/save-flashcards", async (req, res) => {
       if (!kw.keyword || !kw.explanation) continue;
 
       await client.query(
-        "INSERT INTO questions(title_id, question, answer, user_email) VALUES ($1, $2, $3, $4)",
-        [resolvedTitleId, kw.keyword, kw.explanation, userEmail]
+        "INSERT INTO questions(title_id, question, options, answer, user_email) VALUES ($1, $2, $3, $4, $5)",
+        [resolvedTitleId, kw.keyword, JSON.stringify([]), kw.explanation, userEmail]
       );
+      
       insertCount++;
     }
 
