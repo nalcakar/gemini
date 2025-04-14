@@ -374,6 +374,7 @@ app.get("/auth/patreon/callback", async (req, res) => {
   if (!code) return res.status(400).send("❌ Kod alınamadı.");
 
   try {
+    // 🎟️ 1. Exchange code for token
     const response = await fetch("https://www.patreon.com/api/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -389,40 +390,52 @@ app.get("/auth/patreon/callback", async (req, res) => {
     const tokenData = await response.json();
 
     if (!tokenData.access_token) {
-      console.error("Token alınamadı:", tokenData);
+      console.error("❌ Token alınamadı:", tokenData);
       return res.status(500).send("❌ Access token alınamadı.");
     }
 
-    const userRes = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships&fields[user]=email,full_name&fields[member]=patron_status,currently_entitled_tiers", {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`
+    const accessToken = tokenData.access_token;
+
+    // 👤 2. Fetch user info + memberships
+    const userRes = await fetch(
+      "https://www.patreon.com/api/oauth2/v2/identity?include=memberships&fields[user]=email,full_name&fields[member]=patron_status,currently_entitled_tiers",
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
       }
-    });
+    );
 
     const userData = await userRes.json();
+
+    // 🛑 Check structure
+    if (!userData?.data?.attributes) {
+      console.error("❌ Patreon kullanıcı verisi alınamadı:", userData);
+      return res.status(500).send("❌ Kullanıcı bilgileri alınamadı.");
+    }
+
     const email = userData.data.attributes.email;
     const name = userData.data.attributes.full_name;
 
-    let membershipType = "Free";
+    // 🏷️ 3. Determine membership type
+    let membershipType = "Free"; // default
     const included = userData.included;
 
     if (included && Array.isArray(included)) {
       const member = included.find(i => i.type === "member");
       const hasTier = member?.relationships?.currently_entitled_tiers?.data?.length > 0;
-      if (hasTier) membershipType = "Pro";
+      if (hasTier) membershipType = "Pro"; // you could map to real tier name if needed
     }
 
+    // 🔁 4. Redirect to frontend with all info
     const redirectUrl = new URL("https://doitwithai.org/AiQuestionMaker.html");
-    redirectUrl.searchParams.set("accessToken", tokenData.access_token);
+    redirectUrl.searchParams.set("accessToken", accessToken);
     redirectUrl.searchParams.set("userEmail", email);
     redirectUrl.searchParams.set("userName", name);
     redirectUrl.searchParams.set("membershipType", membershipType);
 
     res.redirect(302, redirectUrl.toString());
-
   } catch (err) {
     console.error("OAuth callback hatası:", err);
-    res.status(500).send("❌ Hata oluştu.");
+    res.status(500).send("❌ Sunucu hatası: OAuth işleminde hata oluştu.");
   }
 });
 
