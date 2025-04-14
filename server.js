@@ -398,7 +398,7 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
     // 👤 2. Kullanıcı bilgilerini al
     const userRes = await fetch(
-      "https://www.patreon.com/api/oauth2/v2/identity?include=memberships&fields[user]=email,full_name",
+      "https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name",
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
@@ -420,8 +420,24 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
     if (included && Array.isArray(included)) {
       const member = included.find(i => i.type === "member");
-      const hasTier = member?.relationships?.currently_entitled_tiers?.data?.length > 0;
-      if (hasTier) membershipType = "Pro";
+      const tiers = member?.relationships?.currently_entitled_tiers?.data || [];
+
+      const tierIds = tiers.map(t => t.id);
+
+      // 🎯 Buraya kendi Patreon tier ID'lerini yaz
+      const PRO_IDS = ["25296810"];   // Pro üyelik tier ID
+      const FREE_IDS = ["25539224"];  // Ücretsiz üyelik tier ID
+
+      if (tierIds.some(id => PRO_IDS.includes(id))) {
+        membershipType = "Pro";
+      } else if (tierIds.some(id => FREE_IDS.includes(id))) {
+        membershipType = "Free";
+      } else {
+        membershipType = "Unknown";
+      }
+
+      console.log("🔍 Kullanıcının tier ID'leri:", tierIds);
+      console.log("🎯 Belirlenen membershipType:", membershipType);
     }
 
     // 🔁 4. Frontend'e yönlendir
@@ -437,6 +453,7 @@ app.get("/auth/patreon/callback", async (req, res) => {
     res.status(500).send("❌ Sunucu hatası: OAuth işleminde hata oluştu.");
   }
 });
+
 
 
 
