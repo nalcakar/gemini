@@ -425,8 +425,8 @@ app.get("/auth/patreon/callback", async (req, res) => {
       const tierIds = tiers.map(t => t.id);
 
       // 🎯 Buraya kendi Patreon tier ID'lerini yaz
-      const PRO_IDS = ["25296810"];   // Pro üyelik tier ID
-      const FREE_IDS = ["25539224"];  // Ücretsiz üyelik tier ID
+      const PRO_IDS = ["25539224"];   // Pro üyelik tier ID
+      const FREE_IDS = ["25296810"];  // Ücretsiz üyelik tier ID
 
       if (tierIds.some(id => PRO_IDS.includes(id))) {
         membershipType = "Pro";

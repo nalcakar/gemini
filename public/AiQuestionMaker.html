@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Quiz Generator - Card Grid</title>
+  <title>AI Quiz Generator</title>
   <style>
     body {
       margin: 0;
@@ -11,12 +11,7 @@
       background: #f9fafb;
       padding: 40px 20px;
     }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-      color: #111827;
-    }
+    h1 { text-align: center; margin-bottom: 30px; color: #111827; }
 
     .section-grid {
       display: grid;
@@ -43,15 +38,7 @@
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
     }
 
-    .card:active {
-      transform: scale(0.98);
-    }
-
-    .card span {
-      font-size: 40px;
-      display: block;
-      margin-bottom: 10px;
-    }
+    .card span { font-size: 40px; display: block; margin-bottom: 10px; }
 
     #section-content {
       max-width: 900px;
@@ -108,83 +95,69 @@
     }
 
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     #user-box {
-  display: flex;
-  justify-content: flex-end;
-  margin: 10px 0;
-  padding-right: 10px;
-}
+      display: flex;
+      justify-content: flex-end;
+      margin: 10px 0;
+      padding-right: 10px;
+    }
 
-.user-box-inner {
-  background: #f3f4f6;
-  padding: 6px 10px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
+    .user-box-inner {
+      background: #f3f4f6;
+      padding: 6px 10px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
 
-.user-name {
-  font-weight: 500;
-  color: #111827;
-}
+    .user-name { font-weight: 500; color: #111827; }
 
-.badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
+    .badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
 
-.badge.free {
-  background: #e5e7eb;
-  color: #374151;
-}
+    .badge.free {
+      background: #e5e7eb;
+      color: #374151;
+    }
 
-.badge.pro {
-  background: #dbeafe;
-  color: #1e3a8a;
-}
+    .badge.pro {
+      background: #dbeafe;
+      color: #1e3a8a;
+    }
 
-.logout-btn,
-.login-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 4px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  text-decoration: none;
-}
+    .logout-btn, .login-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: none;
+    }
 
-.login-btn {
-  background: linear-gradient(to right, #06b6d4, #0ea5e9);
-}
+    .login-btn {
+      background: linear-gradient(to right, #06b6d4, #0ea5e9);
+    }
 
-.logout-btn:hover,
-.login-btn:hover {
-  opacity: 0.9;
-}
-
-
+    .logout-btn:hover, .login-btn:hover { opacity: 0.9; }
   </style>
 </head>
 <body>
 
-<h1>AI Quiz Generator 1404</h1>
+<h1>AI Quiz Generator</h1>
+<div id="user-box"></div>
 
 <div class="section-grid">
   <div class="card" onclick="showSection('document')"><span>📄</span>Document</div>
@@ -196,38 +169,45 @@
 <div id="section-content"></div>
 
 <script>
-  const isProUser = localStorage.getItem("membershipType") === "Pro";
-  const isLoggedIn = !!localStorage.getItem("accessToken");
-
-  function showSection(type) {
+  window.showSection = function(type) {
+    localStorage.setItem("lastSection", type);
     const content = document.getElementById('section-content');
+    const isProUser = localStorage.getItem("membershipType") === "Pro";
     let html = "";
 
-    const lockedPrompt = `
-      <div style="background:#fff8e1;padding:15px;border-left:4px solid #fbbf24;border-radius:8px;">
-        <p style="margin:0;">
-          🔒 This feature is for <b>Pro users</b> only.
-          ${isLoggedIn
-            ? `Upgrade your membership on <a href="https://www.patreon.com/" target="_blank" style="color:#1d4ed8;">Patreon</a>.`
-            : `Please <a class="login-btn" href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">log in</a> to unlock Pro features.`}
-        </p>
-      </div>
-    `;
+    const lockedOverlay = (msg = "Pro only") => `
+      <div style="
+        position:absolute;
+        top:0; left:0; right:0; bottom:0;
+        background:rgba(255,255,255,0.8);
+        backdrop-filter: blur(2px);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:14px;
+        font-weight:500;
+        color:#b91c1c;
+        border-radius:8px;
+      ">🔒 ${msg}</div>`;
 
     switch(type) {
       case 'document':
         html = `
-          <h2>📄 Upload PDF / DOCX Document</h2>
-          <input type="file" accept=".pdf,.doc,.docx" ${!isProUser ? "disabled" : ""} />
-          ${!isProUser ? lockedPrompt : "<p style='margin-top:10px;'>The uploaded file will be used to generate quiz questions.</p>"}
+          <h2>📄 Upload PDF / DOCX</h2>
+          <p>You can preview the upload field below. Uploading is <b>Pro only</b>.</p>
+          <div style="position:relative;">
+            <input type="file" accept=".pdf,.doc,.docx" ${!isProUser ? "disabled" : ""} />
+            ${!isProUser ? lockedOverlay("Pro required to upload") : ""}
+          </div>
+          <p>This file will be used to generate AI-powered quiz questions.</p>
         `;
         break;
 
       case 'text':
         html = `
           <h2>✏️ Paste Your Text</h2>
-          <p>Paste your notes below and click "Generate Quiz" when ready.</p>
-          <textarea id="textInput" placeholder="Type or paste your content here..."></textarea>
+          <p>Paste your notes and click Generate Quiz.</p>
+          <textarea id="textInput" placeholder="Your content here..."></textarea>
           <button class="generate-btn" onclick="generateQuiz()">Generate Quiz</button>
           <div id="quizOutput" class="quiz-preview"></div>
         `;
@@ -235,18 +215,21 @@
 
       case 'image':
         html = `
-          <h2>🖼️ Upload an Image</h2>
+          <h2>🖼️ Upload Image</h2>
           <input type="file" accept="image/*" />
-          <p style="margin-top:10px;">AI will extract and analyze the image to generate questions.</p>
+          <p>We'll extract content from the image and create a quiz.</p>
         `;
         break;
 
       case 'video':
         html = `
-          <h2>🎥 YouTube Video Link</h2>
-          <p>Paste a YouTube link below. AI will analyze the content and generate a quiz.</p>
-          <input type="text" id="youtubeLink" placeholder="https://www.youtube.com/watch?v=..." style="width:100%; padding:10px; margin-top:8px;" ${!isProUser ? "disabled" : ""} />
-          ${!isProUser ? lockedPrompt : "<button class='generate-btn' onclick='alert(\"Coming soon: YouTube quiz generation!\")'>Generate from Video</button>"}
+          <h2>🎥 YouTube Link</h2>
+          <p>Paste a YouTube link below. Pro users only.</p>
+          <div style="position:relative;">
+            <input type="text" placeholder="https://youtube.com/..." ${!isProUser ? "disabled" : ""} style="width:100%; padding:10px; margin-top:8px;" />
+            ${!isProUser ? lockedOverlay("Pro required for YouTube") : ""}
+          </div>
+          <button class="generate-btn" onclick="alert('Coming soon!')" ${!isProUser ? "disabled" : ""}>Generate from Video</button>
         `;
         break;
     }
@@ -254,10 +237,10 @@
     content.innerHTML = html;
     content.style.display = "block";
     window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
-  }
+  };
 
   function generateQuiz() {
-    const input = document.getElementById("textInput").value;
+    const input = document.getElementById("textInput")?.value || "";
     const output = document.getElementById("quizOutput");
     if (!input.trim()) {
       output.innerHTML = "<p style='color:red;'>Please enter some text.</p>";
@@ -265,11 +248,48 @@
     }
     output.innerHTML = "<b>✅ Quiz Preview:</b><br>⏳ AI is processing your text...";
   }
+
+  // === AUTH + AUTO TAB RENDER ===
+  document.addEventListener("DOMContentLoaded", () => {
+    function renderUserBox() {
+      const name = localStorage.getItem("userName");
+      const membership = localStorage.getItem("membershipType") || "Free";
+      const accessToken = localStorage.getItem("accessToken");
+
+      const container = document.getElementById("user-box");
+      container.innerHTML = accessToken && name
+        ? `<div class="user-box-inner">
+            <span class="user-name">${name}</span>
+            <span class="badge ${membership.toLowerCase()}">${membership}</span>
+            <button class="logout-btn">Logout</button>
+          </div>`
+        : `<div class="user-box-inner">
+            <a class="login-btn" href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl
+&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">Login with Patreon</a>
+          </div>`;
+
+      const logoutBtn = document.querySelector(".logout-btn");
+      if (logoutBtn) logoutBtn.onclick = () => { localStorage.clear(); location.reload(); };
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("accessToken")) {
+      localStorage.setItem("accessToken", params.get("accessToken"));
+      localStorage.setItem("userEmail", params.get("userEmail"));
+      localStorage.setItem("userName", params.get("userName"));
+      localStorage.setItem("membershipType", params.get("membershipType") || "Free");
+
+      const last = localStorage.getItem("lastSection");
+      if (last && typeof window.showSection === "function") {
+        setTimeout(() => window.showSection(last), 100);
+      }
+
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    renderUserBox();
+  });
 </script>
-
-
-<!-- External login/auth script -->
-<script src="auth.js"></script>
 
 </body>
 </html>
