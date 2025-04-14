@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI Quiz Generator - Card Grid</title>
   <style>
     body {
@@ -77,29 +77,28 @@
     }
 
     button.generate-btn {
-  margin-top: 20px;
-  padding: 14px 24px;
-  background: linear-gradient(135deg, #06b6d4, #0ea5e9); /* Turquoise to Sky Blue */
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.4);
-  transition: transform 0.2s ease, box-shadow 0.3s ease;
-}
+      margin-top: 20px;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #06b6d4, #0ea5e9);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.4);
+      transition: transform 0.2s ease, box-shadow 0.3s ease;
+    }
 
-button.generate-btn:hover {
-  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.6);
-  transform: translateY(-2px);
-}
+    button.generate-btn:hover {
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.6);
+      transform: translateY(-2px);
+    }
 
-button.generate-btn:active {
-  transform: scale(0.97);
-  box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
-}
-
+    button.generate-btn:active {
+      transform: scale(0.97);
+      box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+    }
 
     .quiz-preview {
       margin-top: 20px;
@@ -109,15 +108,82 @@ button.generate-btn:active {
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
+    #user-box {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0;
+  padding-right: 10px;
+}
+
+.user-box-inner {
+  background: #f3f4f6;
+  padding: 6px 10px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.user-name {
+  font-weight: 500;
+  color: #111827;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.free {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.badge.pro {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.logout-btn,
+.login-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.login-btn {
+  background: linear-gradient(to right, #06b6d4, #0ea5e9);
+}
+
+.logout-btn:hover,
+.login-btn:hover {
+  opacity: 0.9;
+}
+
+
   </style>
 </head>
 <body>
-  <a href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">
-    🔐 Patreon ile Giriş Yap
-  </a>
+
 <h1>AI Quiz Generator</h1>
 
 <div class="section-grid">
@@ -141,7 +207,7 @@ button.generate-btn:active {
       case 'text':
         html = `
           <h2>✏️ Paste Your Text</h2>
-          <p>Paste your notes below. When ready, click "Generate Quiz."</p>
+          <p>Paste your notes below. When ready, click \"Generate Quiz.\"</p>
           <textarea id="textInput" placeholder="Type or paste your content here..."></textarea>
           <button class="generate-btn" onclick="generateQuiz()">Generate Quiz</button>
           <div id="quizOutput" class="quiz-preview"></div>
@@ -160,8 +226,19 @@ button.generate-btn:active {
     window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
   }
 
- 
+  function generateQuiz() {
+    const input = document.getElementById("textInput").value;
+    const output = document.getElementById("quizOutput");
+    if (!input.trim()) {
+      output.innerHTML = "<p style='color:red;'>Please enter some text.</p>";
+      return;
+    }
+    output.innerHTML = "<b>Generated Quiz Preview:</b><br>🔍 Processing your text...";
+  }
 </script>
+
+<!-- External login/auth script -->
+<script src="auth.js"></script>
 
 </body>
 </html>

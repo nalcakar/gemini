@@ -393,7 +393,7 @@ app.get("/auth/patreon/callback", async (req, res) => {
       return res.status(500).send("❌ Access token alınamadı.");
     }
 
-    const userRes = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
+    const userRes = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships&fields[user]=email,full_name&fields[member]=patron_status,currently_entitled_tiers", {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`
       }
@@ -403,19 +403,29 @@ app.get("/auth/patreon/callback", async (req, res) => {
     const email = userData.data.attributes.email;
     const name = userData.data.attributes.full_name;
 
-    // ✅ YENİ yönlendirme kodu burada
+    let membershipType = "Free";
+    const included = userData.included;
+
+    if (included && Array.isArray(included)) {
+      const member = included.find(i => i.type === "member");
+      const hasTier = member?.relationships?.currently_entitled_tiers?.data?.length > 0;
+      if (hasTier) membershipType = "Pro";
+    }
+
     const redirectUrl = new URL("https://doitwithai.org/AiQuestionMaker.html");
     redirectUrl.searchParams.set("accessToken", tokenData.access_token);
     redirectUrl.searchParams.set("userEmail", email);
     redirectUrl.searchParams.set("userName", name);
+    redirectUrl.searchParams.set("membershipType", membershipType);
 
-    res.redirect(302, redirectUrl.toString()); // 🔁 yönlendirme
+    res.redirect(302, redirectUrl.toString());
 
   } catch (err) {
     console.error("OAuth callback hatası:", err);
     res.status(500).send("❌ Hata oluştu.");
   }
 });
+
 
 
 /////////////Sql////////
