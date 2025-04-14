@@ -404,7 +404,7 @@ app.get("/auth/patreon/callback", async (req, res) => {
     const name = userData.data.attributes.full_name;
 
     // ✅ YENİ yönlendirme kodu burada
-    const redirectUrl = new URL("https://doitwithai.org/the-history-of-ai/editor/");
+    const redirectUrl = new URL("https://doitwithai.org/AiQuestionMaker.html");
     redirectUrl.searchParams.set("accessToken", tokenData.access_token);
     redirectUrl.searchParams.set("userEmail", email);
     redirectUrl.searchParams.set("userName", name);
