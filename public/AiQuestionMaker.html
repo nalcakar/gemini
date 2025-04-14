@@ -184,7 +184,7 @@
 </head>
 <body>
 
-<h1>AI Quiz Generator</h1>
+<h1>AI Quiz Generator 1404</h1>
 
 <div class="section-grid">
   <div class="card" onclick="showSection('document')"><span>📄</span>Document</div>
@@ -196,28 +196,58 @@
 <div id="section-content"></div>
 
 <script>
+  const isProUser = localStorage.getItem("membershipType") === "Pro";
+  const isLoggedIn = !!localStorage.getItem("accessToken");
+
   function showSection(type) {
     const content = document.getElementById('section-content');
     let html = "";
 
+    const lockedPrompt = `
+      <div style="background:#fff8e1;padding:15px;border-left:4px solid #fbbf24;border-radius:8px;">
+        <p style="margin:0;">
+          🔒 This feature is for <b>Pro users</b> only.
+          ${isLoggedIn
+            ? `Upgrade your membership on <a href="https://www.patreon.com/" target="_blank" style="color:#1d4ed8;">Patreon</a>.`
+            : `Please <a class="login-btn" href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=YOUR_CLIENT_ID&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">log in</a> to unlock Pro features.`}
+        </p>
+      </div>
+    `;
+
     switch(type) {
       case 'document':
-        html = "<h2>📄 Document Upload</h2><p>Upload or drag a document here to generate a quiz.</p>";
+        html = `
+          <h2>📄 Upload PDF / DOCX Document</h2>
+          <input type="file" accept=".pdf,.doc,.docx" ${!isProUser ? "disabled" : ""} />
+          ${!isProUser ? lockedPrompt : "<p style='margin-top:10px;'>The uploaded file will be used to generate quiz questions.</p>"}
+        `;
         break;
+
       case 'text':
         html = `
           <h2>✏️ Paste Your Text</h2>
-          <p>Paste your notes below. When ready, click \"Generate Quiz.\"</p>
+          <p>Paste your notes below and click "Generate Quiz" when ready.</p>
           <textarea id="textInput" placeholder="Type or paste your content here..."></textarea>
           <button class="generate-btn" onclick="generateQuiz()">Generate Quiz</button>
           <div id="quizOutput" class="quiz-preview"></div>
         `;
         break;
+
       case 'image':
-        html = "<h2>🖼️ Upload an Image</h2><p>Upload an image and let AI extract data to generate a quiz.</p>";
+        html = `
+          <h2>🖼️ Upload an Image</h2>
+          <input type="file" accept="image/*" />
+          <p style="margin-top:10px;">AI will extract and analyze the image to generate questions.</p>
+        `;
         break;
+
       case 'video':
-        html = "<h2>🎥 Enter a Video Link</h2><p>Paste a YouTube or video URL to extract questions from its content.</p>";
+        html = `
+          <h2>🎥 YouTube Video Link</h2>
+          <p>Paste a YouTube link below. AI will analyze the content and generate a quiz.</p>
+          <input type="text" id="youtubeLink" placeholder="https://www.youtube.com/watch?v=..." style="width:100%; padding:10px; margin-top:8px;" ${!isProUser ? "disabled" : ""} />
+          ${!isProUser ? lockedPrompt : "<button class='generate-btn' onclick='alert(\"Coming soon: YouTube quiz generation!\")'>Generate from Video</button>"}
+        `;
         break;
     }
 
@@ -233,9 +263,10 @@
       output.innerHTML = "<p style='color:red;'>Please enter some text.</p>";
       return;
     }
-    output.innerHTML = "<b>Generated Quiz Preview:</b><br>🔍 Processing your text...";
+    output.innerHTML = "<b>✅ Quiz Preview:</b><br>⏳ AI is processing your text...";
   }
 </script>
+
 
 <!-- External login/auth script -->
 <script src="auth.js"></script>
