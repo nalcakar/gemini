@@ -374,7 +374,7 @@ app.get("/auth/patreon/callback", async (req, res) => {
   if (!code) return res.status(400).send("❌ Kod alınamadı.");
 
   try {
-    // 🎟️ 1. Exchange code for token
+    // 🎟️ 1. Token al
     const response = await fetch("https://www.patreon.com/api/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -396,9 +396,9 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
     const accessToken = tokenData.access_token;
 
-    // 👤 2. Fetch user info + memberships
+    // 👤 2. Kullanıcı bilgilerini al
     const userRes = await fetch(
-      "https://www.patreon.com/api/oauth2/v2/identity?include=memberships&fields[user]=email,full_name&fields[member]=patron_status,currently_entitled_tiers",
+      "https://www.patreon.com/api/oauth2/v2/identity?include=memberships&fields[user]=email,full_name",
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
@@ -406,7 +406,6 @@ app.get("/auth/patreon/callback", async (req, res) => {
 
     const userData = await userRes.json();
 
-    // 🛑 Check structure
     if (!userData?.data?.attributes) {
       console.error("❌ Patreon kullanıcı verisi alınamadı:", userData);
       return res.status(500).send("❌ Kullanıcı bilgileri alınamadı.");
@@ -415,17 +414,17 @@ app.get("/auth/patreon/callback", async (req, res) => {
     const email = userData.data.attributes.email;
     const name = userData.data.attributes.full_name;
 
-    // 🏷️ 3. Determine membership type
-    let membershipType = "Free"; // default
+    // 🏷️ 3. Üyelik tipi belirle
+    let membershipType = "Free";
     const included = userData.included;
 
     if (included && Array.isArray(included)) {
       const member = included.find(i => i.type === "member");
       const hasTier = member?.relationships?.currently_entitled_tiers?.data?.length > 0;
-      if (hasTier) membershipType = "Pro"; // you could map to real tier name if needed
+      if (hasTier) membershipType = "Pro";
     }
 
-    // 🔁 4. Redirect to frontend with all info
+    // 🔁 4. Frontend'e yönlendir
     const redirectUrl = new URL("https://doitwithai.org/AiQuestionMaker.html");
     redirectUrl.searchParams.set("accessToken", accessToken);
     redirectUrl.searchParams.set("userEmail", email);
