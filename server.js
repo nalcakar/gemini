@@ -12,7 +12,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 
 const { franc } = require("franc");
-const fs = require("fs");
+
 require("dotenv").config();
 
 const PizZip = require("pizzip");
