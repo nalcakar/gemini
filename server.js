@@ -73,6 +73,10 @@ app.post("/patreon-me", async (req, res) => {
 
 app.post("/transcribe", upload.single("file"), async (req, res) => {
   try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
     const form = new FormData();
     form.append("file", fs.createReadStream(req.file.path));
     form.append("model", "whisper-1");
@@ -84,12 +88,24 @@ app.post("/transcribe", upload.single("file"), async (req, res) => {
       },
     });
 
-    fs.unlinkSync(req.file.path); // cleanup
+    fs.unlinkSync(req.file.path); // geçici dosyayı sil
 
+    // Başarılıysa transcript döndür
     res.json({ transcript: response.data.text });
+
   } catch (error) {
-    console.error("❌ Whisper error:", error.message);
-    res.status(500).json({ error: "Transcription failed" });
+    console.error("❌ Whisper error:", error?.response?.data || error.message);
+
+    // Gelişmiş hata mesajı
+    res.status(500).json({
+      error: "Transcription failed",
+      details: error?.response?.data || error.message,
+    });
+
+    // Dosya varsa yine de temizle
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
   }
 });
 
