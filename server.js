@@ -1,3 +1,8 @@
+const multer = require("multer");
+const upload = multer({ dest: "uploads/", limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB
+const FormData = require("form-data");
+const fs = require("fs");
+const axios = require("axios");
 const pool = require("./pool");
 const express = require("express");
 const cors = require("cors");
@@ -364,7 +369,34 @@ ${content}
 });
 
 
+app.post("/transcribe", upload.any(), async (req, res) => {
+  try {
+    const file = req.files?.[0];
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
 
+    const language = req.body.language || "auto";
+
+    const form = new FormData();
+    form.append("file", fs.createReadStream(file.path));
+    form.append("model", "whisper-1");
+    if (language !== "auto") {
+      form.append("language", language); // Whisper supports this param
+    }
+
+    const response = await axios.post("https://api.openai.com/v1/audio/transcriptions", form, {
+      headers: {
+        ...form.getHeaders(),
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+    });
+
+    fs.unlinkSync(file.path); // cleanup
+    res.json({ transcript: response.data.text });
+  } catch (error) {
+    console.error("❌ Whisper error:", error.message);
+    res.status(500).json({ error: "Transcription failed" });
+  }
+});
 
 
 

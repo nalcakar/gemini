@@ -14,31 +14,44 @@
     h1 { text-align: center; margin-bottom: 30px; color: #111827; }
 
     .section-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 20px;
-      max-width: 1100px;
-      margin: auto;
-    }
-
-    .card {
-      background: white;
-      padding: 40px 20px;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-      text-align: center;
-      font-size: 18px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .card span { font-size: 40px; display: block; margin-bottom: 10px; }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  max-width: 1000px;
+  margin: auto;
+}
+.card {
+  background: white;
+  padding: 24px 10px;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100px;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+.card span {
+  font-size: 30px;
+  margin-bottom: 6px;
+}
+@media (max-width: 600px) {
+  .card {
+    font-size: 14px;
+    padding: 18px 8px;
+  }
+  .card span {
+    font-size: 24px;
+  }
+}
 
     #section-content {
       max-width: 900px;
@@ -153,21 +166,31 @@
 
     .logout-btn:hover, .login-btn:hover { opacity: 0.9; }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+
 </head>
 <body>
 
-<h1>AI Quiz Generator</h1>
+<h1>AI Quiz Generator11504-1138</h1>
 <div id="user-box"></div>
 
 <div class="section-grid">
-  <div class="card" onclick="showSection('document')"><span>📄</span>Document</div>
+  <div class="card" onclick="showSection('document')"><span>📑</span>PDF</div>
   <div class="card" onclick="showSection('text')"><span>✏️</span>Text</div>
   <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
-  <div class="card" onclick="showSection('video')"><span>🎥</span>Video</div>
+  <div class="card" onclick="showSection('video')"><span>🎬</span>YouTube</div>
+  <div class="card" onclick="showSection('audio')"><span>🎧</span>Audio</div>
+  <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
+  <div class="card" onclick="showSection('keyword')"><span>🔑</span>Keyword</div>
 </div>
 
 <div id="section-content"></div>
-
+<script src="fileReader.js"></script>       <!-- for PDF, DOCX, TXT -->
+<script src="textListener.js"></script>     <!-- for manual input -->
+<script src="imageReader.js"></script>
+<script src="audioUploader.js"></script>
 <script>
   window.showSection = function(type) {
     localStorage.setItem("lastSection", type);
@@ -176,38 +199,50 @@
     let html = "";
 
     const lockedOverlay = (msg = "Pro only") => `
-      <div style="
-        position:absolute;
-        top:0; left:0; right:0; bottom:0;
-        background:rgba(255,255,255,0.8);
-        backdrop-filter: blur(2px);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:14px;
-        font-weight:500;
-        color:#b91c1c;
-        border-radius:8px;
-      ">🔒 ${msg}</div>`;
+  <div style="
+    position:absolute;
+    top:0; left:0; right:0; bottom:0;
+    background:rgba(255,255,255,0.85);
+    backdrop-filter: blur(2px);
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    font-weight:500;
+    color:#b91c1c;
+    text-align:center;
+    border-radius:8px;
+    padding: 10px;
+  ">
+    🔒 ${msg}<br>
+    <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
+       style="margin-top:8px; background:#1e40af; color:white; padding:6px 14px; border-radius:8px;
+              text-decoration:none; font-size:13px;">
+      🌟 Upgrade to Pro
+    </a>
+  </div>`;
+
 
     switch(type) {
       case 'document':
-        html = `
-          <h2>📄 Upload PDF / DOCX</h2>
-          <p>You can preview the upload field below. Uploading is <b>Pro only</b>.</p>
-          <div style="position:relative;">
-            <input type="file" accept=".pdf,.doc,.docx" ${!isProUser ? "disabled" : ""} />
-            ${!isProUser ? lockedOverlay("Pro required to upload") : ""}
-          </div>
-          <p>This file will be used to generate AI-powered quiz questions.</p>
-        `;
-        break;
+  html = `
+    <h2><i class="fas fa-file-alt" style="color:#3b82f6;"></i> Upload File (.pdf, .docx, .txt)</h2>
+    <p>You can upload a document below. Extracted content will appear below.</p>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.txt" />
+    <div style="position:relative;">
+      <input type="file" id="fileInput" accept=".pdf,.docx,.txt" ${!isProUser ? "disabled" : ""} />
+      <textarea id="textOutput" placeholder="Extracted text will appear here..." style="margin-top:12px; height:160px;"></textarea>
+      ${!isProUser ? lockedOverlay("Pro required to upload") : ""}
+    </div>
+  `;
+  break;
 
       case 'text':
         html = `
           <h2>✏️ Paste Your Text</h2>
           <p>Paste your notes and click Generate Quiz.</p>
-          <textarea id="textInput" placeholder="Your content here..."></textarea>
+          <textarea id="textManualInput" placeholder="Your content here..."></textarea>
           <button class="generate-btn" onclick="generateQuiz()">Generate Quiz</button>
           <div id="quizOutput" class="quiz-preview"></div>
         `;
@@ -216,8 +251,11 @@
       case 'image':
         html = `
           <h2>🖼️ Upload Image</h2>
-          <input type="file" accept="image/*" />
+        
           <p>We'll extract content from the image and create a quiz.</p>
+          <input type="file" id="imageInput" accept="image/*" />
+<textarea id="imageTextOutput" placeholder="Text from image will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+
         `;
         break;
 
@@ -232,6 +270,42 @@
           <button class="generate-btn" onclick="alert('Coming soon!')" ${!isProUser ? "disabled" : ""}>Generate from Video</button>
         `;
         break;
+        case 'topic':
+  html = `
+    <h2>🧠 Topic Generator</h2>
+    <p>Enter some text to get a relevant topic.</p>
+    <textarea id="topicInput" placeholder="Paste your text..."></textarea>
+    <button class="generate-btn" onclick="alert('Topic generation coming soon')">Generate Topic</button>
+  `;
+  break;
+  case 'audio':
+  html = `
+    <h2>🎧 Upload Audio/Video File</h2>
+    <p>Select an <b>MP3</b>, <b>MP4</b>, or <b>WAV</b> file for speech-to-text transcription.</p>
+    <input type="file" id="audioInput" accept=".mp3,.mp4,.wav" />
+    <select id="audioLanguage" style="margin-top: 10px;">
+      <option value="">🌐 Auto Detect</option>
+      <option value="en">English</option>
+      <option value="tr">Turkish</option>
+      <option value="es">Spanish</option>
+      <option value="fr">French</option>
+      <option value="de">German</option>
+    </select>
+    <progress id="uploadProgress" value="0" max="100" style="width: 100%; margin-top: 10px;"></progress>
+    <div id="audioStatus" style="margin-top:10px; color:#333;"></div>
+    <textarea id="audioTextOutput" placeholder="Transcript will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+  `;
+  break;
+
+case 'keyword':
+  html = `
+    <h2>🔑 Keyword Generator</h2>
+    <p>Paste your text and get keywords with definitions.</p>
+    <textarea id="keywordInput" placeholder="Paste your text..."></textarea>
+    <button class="generate-btn" onclick="alert('Keyword generation coming soon')">Generate Keywords</button>
+  `;
+  break;
+
     }
 
     content.innerHTML = html;

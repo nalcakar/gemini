@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎯 Gemini Prompt Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      padding: 30px;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      height: 100px;
+      resize: vertical;
+    }
+
+    button {
+      background-color: #4f46e5;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #output {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎯 Gemini Prompt Generator</h2>
+
+  <label for="type">Question Type</label>
+  <select id="type">
+    <option value="multipleChoice">Multiple Choice</option>
+    <option value="flashcard">Flashcard</option>
+  </select>
+
+  <label for="level">Grade Level</label>
+  <input type="text" id="level" placeholder="e.g., 5th grade" />
+
+  <label for="language">Language</label>
+  <input type="text" id="language" placeholder="e.g., English or Turkish" />
+
+  <label for="subject">Subject</label>
+  <input type="text" id="subject" placeholder="e.g., Math, Science" />
+
+  <label for="keywords">Keywords (comma separated)</label>
+  <input type="text" id="keywords" placeholder="e.g., fractions, decimals" />
+
+  <label for="sample">Optional Sample Format</label>
+  <textarea id="sample" placeholder="Write an example question or flashcard..."></textarea>
+
+  <button onclick="generatePrompt()">⚡ Generate Prompt</button>
+
+  <label for="output">Generated Prompt</label>
+  <textarea id="output" readonly></textarea>
+
+  <script>
+    function generateGeminiPrompt({ type, level, language, subject, keywords, sample }) {
+      let instructions = `You are an expert teacher creating ${type === "flashcard" ? "flashcards" : "questions"} for ${level} students.`;
+      instructions += ` Please write them in ${language}. The topic is ${subject}.`;
+
+      if (keywords.length > 0) {
+        instructions += ` Include concepts such as: ${keywords.join(", ")}.`;
+      }
+
+      if (type === "multipleChoice") {
+        instructions += `\n\nEach question should include:\n- A question\n- 4 answer choices (A–D)\n- The correct answer marked\n- A short explanation.`;
+      } else if (type === "flashcard") {
+        instructions += `\n\nEach flashcard should have:\n- Term\n- Explanation.`;
+      }
+
+      if (sample) {
+        instructions += `\n\nHere is an example of the format:\n${sample}`;
+      }
+
+      return instructions;
+    }
+
+    function generatePrompt() {
+      const type = document.getElementById("type").value;
+      const level = document.getElementById("level").value.trim();
+      const language = document.getElementById("language").value.trim();
+      const subject = document.getElementById("subject").value.trim();
+      const keywords = document.getElementById("keywords").value.split(",").map(k => k.trim()).filter(k => k !== "");
+      const sample = document.getElementById("sample").value.trim();
+
+      const prompt = generateGeminiPrompt({
+        type,
+        level: level || "5th grade",
+        language: language || "English",
+        subject: subject || "Math",
+        keywords,
+        sample
+      });
+
+      document.getElementById("output").value = prompt;
+    }
+  </script>
+</body>
+</html>
