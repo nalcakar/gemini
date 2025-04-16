@@ -76,9 +76,6 @@ app.post("/transcribe", upload.any(), async (req, res) => {
     const file = req.files?.[0];
     if (!file) return res.status(400).json({ error: "No file uploaded" });
 
-    const language = req.body.language || "auto";
-
-    // 👇 Extract extension and rename the file to ensure it's recognizable
     const ext = path.extname(file.originalname) || ".mp3";
     const renamedPath = file.path + ext;
     fs.renameSync(file.path, renamedPath);
@@ -86,9 +83,6 @@ app.post("/transcribe", upload.any(), async (req, res) => {
     const form = new FormData();
     form.append("file", fs.createReadStream(renamedPath));
     form.append("model", "whisper-1");
-    if (language !== "auto") {
-      form.append("language", language);
-    }
 
     const response = await axios.post("https://api.openai.com/v1/audio/transcriptions", form, {
       headers: {
@@ -97,14 +91,14 @@ app.post("/transcribe", upload.any(), async (req, res) => {
       },
     });
 
-    fs.unlinkSync(renamedPath); // clean up after processing
+    fs.unlinkSync(renamedPath);
     res.json({ transcript: response.data.text });
-
   } catch (error) {
     console.error("❌ Whisper error:", error.response?.data || error.message);
     res.status(500).json({ error: "Transcription failed" });
   }
 });
+
 
 
 // === RATE LIMIT (Dakikada en fazla 10 istek) *****===
@@ -123,6 +117,17 @@ app.use(express.static(path.join(__dirname, "public")));
 // === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
   const { mycontent } = req.body;
+  const user = req.user || {};
+
+  const tierQuestionCounts = {
+    "25539224": 10,  // Bronze
+    "25296810": 15,  // Silver
+    "25669215": 20   // Gold
+  };
+
+  const userTier = user.tier;
+  const questionCount = tierQuestionCounts[userTier] || 5; // Giriş yapmayan: 5
+
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
@@ -134,7 +139,7 @@ app.post("/generate-questions", async (req, res) => {
   const questionLanguage = languageMap[langCode] || "ingilizce";
 
   const prompt = `
-Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli 10 ile 20 arası soru üret.
+Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli tam ${questionCount} soru üret.
 Kurallar:
 - Her soru *** ile başlasın.
 - 4 şık /// ile başlasın.
@@ -153,40 +158,6 @@ ${mycontent}`;
     res.status(500).json({ error: "Soru üretilemedi" });
   }
 });
-
-app.post("/generate-single-question", async (req, res) => {
-  const { mycontent } = req.body;
-  const langCode = franc(mycontent);
-  const languageMap = {
-    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
-  };
-  const questionLanguage = languageMap[langCode] || "ingilizce";
-
-  const prompt = `
-Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli 1 soru üret.
-Kurallar:
-- Her soru *** ile başlasın.
-- 4 şık /// ile başlasın.
-- Cevap ~~Cevap: [cevap]
-- Açıklama &&Açıklama: [açıklama]
-- Sadece metin olarak döndür.
-Metin:
-${mycontent}`;
-
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await model.generateContent(prompt);
-    res.json({ questions: await result.response.text() });
-  } catch (err) {
-    console.error("Gemini hata:", err.message);
-    res.status(500).json({ error: "Soru üretilemedi" });
-  }
-});
-
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
@@ -454,40 +425,43 @@ app.get("/auth/patreon/callback", async (req, res) => {
     const email = userData.data.attributes.email;
     const name = userData.data.attributes.full_name;
 
-    // 🏷️ 3. Üyelik tipi belirle
-    let membershipType = "Free";
-    const included = userData.included;
+   // 🏷️ 3. Üyelik tipi belirle
+let membershipType = "Free"; // default giriş yapmayanlar için
+const included = userData.included;
 
-    if (included && Array.isArray(included)) {
-      const member = included.find(i => i.type === "member");
-      const tiers = member?.relationships?.currently_entitled_tiers?.data || [];
+if (included && Array.isArray(included)) {
+  const member = included.find(i => i.type === "member");
+  const tiers = member?.relationships?.currently_entitled_tiers?.data || [];
 
-      const tierIds = tiers.map(t => t.id);
+  const tierIds = tiers.map(t => t.id);
 
-      // 🎯 Buraya kendi Patreon tier ID'lerini yaz
-      const PRO_IDS = ["25539224"];   // Pro üyelik tier ID
-      const FREE_IDS = ["25296810"];  // Ücretsiz üyelik tier ID
+  // 🎯 Patreon Tier ID eşleşmeleri (görselden aldığın ID’ler)
+  const TIER_MAP = {
+    "25539224": "Bronze",
+    "25296810": "Silver",
+    "25669215": "Gold"
+  };
 
-      if (tierIds.some(id => PRO_IDS.includes(id))) {
-        membershipType = "Pro";
-      } else if (tierIds.some(id => FREE_IDS.includes(id))) {
-        membershipType = "Free";
-      } else {
-        membershipType = "Unknown";
-      }
-
-      console.log("🔍 Kullanıcının tier ID'leri:", tierIds);
-      console.log("🎯 Belirlenen membershipType:", membershipType);
+  for (const id of tierIds) {
+    if (TIER_MAP[id]) {
+      membershipType = TIER_MAP[id];
+      break;
     }
+  }
 
-    // 🔁 4. Frontend'e yönlendir
-    const redirectUrl = new URL("https://doitwithai.org/AiQuestionMaker.html");
-    redirectUrl.searchParams.set("accessToken", accessToken);
-    redirectUrl.searchParams.set("userEmail", email);
-    redirectUrl.searchParams.set("userName", name);
-    redirectUrl.searchParams.set("membershipType", membershipType);
+  console.log("🔍 Kullanıcının tier ID'leri:", tierIds);
+  console.log("🎯 Belirlenen membershipType:", membershipType);
+}
 
-    res.redirect(302, redirectUrl.toString());
+// 🔁 4. Frontend'e yönlendir
+const redirectUrl = new URL("https://doitwithai.org/AiQuestionMaker.html");
+redirectUrl.searchParams.set("accessToken", accessToken);
+redirectUrl.searchParams.set("userEmail", email);
+redirectUrl.searchParams.set("userName", name);
+redirectUrl.searchParams.set("membershipType", membershipType);
+
+res.redirect(302, redirectUrl.toString());
+
   } catch (err) {
     console.error("OAuth callback hatası:", err);
     res.status(500).send("❌ Sunucu hatası: OAuth işleminde hata oluştu.");

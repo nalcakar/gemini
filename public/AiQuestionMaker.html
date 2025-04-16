@@ -165,6 +165,12 @@
     }
 
     .logout-btn:hover, .login-btn:hover { opacity: 0.9; }
+
+    @keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
@@ -180,17 +186,23 @@
   <div class="card" onclick="showSection('document')"><span>📑</span>PDF</div>
   <div class="card" onclick="showSection('text')"><span>✏️</span>Text</div>
   <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
-  <div class="card" onclick="showSection('video')"><span>🎬</span>YouTube</div>
-  <div class="card" onclick="showSection('audio')"><span>🎧</span>Audio</div>
+  <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Audio</div>
   <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
-  <div class="card" onclick="showSection('keyword')"><span>🔑</span>Keyword</div>
+  
 </div>
 
-<div id="section-content"></div>
+<div id="section-content"> 
+  <button onclick="generateFullQuiz()" class="generate-btn">Generate Multiple Choice Questions</button>
+<div id="quizOutput" style="margin-top: 20px;"></div>
+
+
+
+</div>
 <script src="audioUploader.js"></script>
 <script src="fileReader.js"></script>       <!-- for PDF, DOCX, TXT -->
 <script src="textListener.js"></script>     <!-- for manual input -->
 <script src="imageReader.js"></script>
+<script src="generateFullQuiz.js"></script>
 
 <script>
   window.showSection = function(type) {
@@ -260,17 +272,7 @@
         `;
         break;
 
-      case 'video':
-        html = `
-          <h2>🎥 YouTube Link</h2>
-          <p>Paste a YouTube link below. Pro users only.</p>
-          <div style="position:relative;">
-            <input type="text" placeholder="https://youtube.com/..." ${!isProUser ? "disabled" : ""} style="width:100%; padding:10px; margin-top:8px;" />
-            ${!isProUser ? lockedOverlay("Pro required for YouTube") : ""}
-          </div>
-          <button class="generate-btn" onclick="alert('Coming soon!')" ${!isProUser ? "disabled" : ""}>Generate from Video</button>
-        `;
-        break;
+      
         case 'topic':
   html = `
     <h2>🧠 Topic Generator</h2>
@@ -281,31 +283,28 @@
   break;
   case 'audio':
   html = `
-    <h2>🎧 Upload Audio/Video File</h2>
-    <p>Select an <b>MP3</b>, <b>MP4</b>, or <b>WAV</b> file for speech-to-text transcription.</p>
+    <h2>🎧 Ses Dosyası Yükle</h2>
+    <p><b>MP3</b>, <b>MP4</b> veya <b>WAV</b> formatındaki dosyanızı yükleyin. Otomatik olarak yazıya dökülecek.</p>
     <input type="file" id="audioInput" accept=".mp3,.mp4,.wav" />
-    <select id="audioLanguage" style="margin-top: 10px;">
-      <option value="">🌐 Auto Detect</option>
-      <option value="en">English</option>
-      <option value="tr">Turkish</option>
-      <option value="es">Spanish</option>
-      <option value="fr">French</option>
-      <option value="de">German</option>
-    </select>
     <progress id="uploadProgress" value="0" max="100" style="width: 100%; margin-top: 10px;"></progress>
+    <div id="loadingSpinner" style="display: none; text-align: center; margin-top: 10px;">
+      <div class="spinner" style="
+        width: 30px;
+        height: 30px;
+        border: 4px solid #ddd;
+        border-top-color: #4f46e5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: auto;">
+      </div>
+    </div>
     <div id="audioStatus" style="margin-top:10px; color:#333;"></div>
-    <textarea id="audioTextOutput" placeholder="Transcript will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+    <textarea id="audioTextOutput" placeholder="Transkript burada görünecek..." style="margin-top:10px; width:100%; height:140px;"></textarea>
   `;
   break;
 
-case 'keyword':
-  html = `
-    <h2>🔑 Keyword Generator</h2>
-    <p>Paste your text and get keywords with definitions.</p>
-    <textarea id="keywordInput" placeholder="Paste your text..."></textarea>
-    <button class="generate-btn" onclick="alert('Keyword generation coming soon')">Generate Keywords</button>
-  `;
-  break;
+
+
 
     }
 
