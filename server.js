@@ -71,15 +71,24 @@ app.post("/patreon-me", async (req, res) => {
 });
 
 
-app.post("/transcribe", upload.single("file"), async (req, res) => {
+app.post("/transcribe", upload.any(), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+    const file = req.files?.[0];
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+    const language = req.body.language || "auto";
+
+    // 👇 Extract extension and rename the file to ensure it's recognizable
+    const ext = path.extname(file.originalname) || ".mp3";
+    const renamedPath = file.path + ext;
+    fs.renameSync(file.path, renamedPath);
 
     const form = new FormData();
-    form.append("file", fs.createReadStream(req.file.path));
+    form.append("file", fs.createReadStream(renamedPath));
     form.append("model", "whisper-1");
+    if (language !== "auto") {
+      form.append("language", language);
+    }
 
     const response = await axios.post("https://api.openai.com/v1/audio/transcriptions", form, {
       headers: {
@@ -88,24 +97,12 @@ app.post("/transcribe", upload.single("file"), async (req, res) => {
       },
     });
 
-    fs.unlinkSync(req.file.path); // geçici dosyayı sil
-
-    // Başarılıysa transcript döndür
+    fs.unlinkSync(renamedPath); // clean up after processing
     res.json({ transcript: response.data.text });
 
   } catch (error) {
-    console.error("❌ Whisper error:", error?.response?.data || error.message);
-
-    // Gelişmiş hata mesajı
-    res.status(500).json({
-      error: "Transcription failed",
-      details: error?.response?.data || error.message,
-    });
-
-    // Dosya varsa yine de temizle
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
+    console.error("❌ Whisper error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Transcription failed" });
   }
 });
 
