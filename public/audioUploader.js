@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 3. Setup upload
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/transcribe");
+        xhr.open("POST", "https://gemini-j8xd.onrender.com/transcribe");
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
