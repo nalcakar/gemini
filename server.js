@@ -1079,6 +1079,19 @@ app.post("/save-flashcards", async (req, res) => {
   }
 });
 
+app.get("/get-questions-by-name", authMiddleware, async (req, res) => {
+  const { title, email } = req.query;
+  if (!title || !email) return res.status(400).json({ error: "Eksik parametre" });
+
+  const result = await pool.query(`
+    SELECT q.* FROM questions q
+    JOIN titles t ON q.title_id = t.id
+    WHERE t.name = $1 AND t.user_email = $2
+    ORDER BY q.created_at DESC
+  `, [title, email]);
+
+  res.json({ questions: result.rows });
+});
 
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {

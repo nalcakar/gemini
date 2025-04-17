@@ -183,6 +183,74 @@
   .quiz-preview ul {
     padding-left: 20px;
   }
+
+
+
+.modal {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  max-width: 95vw;
+  height: 100%;
+  background: #fff;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #e5e7eb;
+}
+
+.modal.show {
+  transform: translateX(0);
+}
+
+.modal-header {
+  padding: 12px 16px;
+  background: #f3f4f6;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 16px;
+  flex: 1;
+}
+
+details {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #f9fafb;
+}
+
+details summary {
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .modal {
+    width: 100%;
+  }
+
+  #openModalBtn {
+    bottom: 10px;
+    right: 10px;
+    font-size: 14px;
+  }
+}
+
+
+
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
@@ -220,8 +288,8 @@
   <select id="mainTopicSelect" style="padding:8px; margin:5px;"></select>
   <select id="categorySelect" style="padding:8px; margin:5px;"></select><br/>
   <input id="quizTitle" list="titleSuggestions" placeholder="📘 Yeni başlık veya mevcut başlık gir" 
-         style="padding: 10px; width: 300px; margin:10px; border-radius:8px;" />
-  <datalist id="titleSuggestions"></datalist>
+       style="padding: 10px; width: 300px; margin:10px; border-radius:8px;" />
+<datalist id="titleSuggestions"></datalist>
   <br/>
   <button onclick="saveSelectedQuestions()" style="padding:10px 20px; font-size:16px; border-radius:8px;">
     💾 Seçilen Soruları Kaydet
@@ -394,7 +462,81 @@
 
     renderUserBox();
   });
+
+  function openModal() {
+  document.getElementById("questionModal").classList.add("show");
+
+  const titleName = document.getElementById("quizTitle")?.value.trim();
+
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+
+  if (!titleId || !token) {
+    document.getElementById("modalQuestionList").innerHTML = "<p style='color:red;'>Başlık seçilmedi veya giriş yapılmadı.</p>";
+    return;
+  }
+
+  fetch(`https://gemini-j8xd.onrender.com/get-questions-by-name?title=${encodeURIComponent(titleName)}&email=${encodeURIComponent(email)}`, {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+})
+    .then(res => res.json())
+    .then(data => {
+      const container = document.getElementById("modalQuestionList");
+      container.innerHTML = `<p>📌 Toplam Soru: <strong>${data.questions.length}</strong></p>`;
+      data.questions.forEach((q, i) => {
+        const block = document.createElement("details");
+        block.innerHTML = `
+          <summary>Q${i + 1}. ${q.question}</summary>
+          <ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>
+          <p><strong>✅ Cevap:</strong> ${q.answer}</p>
+          <p><strong>💡 Açıklama:</strong> ${q.explanation}</p>
+          <div style="margin-top: 8px;">
+            <button onclick="editExistingQuestion(${q.id})">✏️ Düzenle</button>
+            <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Sil</button>
+          </div>
+        `;
+        container.appendChild(block);
+      });
+    })
+    .catch(err => {
+      document.getElementById("modalQuestionList").innerHTML = "<p style='color:red;'>❌ Sorular alınamadı.</p>";
+      console.error("get-questions error:", err);
+    });
+}
+
+function closeModal() {
+  document.getElementById("questionModal").classList.remove("show");
+}
+
+function deleteExistingQuestion(id, btn) {
+  if (!confirm("Bu soruyu silmek istediğinize emin misiniz?")) return;
+  fetch(`https://gemini-j8xd.onrender.com/delete-question/${id}`, { method: "DELETE" })
+    .then(res => res.ok ? btn.closest("details").remove() : alert("❌ Silinemedi."))
+    .catch(() => alert("❌ Sunucu hatası"));
+}
+
+function editExistingQuestion(id) {
+  alert("✏️ Düzenleme özelliği yakında eklenecek.");
+}
+
 </script>
+<!-- Modal Açma Butonu -->
+<button id="openModalBtn" onclick="openModal()" style="position:fixed; bottom:20px; right:20px; z-index:10000; padding:12px 16px; border-radius:8px; background:#4f46e5; color:white;">
+  📂 Mevcut Soruları Göster
+</button>
+
+<!-- Scrollable Modal -->
+<div id="questionModal" class="modal hidden">
+  <div class="modal-header">
+    <h3>📚 Mevcut Sorular</h3>
+    <button onclick="closeModal()">✖</button>
+  </div>
+  <div class="modal-body" id="modalQuestionList">
+    <p style="text-align:center;">Yükleniyor...</p>
+  </div>
+</div>
 
 </body>
 </html>
