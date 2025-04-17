@@ -9,7 +9,7 @@ const upload = multer({ dest: "uploads/" });
 const FormData = require("form-data");
 const fs = require("fs");
 const axios = require("axios");
-const authMiddleware = require("./auth");
+
 const { franc } = require("franc");
 
 require("dotenv").config();
