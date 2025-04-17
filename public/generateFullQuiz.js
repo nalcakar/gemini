@@ -331,16 +331,96 @@ async function generateFullQuiz() {
   
   async function loadTitles(categoryId) {
     const token = localStorage.getItem("accessToken");
-    const res = await fetch(`https://gemini-j8xd.onrender.com/list-titles?category_id=${categoryId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-    const list = document.getElementById("titleSuggestions");
-    list.innerHTML = "";
-    data.titles.forEach(t => {
-      const opt = document.createElement("option");
-      opt.value = t.name;
-      list.appendChild(opt);
-    });
+    const email = localStorage.getItem("userEmail");
+  
+    if (!token || !email || !categoryId) return;
+  
+    try {
+      const res = await fetch(`https://gemini-j8xd.onrender.com/list-titles?category_id=${categoryId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+  
+      const data = await res.json();
+      const list = document.getElementById("titleSuggestions");
+      list.innerHTML = "";
+  
+      // Başlıkları datalist'e ekle
+      data.titles.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t.name;
+        list.appendChild(opt);
+      });
+  
+      // View Questions butonunu göster/gizle
+      const titleInput = document.getElementById("quizTitle")?.value.trim();
+      const matches = data.titles.map(t => t.name);
+      const viewBtnWrapper = document.getElementById("viewQuestionsWrapper");
+  
+      if (titleInput && matches.includes(titleInput)) {
+        viewBtnWrapper.style.display = "block";
+      } else {
+        viewBtnWrapper.style.display = "none";
+      }
+  
+      // ✅ Mobil floating buton kontrolü
+      updateFloatingButtonVisibility();
+  
+    } catch (err) {
+      console.error("Failed to load titles:", err);
+    }
   }
-      
+  
+  // 🔁 Ayrıca kullanıcı manuel yazarsa da butonu kontrol et
+  document.getElementById("quizTitle")?.addEventListener("input", () => {
+    updateFloatingButtonVisibility();
+  
+    const title = document.getElementById("quizTitle")?.value.trim();
+    const token = localStorage.getItem("accessToken");
+    const suggestions = Array.from(document.querySelectorAll("#titleSuggestions option")).map(opt => opt.value);
+    const viewBtn = document.getElementById("viewQuestionsWrapper");
+  
+    if (token && suggestions.includes(title)) {
+      viewBtn.style.display = "block";
+    } else {
+      viewBtn.style.display = "none";
+    }
+  });
+  
+  
+  function updateFloatingButtonVisibility() {
+    const title = document.getElementById("quizTitle")?.value.trim();
+    const suggestions = Array.from(document.querySelectorAll("#titleSuggestions option")).map(opt => opt.value);
+    const token = localStorage.getItem("accessToken");
+    const btn = document.getElementById("floatingMobileQuestionsBtn");
+    const isMobile = window.innerWidth < 768;
+  
+    if (token && title.length > 0 && suggestions.includes(title) && isMobile) {
+      btn.style.display = "flex";
+    } else {
+      btn.style.display = "none";
+    }
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    renderUserBox(); // zaten varsa
+    updateFloatingButtonVisibility(); // ✅ başlangıçta buton gizli kalır
+  });  
+  document.getElementById("quizTitle")?.addEventListener("input", () => {
+    const title = document.getElementById("quizTitle")?.value.trim();
+    const token = localStorage.getItem("accessToken");
+    const suggestions = Array.from(document.querySelectorAll("#titleSuggestions option")).map(opt => opt.value);
+    const viewBtn = document.getElementById("viewQuestionsWrapper");
+  
+    // Masaüstü buton görünürlüğü
+    if (token && title.length > 0 && suggestions.includes(title)) {
+      viewBtn.style.display = "block";
+    } else {
+      viewBtn.style.display = "none";
+    }
+  
+    // Mobil floating buton görünürlüğü
+    updateFloatingButtonVisibility();
+  });
+  
+  

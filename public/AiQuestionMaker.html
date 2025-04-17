@@ -250,6 +250,36 @@ details summary {
 }
 
 
+#floatingMobileQuestionsBtn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  font-size: 22px;
+  background: #10b981; /* Emerald Green */
+  color: white;
+  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  cursor: pointer;
+  z-index: 9999;
+  transition: all 0.3s ease;
+}
+
+#floatingMobileQuestionsBtn:hover {
+  background: #059669;
+  transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+  #floatingMobileQuestionsBtn {
+    display: flex;
+  }
+}
+
 
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -285,15 +315,35 @@ details summary {
 <div id="quizOutput" style="margin-top: 20px;"></div>
 
 <div id="saveQuizSection" style="text-align:center; margin-top: 30px; display:none;">
+  <!-- Title and Category Selection -->
   <select id="mainTopicSelect" style="padding:8px; margin:5px;"></select>
-  <select id="categorySelect" style="padding:8px; margin:5px;"></select><br/>
-  <input id="quizTitle" list="titleSuggestions" placeholder="📘 Yeni başlık veya mevcut başlık gir" 
-       style="padding: 10px; width: 300px; margin:10px; border-radius:8px;" />
-<datalist id="titleSuggestions"></datalist>
+  <select id="categorySelect" style="padding:8px; margin:5px;"></select>
   <br/>
-  <button onclick="saveSelectedQuestions()" style="padding:10px 20px; font-size:16px; border-radius:8px;">
-    💾 Seçilen Soruları Kaydet
+
+  <!-- Title Input -->
+  <input id="quizTitle" list="titleSuggestions" 
+         placeholder="📘 Enter a new or existing title" 
+         style="padding: 10px; width: 300px; margin:10px; border-radius:8px;" />
+  <datalist id="titleSuggestions"></datalist>
+  <br/>
+
+  <!-- Save Button -->
+  <button onclick="saveSelectedQuestions()" 
+          style="padding:10px 20px; font-size:16px; border-radius:8px;">
+    💾 Save Selected Questions
   </button>
+
+  <!-- View Existing Questions Button -->
+  <div id="viewQuestionsWrapper" style="display:none; margin-top: 10px;">
+    <button onclick="openModal()" 
+            style="padding:8px 16px; border-radius:8px; background:#f3f4f6; border:1px solid #ccc;">
+      📂 View Existing Questions
+    </button>
+  </div>
+</div>
+<!-- Floating Mobile Icon - Kayıtlı Sorular -->
+<div id="floatingMobileQuestionsBtn" onclick="openModal()" title="View Existing Questions">
+  🧾
 </div>
 
 </div>
