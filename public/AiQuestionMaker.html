@@ -216,7 +216,17 @@
 <!-- Soruların çıktısı -->
 <div id="quizOutput" style="margin-top: 20px;"></div>
 
-
+<div id="saveQuizSection" style="text-align:center; margin-top: 30px; display:none;">
+  <select id="mainTopicSelect" style="padding:8px; margin:5px;"></select>
+  <select id="categorySelect" style="padding:8px; margin:5px;"></select><br/>
+  <input id="quizTitle" list="titleSuggestions" placeholder="📘 Yeni başlık veya mevcut başlık gir" 
+         style="padding: 10px; width: 300px; margin:10px; border-radius:8px;" />
+  <datalist id="titleSuggestions"></datalist>
+  <br/>
+  <button onclick="saveSelectedQuestions()" style="padding:10px 20px; font-size:16px; border-radius:8px;">
+    💾 Seçilen Soruları Kaydet
+  </button>
+</div>
 
 </div>
 <script src="audioUploader.js"></script>

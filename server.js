@@ -521,133 +521,108 @@ res.redirect(302, redirectUrl.toString());
 
 
 /////////////Sql////////
-app.post("/save-questions", async (req, res) => {
+app.post("/save-questions", authMiddleware, async (req, res) => {
+  const { categoryId, titleName, questions } = req.body;
+  const email = req.user?.email;
+  if (!email) return res.status(401).json({ error: "Unauthorized" });
+
   const client = await pool.connect();
   try {
-    const { title, title_id, questions, userEmail, promptText } = req.body;
+    await client.query("BEGIN");
 
-    if (!userEmail || !title || !questions || questions.length === 0) {
-      return res.status(400).json({ success: false, message: "Eksik veri gönderildi." });
+    const titleRes = await client.query(`
+      INSERT INTO titles (name, category_id, user_email)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (name, category_id, user_email) DO NOTHING
+      RETURNING id
+    `, [titleName, categoryId, email]);
+
+    const titleId = titleRes.rows[0]?.id || (
+      await client.query(`SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3`,
+        [titleName, categoryId, email])
+    ).rows[0]?.id;
+
+    for (const q of questions) {
+      await client.query(`
+        INSERT INTO questions (title_id, question, options, answer, explanation, user_email)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [titleId, q.question, JSON.stringify(q.options), q.answer, q.explanation, email]);
     }
 
-    let resolvedTitleId = title_id || null;
-
-    // Eğer title_id varsa, bu title gerçekten bu kullanıcıya mı ait kontrol et
-    if (resolvedTitleId) {
-      const check = await client.query(
-        "SELECT id FROM titles WHERE id = $1 AND user_email = $2",
-        [resolvedTitleId, userEmail]
-      );
-
-      if (check.rowCount === 0) {
-        return res.status(400).json({ success: false, message: "Bu başlık size ait değil veya bulunamadı." });
-      }
-    }
-
-    // Eğer title_id yoksa ve isimle kayıtlı başlık varsa, onu al
-    if (!resolvedTitleId) {
-      const existing = await client.query(
-        "SELECT id FROM titles WHERE name = $1 AND user_email = $2",
-        [title, userEmail]
-      );
-      if (existing.rows.length > 0) {
-        resolvedTitleId = existing.rows[0].id;
-      } else {
-        // Yeni title oluştur
-        const defaultCategory = await client.query(
-          "SELECT id FROM categories WHERE user_email = $1 ORDER BY id LIMIT 1",
-          [userEmail]
-        );
-
-        const categoryId = defaultCategory.rows[0]?.id || null;
-
-        const insertTitle = await client.query(
-          "INSERT INTO titles(name, category_id, user_email, prompt_text) VALUES($1, $2, $3, $4) RETURNING id",
-          [title, categoryId, userEmail, promptText || ""]
-        );
-        resolvedTitleId = insertTitle.rows[0].id;
-      }
-    }
-
-    // Şimdi soruları kaydet
-    const insertPromises = questions.map((q) =>
-      client.query(
-        "INSERT INTO questions(title_id, user_email, question, options, answer, explanation) VALUES($1, $2, $3, $4, $5, $6)",
-        [
-          resolvedTitleId,
-          userEmail,
-          q.question,
-          JSON.stringify(q.options),
-          q.answer,
-          q.explanation || ""
-        ]
-      )
-    );
-
-    await Promise.all(insertPromises);
-
+    await client.query("COMMIT");
     res.json({ success: true });
   } catch (err) {
-    console.error("Soru kaydederken hata:", err);
-    res.status(500).json({ success: false, message: "Sunucu hatası." });
+    await client.query("ROLLBACK");
+    console.error("❌ Kaydetme hatası:", err);
+    res.status(500).json({ error: "Soru kaydedilemedi" });
   } finally {
     client.release();
   }
 });
 
 
-app.get('/list-main-categories', async (req, res) => {
-  const email = req.query.email;
+app.get("/list-main-topics", authMiddleware, async (req, res) => {
+  const email = req.user?.email;
+  if (!email) return res.status(401).json({ error: "Unauthorized" });
 
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      'SELECT * FROM main_topics WHERE user_email = $1 ORDER BY id DESC',
+    await client.query(`
+      INSERT INTO main_topics (name, user_email)
+      VALUES ('Genel', $1)
+      ON CONFLICT DO NOTHING
+    `, [email]);
+
+    const result = await client.query(
+      `SELECT id, name FROM main_topics WHERE user_email = $1 ORDER BY name ASC`,
       [email]
     );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Ana başlık listeleme hatası:', error);
-    res.status(500).json([]);
-  }
-});
-
-
-app.get("/list-categories", async (req, res) => {
-  const { main_id, email } = req.query;
-  if (!main_id || !email) return res.status(400).json({ success: false, message: "Eksik veri" });
-
-  try {
-    const result = await pool.query(
-      "SELECT id, name FROM categories WHERE main_topic_id = $1 AND user_email = $2 ORDER BY id DESC",
-      [main_id, email]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Kategori listeleme hatası:", err);
-    res.status(500).json({ success: false, message: "Sunucu hatası" });
+    res.json({ topics: result.rows });
+  } finally {
+    client.release();
   }
 });
 
 
 
 
-app.get("/list-titles", async (req, res) => {
-  const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: "Email gerekli" });
-  }
+app.get("/list-categories", authMiddleware, async (req, res) => {
+  const email = req.user?.email;
+  const mainTopicId = req.query.main_topic_id;
+  if (!email || !mainTopicId) return res.status(400).json({ error: "Missing data" });
 
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      "SELECT name FROM titles WHERE user_email = $1 ORDER BY created_at DESC",
-      [email]
-    );
+    await client.query(`
+      INSERT INTO categories (name, main_topic_id, user_email)
+      VALUES ('Genel', $1, $2)
+      ON CONFLICT DO NOTHING
+    `, [mainTopicId, email]);
 
-    res.json({ titles: result.rows });  // Bu kısmın mutlaka böyle olması gerekiyor!
-  } catch (err) {
-    console.error("Title sorgusu hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
+    const result = await client.query(
+      `SELECT id, name FROM categories WHERE main_topic_id = $1 AND user_email = $2 ORDER BY name ASC`,
+      [mainTopicId, email]
+    );
+    res.json({ categories: result.rows });
+  } finally {
+    client.release();
   }
+});
+
+
+
+
+
+app.get("/list-titles", authMiddleware, async (req, res) => {
+  const email = req.user?.email;
+  const categoryId = req.query.category_id;
+  if (!email || !categoryId) return res.status(400).json({ error: "Missing data" });
+
+  const result = await pool.query(
+    `SELECT id, name FROM titles WHERE category_id = $1 AND user_email = $2 ORDER BY created_at DESC LIMIT 50`,
+    [categoryId, email]
+  );
+  res.json({ titles: result.rows });
 });
 
 app.get("/get-questions", async (req, res) => {
