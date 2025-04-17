@@ -1092,7 +1092,6 @@ app.get("/get-questions-by-name", authMiddleware, async (req, res) => {
 
   res.json({ questions: result.rows });
 });
-
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
   // Eğer istek bir API endpoint'iyse yönlendirme yapma
