@@ -139,7 +139,7 @@ app.post("/generate-questions", async (req, res) => {
   const questionLanguage = languageMap[langCode] || "ingilizce";
 
   const prompt = `
-Aşağıdaki metne göre çoktan seçmeli tam ${questionCount} adet soru üret ve sonucu sadece aşağıdaki JSON formatında ver:
+Aşağıdaki metne göre çoktan seçmeli tam ${questionCount} adet soru üret ve sonucu yalnızca aşağıdaki JSON formatında ver:
 
 [
   {
@@ -150,7 +150,7 @@ Aşağıdaki metne göre çoktan seçmeli tam ${questionCount} adet soru üret v
   }
 ]
 
-Lütfen sadece geçerli bir JSON döndür. Kod bloğu, açıklama veya başka metin ekleme.
+Lütfen yalnızca geçerli bir JSON döndür. Kod bloğu (örneğin \`\`\`json), açıklama veya başka metin ekleme.
 
 Metin:
 ${mycontent}
@@ -161,18 +161,31 @@ ${mycontent}
     const result = await model.generateContent(prompt);
     const rawText = await result.response.text();
 
+    console.log("📥 Gemini cevabı:", rawText);
+
     let questions = [];
 
     try {
       questions = JSON.parse(rawText);
-    } catch (err) {
-      console.error("❌ JSON parse hatası:", err.message);
-      return res.status(500).json({ error: "Gemini geçersiz JSON yanıtı döndürdü." });
+    } catch (jsonErr) {
+      console.error("❌ JSON parse hatası:", jsonErr.message);
+      return res.status(500).json({
+        error: "Gemini geçersiz JSON formatı döndürdü.",
+        raw: rawText
+      });
     }
 
-    res.json({ questions }); // ✅ JSON dizisi olarak döner
+    // Kontrol: questions gerçekten dizi mi?
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return res.status(500).json({
+        error: "Gemini geçerli bir soru listesi döndürmedi.",
+        raw: rawText
+      });
+    }
+
+    res.json({ questions }); // ✅ Artık sağlam JSON listesi dönüyor
   } catch (err) {
-    console.error("Gemini hata:", err.message);
+    console.error("❌ generate-questions sunucu hatası:", err.message);
     res.status(500).json({ error: "Soru üretilemedi" });
   }
 });
