@@ -126,7 +126,7 @@ app.post("/generate-questions", async (req, res) => {
   };
 
   const userTier = user.tier;
-  const questionCount = tierQuestionCounts[userTier] || 5; // Giriş yapmayan: 5
+  const questionCount = tierQuestionCounts[userTier] || 5;
 
   const langCode = franc(mycontent);
   const languageMap = {
@@ -139,25 +139,44 @@ app.post("/generate-questions", async (req, res) => {
   const questionLanguage = languageMap[langCode] || "ingilizce";
 
   const prompt = `
-Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli tam ${questionCount} soru üret.
-Kurallar:
-- Her soru *** ile başlasın.
-- 4 şık /// ile başlasın.
-- Cevap ~~Cevap: [cevap]
-- Açıklama &&Açıklama: [açıklama]
-- Sadece metin olarak döndür.
+Aşağıdaki metne göre çoktan seçmeli tam ${questionCount} adet soru üret ve sonucu sadece aşağıdaki JSON formatında ver:
+
+[
+  {
+    "question": "Soru cümlesi...",
+    "options": ["a) Şık 1", "b) Şık 2", "c) Şık 3", "d) Şık 4"],
+    "answer": "b",
+    "explanation": "Açıklama metni burada."
+  }
+]
+
+Lütfen sadece geçerli bir JSON döndür. Kod bloğu, açıklama veya başka metin ekleme.
+
 Metin:
-${mycontent}`;
+${mycontent}
+`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    res.json({ questions: await result.response.text() });
+    const rawText = await result.response.text();
+
+    let questions = [];
+
+    try {
+      questions = JSON.parse(rawText);
+    } catch (err) {
+      console.error("❌ JSON parse hatası:", err.message);
+      return res.status(500).json({ error: "Gemini geçersiz JSON yanıtı döndürdü." });
+    }
+
+    res.json({ questions }); // ✅ JSON dizisi olarak döner
   } catch (err) {
     console.error("Gemini hata:", err.message);
     res.status(500).json({ error: "Soru üretilemedi" });
   }
 });
+
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {

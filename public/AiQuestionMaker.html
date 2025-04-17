@@ -171,6 +171,24 @@
     transform: rotate(360deg);
   }
 }
+.quiz-card {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 15px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.quiz-card h4 {
+  margin-bottom: 8px;
+}
+
+.quiz-card ul {
+  padding-left: 20px;
+  margin-bottom: 10px;
+}
+
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
@@ -179,8 +197,9 @@
 </head>
 <body>
 
-<h1>AI Quiz Generator11504-1138</h1>
+<h1>AI Quiz Generator1604-1303</h1>
 <div id="user-box"></div>
+
 
 <div class="section-grid">
   <div class="card" onclick="showSection('document')"><span>📑</span>PDF</div>
@@ -188,11 +207,19 @@
   <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
   <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Audio</div>
   <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
-  
 </div>
 
-<div id="section-content"> 
-  <button onclick="generateFullQuiz()" class="generate-btn">Generate Multiple Choice Questions</button>
+<!-- 🟩 Sekme içeriği -->
+<div id="section-content" style="margin-top: 20px;"></div>
+
+<!-- 🟨 Generate button sabit olarak alt tarafta -->
+<div style="text-align: center; margin-top: 20px;">
+  <button id="generateQuizButton" onclick="generateFullQuiz()" class="generate-btn">
+    Generate Multiple Choice Questions
+  </button>
+</div>
+
+<!-- Soruların çıktısı -->
 <div id="quizOutput" style="margin-top: 20px;"></div>
 
 
@@ -256,7 +283,7 @@
           <h2>✏️ Paste Your Text</h2>
           <p>Paste your notes and click Generate Quiz.</p>
           <textarea id="textManualInput" placeholder="Your content here..."></textarea>
-          <button class="generate-btn" onclick="generateQuiz()">Generate Quiz</button>
+         
           <div id="quizOutput" class="quiz-preview"></div>
         `;
         break;

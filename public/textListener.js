@@ -1,36 +1,39 @@
-// textListener.js
-window.extractedText = window.extractedText || "";
+function attachTextAreaListeners() {
+  const allTextareas = document.querySelectorAll("textarea");
 
-document.addEventListener("DOMContentLoaded", () => {
-  const sectionBox = document.getElementById("section-content");
+  allTextareas.forEach((textarea) => {
+    // Zaten dinleniyorsa tekrar bağlama
+    if (textarea.dataset.listenerAttached === "true") return;
 
-  const observer = new MutationObserver(() => {
-    const manualInput = document.getElementById("textManualInput");
+    textarea.dataset.listenerAttached = "true";
 
-    if (manualInput && !manualInput.dataset.listenerAttached) {
-      manualInput.dataset.listenerAttached = "true";
+    // Elle yazma
+    textarea.addEventListener("input", () => {
+      if (textarea.value.trim().length > 0) {
+        window.extractedText = textarea.value.trim();
+      }
+    });
 
-      const updateExtractedText = () => {
-        const newText = manualInput.value;
-        if (newText !== window.extractedText) {
-          window.extractedText = newText;
-          console.log("📝 Updated extractedText (input):", window.extractedText);
+    // Yapıştırma
+    textarea.addEventListener("paste", () => {
+      setTimeout(() => {
+        if (textarea.value.trim().length > 0) {
+          window.extractedText = textarea.value.trim();
         }
-      };
+      }, 50);
+    });
 
-      const forcePasteUpdate = () => {
-        setTimeout(() => {
-          window.extractedText = manualInput.value;
-          console.log("📋 Paste detected, forced update:", window.extractedText);
-        }, 50); // wait for pasted text to actually be inserted
-      };
-
-      manualInput.addEventListener("input", updateExtractedText);
-      manualInput.addEventListener("paste", forcePasteUpdate);
+    // İlk açılışta alan doluysa
+    if (textarea.value.trim().length > 0) {
+      window.extractedText = textarea.value.trim();
     }
   });
+}
 
-  if (sectionBox) {
-    observer.observe(sectionBox, { childList: true, subtree: true });
-  }
-});
+// Sayfa yüklendiğinde ve sekme değiştiğinde dinleyici bağla
+document.addEventListener("DOMContentLoaded", attachTextAreaListeners);
+const sectionObserver = new MutationObserver(attachTextAreaListeners);
+const sectionBox = document.getElementById("section-content");
+if (sectionBox) {
+  sectionObserver.observe(sectionBox, { childList: true, subtree: true });
+}

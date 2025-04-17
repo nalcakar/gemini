@@ -1,8 +1,19 @@
-// generateFullQuiz.js
 async function generateFullQuiz() {
-    const extractedText = window.extractedText || document.getElementById("textManualInput")?.value;
+    let extractedText = window.extractedText || "";
+  
+    if (!extractedText) {
+      const idsToCheck = ["textManualInput", "textOutput", "imageTextOutput", "audioTextOutput"];
+      for (const id of idsToCheck) {
+        const el = document.getElementById(id);
+        if (el && el.value && el.value.trim().length > 0) {
+          extractedText = el.value.trim();
+          break;
+        }
+      }
+    }
+  
     if (!extractedText || extractedText.trim().length < 10) {
-      alert("Please paste or upload some text first.");
+      alert("⚠️ Please paste or upload some text first.");
       return;
     }
   
@@ -20,15 +31,30 @@ async function generateFullQuiz() {
       });
   
       const data = await res.json();
-      if (data.questions) {
-        document.getElementById("quizOutput").innerHTML = `
-          <h3>🎯 Generated Questions:</h3>
-          <pre style="background:#f9f9f9;padding:10px;border-radius:6px;white-space:pre-wrap;">${data.questions}</pre>`;
-      } else {
-        alert("No questions returned.");
+  
+      if (!data.questions || !Array.isArray(data.questions)) {
+        throw new Error("Invalid response from server");
       }
+  
+      const output = document.getElementById("quizOutput");
+      output.innerHTML = "<h3>🎯 Generated Questions:</h3>";
+  
+      data.questions.forEach((q, index) => {
+        const card = document.createElement("div");
+        card.className = "quiz-card";
+        card.innerHTML = `
+          <h4>Q${index + 1}. ${q.question}</h4>
+          <ul>
+            ${q.options.map(opt => `<li>${opt}</li>`).join("")}
+          </ul>
+          <p><strong>✅ Answer:</strong> ${q.answer}</p>
+          <p><strong>💡 Explanation:</strong> ${q.explanation}</p>
+        `;
+        output.appendChild(card);
+      });
+  
     } catch (err) {
-      console.error("Error generating questions:", err);
+      console.error("❌ Error:", err);
       alert("❌ Failed to generate questions.");
     }
   
