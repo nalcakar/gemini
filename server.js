@@ -24,7 +24,56 @@ const fetch = require("node-fetch");
 
 // ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
 const allowedOrigins = ["https://doitwithai.org"];
+app.use(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
 
+  const accessToken = authHeader.split(" ")[1];
+  if (!accessToken) return next();
+
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    const data = await response.json();
+
+    const email = data.data?.attributes?.email;
+    const name = data.data?.attributes?.full_name;
+
+    const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
+
+    // ID'lere göre eşleştirme
+    const TIER_MAP = {
+      "25539224": "Bronze",
+      "25296810": "Silver",
+      "25669215": "Gold"
+    };
+
+    let tier = "free"; // default
+
+    for (const t of tiers) {
+      if (TIER_MAP[t.id]) {
+        tier = t.id; // numeric ID olarak kullanıyoruz
+        break;
+      }
+    }
+
+    if (email) {
+      req.user = {
+        email,
+        name,
+        tier // örnek: "25539224"
+      };
+    }
+  } catch (err) {
+    console.error("❌ Kullanıcı doğrulama hatası:", err.message);
+  }
+
+  next();
+});
 
 app.use(cors({
   origin: "https://doitwithai.org",
