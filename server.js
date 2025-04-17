@@ -126,7 +126,7 @@ app.post("/generate-questions", async (req, res) => {
   };
 
   const userTier = user.tier;
-  const questionCount = tierQuestionCounts[userTier] || 5;
+  const questionCount = tierQuestionCounts[userTier] || 5; // Giriş yapmayan: 5
 
   const langCode = franc(mycontent);
   const languageMap = {
@@ -139,57 +139,25 @@ app.post("/generate-questions", async (req, res) => {
   const questionLanguage = languageMap[langCode] || "ingilizce";
 
   const prompt = `
-Aşağıdaki metne göre çoktan seçmeli tam ${questionCount} adet soru üret ve sonucu yalnızca aşağıdaki JSON formatında ver:
-
-[
-  {
-    "question": "Soru cümlesi...",
-    "options": ["a) Şık 1", "b) Şık 2", "c) Şık 3", "d) Şık 4"],
-    "answer": "b",
-    "explanation": "Açıklama metni burada."
-  }
-]
-
-Lütfen yalnızca geçerli bir JSON döndür. Kod bloğu (örneğin \`\`\`json), açıklama veya başka metin ekleme.
-
+Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli tam ${questionCount} soru üret.
+Kurallar:
+- Her soru *** ile başlasın.
+- 4 şık /// ile başlasın.
+- Cevap ~~Cevap: [cevap]
+- Açıklama &&Açıklama: [açıklama]
+- Sadece metin olarak döndür.
 Metin:
-${mycontent}
-`;
+${mycontent}`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    const rawText = await result.response.text();
-
-    console.log("📥 Gemini cevabı:", rawText);
-
-    let questions = [];
-
-    try {
-      questions = JSON.parse(rawText);
-    } catch (jsonErr) {
-      console.error("❌ JSON parse hatası:", jsonErr.message);
-      return res.status(500).json({
-        error: "Gemini geçersiz JSON formatı döndürdü.",
-        raw: rawText
-      });
-    }
-
-    // Kontrol: questions gerçekten dizi mi?
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return res.status(500).json({
-        error: "Gemini geçerli bir soru listesi döndürmedi.",
-        raw: rawText
-      });
-    }
-
-    res.json({ questions }); // ✅ Artık sağlam JSON listesi dönüyor
+    res.json({ questions: await result.response.text() });
   } catch (err) {
-    console.error("❌ generate-questions sunucu hatası:", err.message);
+    console.error("Gemini hata:", err.message);
     res.status(500).json({ error: "Soru üretilemedi" });
   }
 });
-
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
