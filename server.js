@@ -737,28 +737,27 @@ app.put("/move-category", async (req, res) => {
 });
 
 
-app.put("/update-question", async (req, res) => {
-  const { id, question, options, answer, explanation, email } = req.body;
-
-  if (!id || !email) return res.status(400).json({ success: false, message: "Eksik ID veya email" });
+app.patch("/update-question/:id", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { question, options, answer, explanation } = req.body;
 
   try {
-    const result = await pool.query(`
-      UPDATE questions 
-      SET question = $1, options = $2, answer = $3, explanation = $4 
+    await pool.query(`
+      UPDATE questions SET
+        question = $1,
+        options = $2,
+        answer = $3,
+        explanation = $4
       WHERE id = $5 AND user_email = $6
-    `, [question, JSON.stringify(options), answer, explanation, id, email]);
+    `, [question, JSON.stringify(options), answer, explanation, id, req.user.email]);
 
-    if (result.rowCount === 0) {
-      return res.status(403).json({ success: false, message: "Bu soruyu güncelleme yetkiniz yok" });
-    }
-
-    res.json({ success: true });
+    res.sendStatus(200);
   } catch (err) {
-    console.error("❌ Güncelleme hatası:", err.message);
-    res.status(500).json({ success: false, message: "Sunucu hatası" });
+    console.error("Update error:", err);
+    res.status(500).json({ error: "Update failed" });
   }
 });
+
 
 app.post("/add-main-category", async (req, res) => {
   const { name, email } = req.body;
