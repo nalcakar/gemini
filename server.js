@@ -119,8 +119,9 @@ app.use(async (req, res, next) => {
 app.use(cors({
   origin: "https://doitwithai.org",
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 }));
+
 
 
 // ✅ JSON parse işlemi

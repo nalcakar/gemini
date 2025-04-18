@@ -197,7 +197,7 @@
   box-shadow: -2px 0 10px rgba(0,0,0,0.2);
   transform: translateX(100%);
   transition: transform 0.3s ease;
-  z-index: 9999;
+  z-index: 10000;
   display: flex;
   flex-direction: column;
   border-left: 1px solid #e5e7eb;
@@ -267,7 +267,7 @@ details summary {
   border-radius: 50%;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   cursor: pointer;
-  z-index: 10001;
+  z-index: 9998;
   transition: background 0.3s ease;
 }
 
@@ -569,7 +569,8 @@ function closeModal() {
 // Silme fonksiyonu
 function deleteExistingQuestion(id, btn) {
   if (!confirm("Are you sure you want to delete this question?")) return;
-  fetch(`https://gemini-j8xd.onrender.com/delete-question/${id}`, {
+  fetch(`https://gemini-j8xd.onrender.com/delete-question/${id}?email=${encodeURIComponent(localStorage.getItem("userEmail"))}`, {
+
     method: "DELETE"
   })
     .then(res => {
@@ -631,6 +632,63 @@ function saveEditedQuestion(id, btn) {
     .catch(() => alert("❌ Server error"));
 }
 
+
+function editExistingQuestion(id) {
+  const btn = document.querySelector(`button[onclick="editExistingQuestion(${id})"]`);
+  const details = btn?.closest("details");
+  if (!details) return;
+
+  const summary = details.querySelector("summary");
+  const listItems = details.querySelectorAll("ul li");
+  const answerP = Array.from(details.querySelectorAll("p")).find(p => p.innerHTML.includes("Cevap"));
+  const explanationP = Array.from(details.querySelectorAll("p")).find(p => p.innerHTML.includes("Açıklama"));
+
+  // Extract existing values
+  const question = summary?.innerText.replace(/^Q\d+\.\s*/, "");
+  const options = Array.from(listItems).map(li => li.innerText);
+  const answer = answerP?.innerText.replace("✅ Cevap:", "").trim();
+  const explanation = explanationP?.innerText.replace("💡 Açıklama:", "").trim();
+
+  // Turn into editable form
+  summary.innerHTML = `Soru: <textarea style="width:100%; margin-top:4px;">${question}</textarea>`;
+  const newOptions = options.map(opt => `<textarea style="width:100%; margin-top:4px;">${opt}</textarea>`).join("");
+  const newAnswer = `<p><strong>✅ Cevap:</strong><br><textarea style="width:100%; margin-top:4px;">${answer}</textarea></p>`;
+  const newExplanation = `<p><strong>💡 Açıklama:</strong><br><textarea style="width:100%; margin-top:4px;">${explanation}</textarea></p>`;
+  const saveBtn = `<button onclick="saveExistingQuestion(${id}, this)">💾 Kaydet</button>`;
+
+  // Replace content
+  details.innerHTML = summary.outerHTML + newOptions + newAnswer + newExplanation + saveBtn;
+}
+
+async function saveExistingQuestion(id, btn) {
+  const details = btn.closest("details");
+  const textareas = details.querySelectorAll("textarea");
+
+  const question = textareas[0].value.trim();
+  const options = Array.from(textareas).slice(1, 5).map(t => t.value.trim());
+  const answer = textareas[5].value.trim();
+  const explanation = textareas[6].value.trim();
+
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+
+  const res = await fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ question, options, answer, explanation })
+  });
+
+  if (res.ok) {
+    alert("✅ Güncellendi");
+    closeModal();  // closes modal
+    setTimeout(openModal, 300);  // reopens with updated data
+  } else {
+    alert("❌ Güncelleme başarısız.");
+  }
+}
 
 </script>
 <!-- Modal Açma Butonu -->
