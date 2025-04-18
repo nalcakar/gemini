@@ -390,7 +390,7 @@ async function generateFullQuiz() {
     }
   });
   
-
+  
   
   function updateFloatingButtonVisibility() {
     const title = document.getElementById("quizTitle")?.value.trim();
@@ -427,80 +427,3 @@ async function generateFullQuiz() {
   });
   
   /// edit
-  function editSavedQuestion(button) {
-    const block = button.closest(".question-block");
-    const spans = block.querySelectorAll("[data-key]");
-    spans.forEach(span => {
-      const key = span.dataset.key;
-      const val = span.textContent.trim();
-      const input = document.createElement("textarea");
-      input.value = val;
-      input.dataset.key = key;
-      input.className = "q-edit";
-      input.style = "width:100%; margin-bottom:6px; padding:6px;";
-      span.replaceWith(input);
-    });
-  
-    button.textContent = "💾 Save";
-    button.onclick = () => saveEditedQuestion(block.dataset.id, button);
-  }
-
-  
-  async function saveEditedQuestion(questionId, button) {
-    const block = button.closest(".question-block");
-    const inputs = block.querySelectorAll("textarea.q-edit");
-    const updated = { options: [] };
-  
-    inputs.forEach(input => {
-      const key = input.dataset.key;
-      const value = input.value.trim();
-  
-      if (key.startsWith("option")) {
-        updated.options.push(value);
-      } else {
-        updated[key] = value;
-      }
-    });
-  
-    const token = localStorage.getItem("accessToken");
-    const res = await fetch(`https://gemini-j8xd.onrender.com/update-question/${questionId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + token
-      },
-      body: JSON.stringify(updated)
-    });
-  
-    if (res.ok) {
-      alert("✅ Question updated.");
-      loadQuestionsFromSelectedTitle(); // veya refresh modal
-    } else {
-      alert("❌ Failed to update.");
-    }
-  }
-
-  async function deleteSavedQuestion(id, button) {
-    const email = localStorage.getItem("userEmail");
-    if (!confirm("❌ Are you sure you want to delete this question?")) return;
-  
-    const res = await fetch(`https://gemini-j8xd.onrender.com/delete-question/${id}?email=${email}`, {
-      method: "DELETE"
-    });
-  
-    if (res.ok) {
-      alert("🗑️ Deleted successfully");
-      button.closest(".question-block").remove();
-      renumberQuestions(); // numaraları güncelle
-    } else {
-      alert("❌ Failed to delete");
-    }
-  }
-
-  function renumberQuestions() {
-    const blocks = document.querySelectorAll(".question-block");
-    blocks.forEach((block, i) => {
-      const title = block.querySelector("summary, b");
-      if (title) title.innerHTML = `Q${i + 1}.`;
-    });
-  }
