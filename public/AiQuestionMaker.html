@@ -250,37 +250,34 @@ details summary {
 }
 
 
-#floatingMobileQuestionsBtn {
+
+
+#fixedQuestionsToggle {
   position: fixed;
-  top: 12px;
-  right: 12px;
-  font-size: 22px;
-  background: #10b981; /* Emerald Green */
+  top: 16px;
+  right: 16px;
+  background: #3b82f6;
   color: white;
-  border-radius: 50%;
-  width: 46px;
-  height: 46px;
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
   display: none;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   cursor: pointer;
-  z-index: 9999;
-  transition: all 0.3s ease;
+  z-index: 10001;
+  transition: background 0.3s ease;
 }
 
-#floatingMobileQuestionsBtn:hover {
-  background: #059669;
-  transform: scale(1.1);
+#fixedQuestionsToggle:hover {
+  background: #2563eb;
 }
 
-@media (min-width: 769px) {
-  #floatingMobileQuestionsBtn {
-    display: none !important;
-  }
+#fixedQuestionsToggle.show {
+  display: flex !important;
 }
-
-
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
@@ -342,9 +339,7 @@ details summary {
   </div>
 </div>
 <!-- Floating Mobile Icon - Kayıtlı Sorular -->
-<div id="floatingMobileQuestionsBtn" onclick="openModal()" title="View Existing Questions">
-  🧾
-</div>
+
 
 </div>
 <script src="audioUploader.js"></script>
@@ -655,7 +650,9 @@ function saveEditedQuestion(id, btn) {
     <p style="text-align:center;">Yükleniyor...</p>
   </div>
 </div>
-
+<div id="fixedQuestionsToggle" onclick="openModal()" title="Show saved questions">
+  🧾
+</div>
 
 </body>
 </html>
