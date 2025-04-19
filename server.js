@@ -660,9 +660,11 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
 
   const client = await pool.connect();
   try {
-    // 🟨 Bu main_topic altında hiç kategori yoksa 1 defaya mahsus "Genel" ekle
+    // Sadece hiç kategori yoksa "Genel" ekle
     const existing = await client.query(`
-      SELECT id FROM categories WHERE main_topic_id = $1 AND user_email = $2 LIMIT 1
+      SELECT id FROM categories 
+      WHERE main_topic_id = $1 AND user_email = $2 
+      LIMIT 1
     `, [mainTopicId, email]);
 
     if (existing.rowCount === 0) {
@@ -673,10 +675,15 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
     }
 
     const result = await client.query(
-      `SELECT id, name FROM categories WHERE main_topic_id = $1 AND user_email = $2 ORDER BY name ASC`,
+      `SELECT id, name FROM categories 
+       WHERE main_topic_id = $1 AND user_email = $2 
+       ORDER BY name ASC`,
       [mainTopicId, email]
     );
     res.json({ categories: result.rows });
+  } catch (err) {
+    console.error("list-categories error:", err);
+    res.status(500).json({ error: "Server error" });
   } finally {
     client.release();
   }
@@ -686,16 +693,27 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
 
 
 
+
 app.get("/list-titles", authMiddleware, async (req, res) => {
-  const email = req.user?.email;
+  const email = req.user?.email || req.query.email;
   const categoryId = req.query.category_id;
   if (!email || !categoryId) return res.status(400).json({ error: "Missing data" });
 
-  const result = await pool.query(
-    `SELECT id, name FROM titles WHERE category_id = $1 AND user_email = $2 ORDER BY created_at DESC LIMIT 50`,
-    [categoryId, email]
-  );
-  res.json({ titles: result.rows });
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `SELECT id, name FROM titles 
+       WHERE category_id = $1 AND user_email = $2 
+       ORDER BY name ASC`,
+      [categoryId, email]
+    );
+    res.json({ titles: result.rows });
+  } catch (err) {
+    console.error("list-titles error:", err);
+    res.status(500).json({ error: "Server error" });
+  } finally {
+    client.release();
+  }
 });
 
 app.get("/get-questions", async (req, res) => {
