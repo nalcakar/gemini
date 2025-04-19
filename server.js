@@ -590,18 +590,23 @@ app.post("/save-questions", async (req, res) => {
       titleId = insert.rows[0].id;
     }
 
-    // Her soruyu ekle
+    // Soruları kaydet (güvenli şekilde)
     for (const q of questions) {
+      const safeOptions = Array.isArray(q.options) ? q.options : [];
+      const safeAnswer = q.answer || "placeholder";
+      const safeExplanation = q.explanation || "";
+      const safeDifficulty = q.difficulty || null;
+
       await client.query(
         `INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           titleId,
           q.question,
-          JSON.stringify(q.options),
-          q.answer || "placeholder", // zorunluysa
-          q.explanation || "",
-          q.difficulty || null,
+          JSON.stringify(safeOptions),
+          safeAnswer,
+          safeExplanation,
+          safeDifficulty,
           email
         ]
       );

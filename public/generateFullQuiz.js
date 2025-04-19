@@ -220,18 +220,10 @@ async function generateFullQuiz() {
       return;
     }
   
-    const titleList = Array.from(document.querySelectorAll("#titleSuggestions option")).map(opt => opt.value);
-    const isExistingTitle = titleList.includes(title);
-  
-    if (isExistingTitle) {
-      const confirmOverwrite = confirm(
-        `📘 "${title}" başlığı zaten var.\nYeni sorular bu başlığa eklenecek.\nDevam edilsin mi?`
-      );
-      if (!confirmOverwrite) return;
-    }
-  
     const questions = [];
-    document.querySelectorAll(".quiz-preview").forEach(block => {
+    let errorCount = 0;
+  
+    document.querySelectorAll(".quiz-preview").forEach((block, index) => {
       const check = block.querySelector(".qcheck");
       if (check?.checked) {
         const q = {};
@@ -241,19 +233,28 @@ async function generateFullQuiz() {
           if (key === "option") {
             q.options = q.options || [];
             q.options.push(val);
-          } else if (key === "difficulty") {
-            q.difficulty = val; // 💡 doğrudan metinden al (AI üretmişse)
           } else {
             q[key] = val;
           }
         });
   
-        // Otomatik zorluk yoksa varsayılan atayalım
-        if (!q.difficulty) q.difficulty = "medium";
+        // ⚠️ Şıklar kontrolü
+        if (!q.options || q.options.length < 2) {
+          alert(`⚠️ Soru ${index + 1} en az 2 şık içermelidir.`);
+          errorCount++;
+          return;
+        }
+  
+        // Zorunlu alanlar
+        q.difficulty = q.difficulty || "medium";
+        q.answer = q.answer || "placeholder";
+        q.explanation = q.explanation || "";
   
         questions.push(q);
       }
     });
+  
+    if (errorCount > 0) return;
   
     if (questions.length === 0) {
       alert("⚠️ Kaydetmek için en az bir soru seçmelisiniz.");
@@ -287,6 +288,7 @@ async function generateFullQuiz() {
       alert("❌ Sunucuya bağlanılamadı.");
     }
   }
+  
   
   
   async function loadMainTopics() {
