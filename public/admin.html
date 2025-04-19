@@ -1,543 +1,203 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin Paneli - Accordion Menü (Edit Mode Toggle & Responsive)</title>
+  <meta charset="UTF-8" />
+  <title>📘 Admin Panel - Title & Category Management</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
-      font-family: sans-serif;
+      padding: 20px;
+      background: #f0f2f5;
+      color: #1f2937;
+    }
+
+    #user-box {
       display: flex;
-      height: 100vh;
-    }
-    /* Sidebar styling */
-    #sidebar {
-      width: 300px;
-      overflow-y: auto;
-      border-right: 1px solid #ccc;
-      padding: 10px;
-    }
-    #sidebar h3 {
-      margin-top: 0;
-    }
-    details {
+      justify-content: flex-end;
       margin-bottom: 10px;
+      padding-right: 10px;
     }
-    summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 5px;
-      border: 1px solid;
-      border-radius: 4px;
-      display: flex;
+
+    .user-box-inner {
+      background: #f3f4f6;
+      padding: 6px 10px;
+      border-radius: 10px;
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-    }
-    summary::-webkit-details-marker {
-      display: none;
-    }
-    ul {
-      list-style: none;
-      margin: 5px 0 5px 15px;
-      padding: 0;
-    }
-    li {
-      padding: 5px;
-      border: 1px solid;
-      margin-bottom: 5px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-    }
-    /* Distinct styles for different levels */
-    .main-topic {
-      font-size: 18px;
-      font-weight: bold;
-      background-color: #e0f7fa;
-      border-color: #4dd0e1;
-    }
-    .sub-category {
-      font-size: 16px;
-      font-weight: bold;
-      background-color: #f1f8e9;
-      border-color: #aed581;
-    }
-    .title-item {
+      gap: 8px;
       font-size: 14px;
-      background-color: #fff3e0;
-      border-color: #ffb74d;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    /* Button styling */
-    .edit-btn, .delete-btn {
+
+    .user-name { font-weight: 500; color: #111827; }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 999px;
       font-size: 12px;
-      border: none;
-      padding: 2px 6px;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-left: 5px;
+      font-weight: 600;
     }
-    .edit-btn { background: #e2e8f0; }
-    .delete-btn { background: #ef4444; color: white; }
-    /* Inline editing */
-    .inline-edit {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-    .inline-edit input {
-      flex: 1;
-      padding: 2px 6px;
-    }
-    .inline-edit button {
-      padding: 2px 6px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .save { background: #10b981; color: white; }
-    .cancel { background: #ef4444; color: white; }
-    /* Form section styling */
-    .form-section {
-      margin-top: 5px;
-    }
-    .form-section input {
-      width: calc(100% - 12px);
-      padding: 4px;
-      margin-top: 4px;
-    }
-    .form-section button {
-      width: 100%;
-      padding: 4px;
-      background: #10b981;
+
+    .badge.free { background: #e5e7eb; color: #374151; }
+    .badge.bronze { background: #fcd34d; color: #92400e; }
+    .badge.pro { background: #dbeafe; color: #1e3a8a; }
+
+    .logout-btn, .login-btn {
+      background: #ef4444;
       color: white;
       border: none;
-      border-radius: 4px;
-      margin-top: 4px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: none;
     }
-    /* Main content styling */
-    #mainContent {
-      flex: 1;
-      padding: 15px;
-      overflow-y: auto;
+
+    .login-btn {
+      background: linear-gradient(to right, #06b6d4, #0ea5e9);
     }
-    /* Status message styling */
-    #statusMessage {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px;
-      color: white;
-      font-weight: bold;
+
+    .logout-btn:hover, .login-btn:hover { opacity: 0.9; }
+
+    h2 {
       text-align: center;
-      display: none;
-      border-radius: 4px;
+      margin-bottom: 20px;
+      color: #111827;
     }
-    /* Toggle link styling */
-    #editToggle {
-      display: block;
-      text-align: right;
-      margin-bottom: 10px;
+
+    .panel {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .column {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .column h3 {
+      font-size: 18px;
+      margin-top: 0;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 8px;
+      color: #1f2937;
+    }
+
+    .item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f3f4f6;
       cursor: pointer;
-      color: blue;
-      text-decoration: underline;
+      transition: background 0.2s ease;
+      border-radius: 6px;
     }
-    /* Responsive design */
-    @media (max-width: 600px) {
-      body {
-        flex-direction: column;
+
+    .item:hover {
+      background: #f9fafb;
+    }
+
+    .active {
+      background: #dbeafe;
+      font-weight: 600;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background-color: #3b82f6;
+      color: white;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2563eb;
+    }
+
+    .fixed-footer {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    @media (min-width: 768px) {
+      .panel {
+        grid-template-columns: 1fr 1fr;
       }
-      #sidebar {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid #ccc;
-      }
-      #mainContent {
-        width: 100%;
+    }
+
+    @media (min-width: 1024px) {
+      .panel {
+        grid-template-columns: 1fr 1fr 1fr;
       }
     }
   </style>
 </head>
 <body>
-  <div id="sidebar">
-    <h3>İçerik Ağacı</h3>
-    <!-- Toggle link for edit mode -->
-    <span id="editToggle" onclick="toggleEditMode()">Edit Mode: Off</span>
-    <!-- New Main Topic form (only visible in edit mode) -->
-    <div class="form-section" id="newMainTopicForm" style="display: none;">
-      <input id="newMainTopicName" placeholder="Yeni Ana Kategori Adı">
-      <button onclick="addMainTopicNow()">➕ Ana Kategori Ekle</button>
+
+  <!-- 👤 Kullanıcı kutusu -->
+  <div id="user-box"></div>
+
+  <h2>📘 Title / Category / Main Topic Management</h2>
+
+  <div class="panel">
+    <div class="column" id="mainTopics">
+      <h3>📂 Main Topics</h3>
     </div>
-    <!-- Tree container where the accordion will be rendered -->
-    <div id="treeContainer"></div>
-  </div>
-  <div id="mainContent">
-    <h3>Detaylar</h3>
-    <p>Bir başlık seçin, detayları görmek için.</p>
-  </div>
-  <div id="statusMessage"></div>
 
+    <div class="column" id="categories">
+      <h3>📁 Categories</h3>
+    </div>
+
+    <div class="column" id="titles">
+      <h3>📝 Titles</h3>
+    </div>
+  </div>
+
+  <div id="modalQuestionList" style="margin-top: 16px;"></div>
+
+  <div class="fixed-footer">
+    Admin Panel &copy; 2025 | <a href="/" style="color:#3b82f6;">Quiz App</a>
+  </div>
+
+  <script src="admin.js"></script>
+  <script src="questionEditor.js"></script>
   <script>
-    let allMainTopics = [];
-    let editMode = false; // Initially, edit mode is off
+    function renderUserBox() {
+      const name = localStorage.getItem("userName");
+      const membership = localStorage.getItem("membershipType") || "Free";
+      const accessToken = localStorage.getItem("accessToken");
 
-    function toggleEditMode() {
-      editMode = !editMode;
-      document.getElementById("editToggle").textContent = editMode ? "Edit Mode: On" : "Edit Mode: Off";
-      // Show or hide the new main topic form based on edit mode.
-      document.getElementById("newMainTopicForm").style.display = editMode ? "block" : "none";
-      fetchMainTopics();
-    }
+      const container = document.getElementById("user-box");
+      container.innerHTML = accessToken && name
+        ? `<div class="user-box-inner">
+              <span class="user-name">${name}</span>
+              <span class="badge ${membership.toLowerCase()}">${membership}</span>
+              <button class="logout-btn">Logout</button>
+           </div>`
+        : `<div class="user-box-inner">
+              <a class="login-btn" href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">Login with Patreon</a>
+           </div>`;
 
-    async function fetchMainTopics() {
-      try {
-        const res = await fetch("/get-tree");
-        const data = await res.json();
-        if (res.status === 401 || !Array.isArray(data)) {
-          alert("Bu sayfayı görüntülemek için giriş yapmalısınız.");
-          window.location.href = "/";
-          return;
-        }
-        allMainTopics = data;
-        renderTree();
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    function renderTree() {
-  const container = document.getElementById("treeContainer");
-  container.innerHTML = "";
-  
-  // LocalStorage'dan en son açık ana kategori ve alt kategori ID'lerini oku
-  const openMainTopicId = localStorage.getItem("openMainTopic");
-  const openCategoryId = localStorage.getItem("openCategory");
-  
-  allMainTopics.forEach(main => {
-    const mainDetails = document.createElement("details");
-    // Eğer edit modunda değilse tüm ana kategoriler açık; edit modunda ise localStorage kontrolü yap.
-    if (!editMode) {
-      mainDetails.open = true;
-    } else {
-      mainDetails.open = (openMainTopicId == main.id);
-    }
-    
-    const mainSummary = document.createElement("summary");
-    mainSummary.innerHTML = `<span>${main.name}</span>`;
-    mainSummary.classList.add("main-topic");
-    if (editMode) {
-      // Edit ve silme butonlarını ekle (edit modunda)
-      const mainEditBtn = document.createElement("button");
-      mainEditBtn.className = "edit-btn";
-      mainEditBtn.textContent = "✏️";
-      mainEditBtn.onclick = (e) => {
-        e.stopPropagation();
-        editInPlace(mainSummary, main.id, "main-topic");
+      const logoutBtn = document.querySelector(".logout-btn");
+      if (logoutBtn) logoutBtn.onclick = () => {
+        localStorage.clear();
+        location.reload();
       };
-      const mainDeleteBtn = document.createElement("button");
-      mainDeleteBtn.className = "delete-btn";
-      mainDeleteBtn.textContent = "🗑️";
-      mainDeleteBtn.onclick = (e) => {
-        e.stopPropagation();
-        deleteItem(e, main.id, "main-topic");
-      };
-      mainSummary.appendChild(mainEditBtn);
-      mainSummary.appendChild(mainDeleteBtn);
     }
-    mainDetails.appendChild(mainSummary);
-    
-    // Ana kategori açma/kapama durumunu kaydetmek için toggle olayını dinle
-    mainDetails.addEventListener("toggle", () => {
-      if (mainDetails.open) {
-        localStorage.setItem("openMainTopic", main.id);
-      } else if (localStorage.getItem("openMainTopic") == main.id) {
-        localStorage.removeItem("openMainTopic");
-      }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderUserBox();
     });
+
     
-    if (main.categories && main.categories.length > 0) {
-      main.categories.forEach(cat => {
-        const catDetails = document.createElement("details");
-        if (!editMode) {
-          catDetails.open = true;
-        } else {
-          catDetails.open = (openCategoryId == cat.id);
-        }
-        const catSummary = document.createElement("summary");
-        catSummary.innerHTML = `<span>${cat.name}</span>`;
-        catSummary.classList.add("sub-category");
-        if (editMode) {
-          const catEditBtn = document.createElement("button");
-          catEditBtn.className = "edit-btn";
-          catEditBtn.textContent = "✏️";
-          catEditBtn.onclick = (e) => {
-            e.stopPropagation();
-            editInPlace(catSummary, cat.id, "category");
-          };
-          const catDeleteBtn = document.createElement("button");
-          catDeleteBtn.className = "delete-btn";
-          catDeleteBtn.textContent = "🗑️";
-          catDeleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteItem(e, cat.id, "category");
-          };
-          catSummary.appendChild(catEditBtn);
-          catSummary.appendChild(catDeleteBtn);
-        }
-        catDetails.appendChild(catSummary);
-        
-        // Alt kategori açma/kapama durumunu kaydetmek için toggle olayını ekle
-        catDetails.addEventListener("toggle", () => {
-          if (catDetails.open) {
-            localStorage.setItem("openCategory", cat.id);
-          } else if (localStorage.getItem("openCategory") == cat.id) {
-            localStorage.removeItem("openCategory");
-          }
-        });
-        
-        if (cat.titles && cat.titles.length > 0) {
-          const ul = document.createElement("ul");
-          cat.titles.forEach(t => {
-            const li = document.createElement("li");
-            li.innerHTML = `<span>${t.name}</span>`;
-            li.classList.add("title-item");
-            li.onclick = (e) => {
-              e.stopPropagation();
-              loadTitleDetails(t.id);
-            };
-            if (editMode) {
-              const titleEditBtn = document.createElement("button");
-              titleEditBtn.className = "edit-btn";
-              titleEditBtn.textContent = "✏️";
-              titleEditBtn.onclick = (e) => {
-                e.stopPropagation();
-                editInPlace(li, t.id, "title");
-              };
-              const titleDeleteBtn = document.createElement("button");
-              titleDeleteBtn.className = "delete-btn";
-              titleDeleteBtn.textContent = "🗑️";
-              titleDeleteBtn.onclick = (e) => {
-                e.stopPropagation();
-                deleteItem(e, t.id, "title");
-              };
-              li.appendChild(titleEditBtn);
-              li.appendChild(titleDeleteBtn);
-            }
-            ul.appendChild(li);
-          });
-          catDetails.appendChild(ul);
-        }
-        if (editMode) {
-          const addTitleDiv = document.createElement("div");
-          addTitleDiv.className = "form-section";
-          addTitleDiv.innerHTML = `<input id="newTitleName-cat-${cat.id}" placeholder="Yeni Başlık Adı">
-                                   <button onclick="addTitle(${cat.id})">➕ Başlık Ekle</button>`;
-          catDetails.appendChild(addTitleDiv);
-        }
-        mainDetails.appendChild(catDetails);
-      });
-    }
-    if (editMode) {
-      const addCategoryDiv = document.createElement("div");
-      addCategoryDiv.className = "form-section";
-      addCategoryDiv.innerHTML = `<input id="newCategoryName-main-${main.id}" placeholder="Yeni Kategori Adı">
-                                  <button onclick="addCategory(${main.id})">➕ Kategori Ekle</button>`;
-      mainDetails.appendChild(addCategoryDiv);
-    }
-    container.appendChild(mainDetails);
-  });
-}
-
-
-    async function addMainTopicNow() {
-      const input = document.getElementById("newMainTopicName");
-      const name = input.value.trim();
-      if (!name) return;
-      input.disabled = true;
-      showMessage("Ana kategori ekleniyor...", "info");
-      try {
-        const res = await fetch("/main-topic", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name })
-        });
-        const result = await res.json();
-        if (res.ok) {
-          showMessage("Ana kategori eklendi", "success");
-          fetchMainTopics();
-        } else {
-          showMessage(result.error || "Hata oluştu", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showMessage("Sunucu hatası", "error");
-      }
-      input.value = "";
-      input.disabled = false;
-    }
-
-    async function addCategory(mainTopicId) {
-      const input = document.getElementById("newCategoryName-main-" + mainTopicId);
-      const name = input.value.trim();
-      if (!name) return;
-      input.disabled = true;
-      showMessage("Kategori ekleniyor...", "info");
-      try {
-        const res = await fetch("/category", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ main_topic_id: mainTopicId, name })
-        });
-        const result = await res.json();
-        if (res.ok) {
-          showMessage("Kategori eklendi", "success");
-          fetchMainTopics();
-        } else {
-          showMessage(result.error || "Hata oluştu", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showMessage("Sunucu hatası", "error");
-      }
-      input.value = "";
-      input.disabled = false;
-    }
-
-    async function addTitle(categoryId) {
-      const input = document.getElementById("newTitleName-cat-" + categoryId);
-      const name = input.value.trim();
-      if (!name) return;
-      input.disabled = true;
-      showMessage("Başlık ekleniyor...", "info");
-      try {
-        const res = await fetch("/title", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category_id: categoryId, name })
-        });
-        const result = await res.json();
-        if (res.ok) {
-          showMessage("Başlık eklendi", "success");
-          fetchMainTopics();
-        } else {
-          showMessage(result.error || "Hata oluştu", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showMessage("Sunucu hatası", "error");
-      }
-      input.value = "";
-      input.disabled = false;
-    }
-
-    async function deleteItem(e, id, type) {
-      e.stopPropagation();
-      if (!confirm("Silmek istediğinize emin misiniz?")) return;
-      const btn = e.target;
-      btn.disabled = true;
-      showMessage("Siliniyor...", "info");
-      try {
-        const res = await fetch(`/${type}/${id}`, { method: "DELETE" });
-        if (res.ok) {
-          showMessage("Başarıyla silindi", "success");
-        } else {
-          const errorData = await res.json();
-          showMessage(errorData.error || "Silme işlemi başarısız", "error");
-        }
-        fetchMainTopics();
-      } catch (err) {
-        console.error(err);
-        showMessage("Sunucu hatası", "error");
-      }
-      btn.disabled = false;
-    }
-
-    function editInPlace(element, id, type) {
-      const originalHTML = element.innerHTML;
-      const originalText = element.firstElementChild ? element.firstElementChild.textContent : element.textContent;
-      const wrapper = document.createElement("div");
-      wrapper.className = "inline-edit";
-      const input = document.createElement("input");
-      input.value = originalText;
-      const saveBtn = document.createElement("button");
-      saveBtn.className = "save";
-      saveBtn.textContent = "✔";
-      const cancelBtn = document.createElement("button");
-      cancelBtn.className = "cancel";
-      cancelBtn.textContent = "✖";
-      saveBtn.onclick = async () => {
-        const newName = input.value.trim();
-        if (!newName || newName === originalText) {
-          restore();
-          return;
-        }
-        await fetch(`/${type}/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName })
-        });
-        restore();
-        fetchMainTopics();
-      };
-      cancelBtn.onclick = restore;
-      function restore() {
-        element.innerHTML = originalHTML;
-      }
-      wrapper.append(input, saveBtn, cancelBtn);
-      element.innerHTML = "";
-      element.appendChild(wrapper);
-    }
-
-    async function loadTitleDetails(titleId) {
-      const mainContent = document.getElementById("mainContent");
-      mainContent.innerHTML = "<h3>Detaylar</h3><p>Yükleniyor...</p>";
-      try {
-        const res = await fetch(`/details/${titleId}`);
-        const data = await res.json();
-        let html = `<h3>${data.title}</h3>`;
-        html += `<p><strong>İçerik:</strong> ${data.content}</p>`;
-        if (data.keywords && data.keywords.length > 0) {
-          html += `<h4>Anahtar Kelimeler</h4>`;
-          data.keywords.forEach(k => {
-            html += `<div style="border:1px solid #ddd; padding:8px; margin-bottom:5px; border-radius:4px;">
-                      <strong style="color:#2563eb;">${k.keyword}</strong><br>${k.explanation}
-                    </div>`;
-          });
-        }
-        if (data.questions && data.questions.length > 0) {
-          html += `<h4>Sorular</h4>`;
-          data.questions.forEach(q => {
-            html += `<div style="border:1px solid #ddd; padding:8px; margin-bottom:5px; border-radius:4px;">
-                      <strong>${q.question}</strong><br>
-                      <ul>${q.choices.map(c => `<li>${c}</li>`).join("")}</ul>
-                      <p><strong>Cevap:</strong> ${q.correct_answer}</p>
-                      <p><em>${q.explanation}</em></p>
-                    </div>`;
-          });
-        }
-        mainContent.innerHTML = html;
-      } catch (err) {
-        mainContent.innerHTML = "<p>Detaylar yüklenemedi.</p>";
-        console.error(err);
-      }
-    }
-
-    function showMessage(text, type = 'info') {
-      const msg = document.getElementById("statusMessage");
-      msg.textContent = text;
-      msg.style.display = "block";
-      msg.style.background = {
-        info: "#facc15",
-        success: "#4ade80",
-        error: "#f87171"
-      }[type] || "#facc15";
-      setTimeout(() => msg.style.display = "none", 3000);
-    }
-
-    // Initialize the tree on page load
-    fetchMainTopics();
   </script>
 </body>
 </html>

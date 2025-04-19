@@ -221,7 +221,6 @@ async function generateFullQuiz() {
     }
   
     const questions = [];
-    let errorCount = 0;
   
     document.querySelectorAll(".quiz-preview").forEach((block, index) => {
       const check = block.querySelector(".qcheck");
@@ -230,31 +229,25 @@ async function generateFullQuiz() {
         block.querySelectorAll(".q").forEach(s => {
           const key = s.dataset.key;
           const val = s.innerText.trim();
-          if (key === "option") {
+        
+          if (key?.startsWith("option")) {
             q.options = q.options || [];
             q.options.push(val);
           } else {
             q[key] = val;
           }
         });
+        
   
-        // ⚠️ Şıklar kontrolü
-        if (!q.options || q.options.length < 2) {
-          alert(`⚠️ Soru ${index + 1} en az 2 şık içermelidir.`);
-          errorCount++;
-          return;
-        }
-  
-        // Zorunlu alanlar
-        q.difficulty = q.difficulty || "medium";
+        // 🧠 Otomatik boş alan koruması
+        q.options = q.options || [];
         q.answer = q.answer || "placeholder";
         q.explanation = q.explanation || "";
+        q.difficulty = q.difficulty || "medium";
   
         questions.push(q);
       }
     });
-  
-    if (errorCount > 0) return;
   
     if (questions.length === 0) {
       alert("⚠️ Kaydetmek için en az bir soru seçmelisiniz.");

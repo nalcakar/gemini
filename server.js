@@ -694,7 +694,7 @@ app.get("/get-questions", async (req, res) => {
 
   try {
     const result = await pool.query(`
-      SELECT id, question, options, answer, explanation 
+      SELECT id, question, options, answer, explanation, difficulty
       FROM questions 
       WHERE title_id = $1 AND user_email = $2
       ORDER BY id DESC
@@ -706,6 +706,7 @@ app.get("/get-questions", async (req, res) => {
     res.status(500).json({ success: false, message: "Sunucu hatası" });
   }
 });
+
 
 
 app.delete("/delete-question/:id", async (req, res) => {
