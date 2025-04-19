@@ -1175,6 +1175,25 @@ app.get("/get-questions-by-name", authMiddleware, async (req, res) => {
 
   res.json({ questions: result.rows });
 });
+
+// ✅ Ana başlık hakkında bilgi döner (özellikle is_default kontrolü için)
+app.get("/get-main-topic-info/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: "Ana başlık ID'si eksik." });
+
+  try {
+    const result = await pool.query("SELECT is_default FROM main_topics WHERE id = $1", [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Ana başlık bulunamadı." });
+    }
+
+    res.json({ is_default: result.rows[0].is_default });
+  } catch (err) {
+    console.error("Ana başlık bilgi hatası:", err.message);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
   // Eğer istek bir API endpoint'iyse yönlendirme yapma
