@@ -586,9 +586,9 @@ app.post("/save-questions", authMiddleware, async (req, res) => {
 
     for (const q of questions) {
       await client.query(`
-        INSERT INTO questions (title_id, question, options, answer, explanation, user_email)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [titleId, q.question, JSON.stringify(q.options), q.answer, q.explanation, email]);
+        INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [titleId, q.question, JSON.stringify(q.options), q.answer, q.explanation, q.difficulty || null, email]);
     }
 
     await client.query("COMMIT");
@@ -738,26 +738,32 @@ app.put("/move-category", async (req, res) => {
 });
 
 
-app.patch("/update-question/:id", authMiddleware, async (req, res) => {
+app.patch("/update-question/:id", async (req, res) => {
   const { id } = req.params;
-  const { question, options, answer, explanation } = req.body;
+  const { question, options, answer, explanation, difficulty } = req.body;
+
+  if (!question || !options || !answer || !Array.isArray(options)) {
+    return res.status(400).json({ error: "Eksik veya geçersiz veri" });
+  }
 
   try {
     await pool.query(`
-      UPDATE questions SET
-        question = $1,
-        options = $2,
-        answer = $3,
-        explanation = $4
-      WHERE id = $5 AND user_email = $6
-    `, [question, JSON.stringify(options), answer, explanation, id, req.user.email]);
+      UPDATE questions
+      SET question = $1,
+          options = $2,
+          answer = $3,
+          explanation = $4,
+          difficulty = $5
+      WHERE id = $6
+    `, [question, options, answer, explanation, difficulty || null, id]);
 
-    res.sendStatus(200);
+    res.json({ success: true });
   } catch (err) {
-    console.error("Update error:", err);
-    res.status(500).json({ error: "Update failed" });
+    console.error("❌ Soru güncelleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
   }
 });
+
 
 
 app.post("/add-main-category", async (req, res) => {

@@ -220,7 +220,6 @@ async function generateFullQuiz() {
       return;
     }
   
-    // 🔍 Kullanıcının yazdığı başlık daha önce var mı kontrolü (autocomplete listesi ile)
     const titleList = Array.from(document.querySelectorAll("#titleSuggestions option")).map(opt => opt.value);
     const isExistingTitle = titleList.includes(title);
   
@@ -231,7 +230,6 @@ async function generateFullQuiz() {
       if (!confirmOverwrite) return;
     }
   
-    // ✅ Seçili soruları topla
     const questions = [];
     document.querySelectorAll(".quiz-preview").forEach(block => {
       const check = block.querySelector(".qcheck");
@@ -256,7 +254,6 @@ async function generateFullQuiz() {
       return;
     }
   
-    // 🚀 API'ye gönder
     try {
       const res = await fetch("https://gemini-j8xd.onrender.com/save-questions", {
         method: "POST",
@@ -274,6 +271,8 @@ async function generateFullQuiz() {
       const data = await res.json();
       if (res.ok) {
         alert("✅ Sorular başarıyla kaydedildi.");
+        shouldReloadQuestions = true;
+        currentTitle = "";
       } else {
         alert("❌ Kaydedilemedi: " + (data?.error || "Sunucu hatası"));
       }
@@ -282,6 +281,7 @@ async function generateFullQuiz() {
       alert("❌ Sunucuya bağlanılamadı.");
     }
   }
+  
   
   async function loadMainTopics() {
     const token = localStorage.getItem("accessToken");
