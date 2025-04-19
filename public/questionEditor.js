@@ -138,6 +138,7 @@ function openModal() {
   
   function collapseAllDetails() {
     document.querySelectorAll("#modalQuestionList details").forEach(d => d.open = false);
+    document.getElementById("modalQuestionList")?.scrollIntoView({ behavior: "smooth" });
   }
   
   
@@ -182,15 +183,14 @@ function openModal() {
     textarea.value = value;
   
     textarea.style.width = "100%";
-    textarea.style.margin = "6px 0";
-    textarea.style.fontSize = "15px";
-    textarea.style.padding = "6px";
-    textarea.style.lineHeight = "1.4";
-    textarea.style.borderRadius = "6px";
+    textarea.style.fontSize = "14px";
+    textarea.style.padding = "4px 6px";
+    textarea.style.lineHeight = "1.3";
     textarea.style.border = "1px solid #ccc";
-    textarea.style.overflow = "hidden";
+    textarea.style.borderRadius = "6px";
     textarea.style.resize = "none";
-    textarea.style.minHeight = "32px";
+    textarea.style.overflow = "hidden";
+    textarea.style.minHeight = "1px";
   
     const adjustHeight = () => {
       textarea.style.height = "auto";
@@ -199,13 +199,19 @@ function openModal() {
   
     textarea.addEventListener("input", adjustHeight);
   
-    // 🛠 Modal gibi geç açılan yerlerde bekleyerek doğru ölçüm alıyoruz
+    // ✅ DOM'a EKLENDİĞİNDE çalışsın
     setTimeout(() => {
-      adjustHeight();
-    }, 30);
+      requestAnimationFrame(() => {
+        if (document.body.contains(textarea)) {
+          adjustHeight();
+        }
+      });
+    }, 10); // küçük bir gecikmeyle
   
     return textarea;
   }
+  
+  
   
   function editExistingQuestion(id) {
     const btn = document.querySelector(`button[onclick="editExistingQuestion(${id})"]`);
@@ -488,19 +494,21 @@ function openModal() {
     }
   });
   function filterByDifficulty(level) {
-    document.querySelectorAll("#modalQuestionList details").forEach(detail => {
-      const summary = detail.querySelector("summary");
-      const text = summary?.innerText || "";
-      if (level === "") {
-        detail.style.display = ""; // tümünü göster
-      } else {
-        detail.style.display = text.includes(level === "easy" ? "Kolay" :
-                                             level === "medium" ? "Orta" :
-                                             level === "hard" ? "Zor" : "")
-                               ? "" : "none";
-      }
+    const questions = document.querySelectorAll("#modalQuestionList details");
+  
+    questions.forEach(q => {
+      const badge = q.querySelector("summary .difficulty-badge");
+      const isMatch = !level || (badge && badge.classList.contains(level));
+      q.style.display = isMatch ? "" : "none";
     });
+  
+    if (typeof updateStats === "function") updateStats();
+  
+    // 🔽 Soru listesine kaydır
+    document.getElementById("modalQuestionList")?.scrollIntoView({ behavior: "smooth" });
   }
+  
+  
 
 // === Fonksiyonları global scope'a aç ===
 window.openModal = openModal;

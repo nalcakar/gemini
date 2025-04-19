@@ -138,15 +138,58 @@
         grid-template-columns: 1fr 1fr 1fr;
       }
     }
+
+    .question-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 14px auto;              /* ⬅️ otomatik ortalama */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease;
+  max-width: 720px;               /* ⬅️ maksimum genişlik */
+  width: 100%;                    /* ⬅️ mobilde tam genişlik */
+}
+.question-card:hover {
+  transform: scale(1.01);
+}
+.question-card summary {
+  font-weight: 600;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.question-card ul {
+  padding-left: 20px;
+  margin-top: 6px;
+}
+.question-card button {
+  margin-right: 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.question-card button:first-of-type {
+  background-color: #4ade80;
+  color: white;
+}
+.question-card button:last-of-type {
+  background-color: #ef4444;
+  color: white;
+}
   </style>
 </head>
 <body>
+
+
+
 
   <!-- 👤 Kullanıcı kutusu -->
   <div id="user-box"></div>
 
   <h2>📘 Title / Category / Main Topic Management</h2>
-
+  <div style="text-align:right; margin-bottom:10px;">
+    <button id="toggleEditMode" onclick="toggleEditMode()">🛠️ Toggle Edit Mode</button>
+  </div>
   <div class="panel">
     <div class="column" id="mainTopics">
       <h3>📂 Main Topics</h3>
@@ -161,7 +204,10 @@
     </div>
   </div>
 
-  <div id="modalQuestionList" style="margin-top: 16px;"></div>
+  
+
+
+<div id="modalQuestionList" style="margin-top: 16px;"></div>
 
   <div class="fixed-footer">
     Admin Panel &copy; 2025 | <a href="/" style="color:#3b82f6;">Quiz App</a>

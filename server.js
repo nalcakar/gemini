@@ -630,11 +630,14 @@ app.get("/list-main-topics", authMiddleware, async (req, res) => {
 
   const client = await pool.connect();
   try {
-    await client.query(`
-      INSERT INTO main_topics (name, user_email)
-      VALUES ('Genel', $1)
-      ON CONFLICT DO NOTHING
-    `, [email]);
+    // 🟨 Kullanıcının hiç main_topic'i yoksa 1 defaya mahsus "Genel" ekle
+    const existing = await client.query("SELECT id FROM main_topics WHERE user_email = $1 LIMIT 1", [email]);
+    if (existing.rowCount === 0) {
+      await client.query(`
+        INSERT INTO main_topics (name, user_email)
+        VALUES ('Genel', $1)
+      `, [email]);
+    }
 
     const result = await client.query(
       `SELECT id, name FROM main_topics WHERE user_email = $1 ORDER BY name ASC`,
@@ -649,6 +652,7 @@ app.get("/list-main-topics", authMiddleware, async (req, res) => {
 
 
 
+
 app.get("/list-categories", authMiddleware, async (req, res) => {
   const email = req.user?.email;
   const mainTopicId = req.query.main_topic_id;
@@ -656,11 +660,17 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
 
   const client = await pool.connect();
   try {
-    await client.query(`
-      INSERT INTO categories (name, main_topic_id, user_email)
-      VALUES ('Genel', $1, $2)
-      ON CONFLICT DO NOTHING
+    // 🟨 Bu main_topic altında hiç kategori yoksa 1 defaya mahsus "Genel" ekle
+    const existing = await client.query(`
+      SELECT id FROM categories WHERE main_topic_id = $1 AND user_email = $2 LIMIT 1
     `, [mainTopicId, email]);
+
+    if (existing.rowCount === 0) {
+      await client.query(`
+        INSERT INTO categories (name, main_topic_id, user_email)
+        VALUES ('Genel', $1, $2)
+      `, [mainTopicId, email]);
+    }
 
     const result = await client.query(
       `SELECT id, name FROM categories WHERE main_topic_id = $1 AND user_email = $2 ORDER BY name ASC`,
