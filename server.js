@@ -755,7 +755,15 @@ app.patch("/update-question/:id", async (req, res) => {
           explanation = $4,
           difficulty = $5
       WHERE id = $6
-    `, [question, options, answer, explanation, difficulty || null, id]);
+    `, [
+      question,
+      JSON.stringify(options), // 👈 Buraya dikkat
+      answer,
+      explanation,
+      difficulty || null,
+      id
+    ]);
+    
 
     res.json({ success: true });
   } catch (err) {
