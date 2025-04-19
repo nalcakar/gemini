@@ -633,11 +633,20 @@ app.get("/list-main-topics", authMiddleware, async (req, res) => {
     // 🟨 Kullanıcının hiç main_topic'i yoksa 1 defaya mahsus "Genel" ekle
     const existing = await client.query("SELECT id FROM main_topics WHERE user_email = $1 LIMIT 1", [email]);
     if (existing.rowCount === 0) {
-      await client.query(`
-        INSERT INTO main_topics (name, user_email)
-        VALUES ('Genel', $1)
+      const insertMain = await client.query(`
+        INSERT INTO main_topics (name, user_email, is_default)
+        VALUES ('Genel', $1, true)
+        RETURNING id
       `, [email]);
+    
+      const main_id = insertMain.rows[0].id;
+    
+      await client.query(`
+        INSERT INTO categories (name, main_topic_id, user_email, is_default)
+        VALUES ('Genel', $1, $2, true)
+      `, [main_id, email]);
     }
+    
 
     const result = await client.query(
       `SELECT id, name FROM main_topics WHERE user_email = $1 ORDER BY name ASC`,
@@ -667,13 +676,15 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
       LIMIT 1
     `, [mainTopicId, email]);
 
-    if (existing.rowCount === 0) {
+    const mainInfo = await client.query("SELECT is_default FROM main_topics WHERE id = $1", [mainTopicId]);
+    const isDefaultMain = mainInfo.rows[0]?.is_default;
+    
+    if (existing.rowCount === 0 && isDefaultMain) {
       await client.query(`
-        INSERT INTO categories (name, main_topic_id, user_email)
-        VALUES ('Genel', $1, $2)
+        INSERT INTO categories (name, main_topic_id, user_email, is_default)
+        VALUES ('Genel', $1, $2, true)
       `, [mainTopicId, email]);
     }
-
     const result = await client.query(
       `SELECT id, name FROM categories 
        WHERE main_topic_id = $1 AND user_email = $2 
@@ -938,6 +949,10 @@ app.delete("/delete-category/:id", async (req, res) => {
       "SELECT 1 FROM titles WHERE category_id = $1 LIMIT 1",
       [id]
     );
+    const catInfo = await pool.query("SELECT is_default FROM categories WHERE id = $1", [id]);
+  if (catInfo.rows[0]?.is_default) {
+    return res.status(403).json({ success: false, message: "Varsayılan kategori silinemez." });
+  }
     if (titleCheck.rows.length > 0) {
       return res.status(400).json({ success: false, message: "Bu kategoriye ait başlıklar var." });
     }
@@ -961,6 +976,10 @@ app.delete("/delete-main-category/:id", async (req, res) => {
       "SELECT 1 FROM categories WHERE main_topic_id = $1 LIMIT 1",
       [id]
     );
+    const mainInfo = await pool.query("SELECT is_default FROM main_topics WHERE id = $1", [id]);
+    if (mainInfo.rows[0]?.is_default) {
+      return res.status(403).json({ success: false, message: "Varsayılan ana başlık silinemez." });
+    }
     if (categoryCheck.rows.length > 0) {
       return res.status(400).json({ success: false, message: "Bu ana başlığa ait kategoriler var." });
     }

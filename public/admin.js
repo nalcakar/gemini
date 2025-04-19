@@ -299,18 +299,10 @@ async function renameCategory() {
   else alert("❌ Failed to rename category");
 }
 
-async function deleteCategory() {
-  if (!currentCategoryId) return alert("⚠️ Select a category first.");
-  if (!confirm("Are you sure you want to delete this category?")) return;
-  const res = await fetch(`${API}/delete-category`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_id: currentCategoryId, email })
-  });
-  const data = await res.json();
-  if (data.success) loadCategories(currentMainTopicId);
-  else alert("❌ Cannot delete category");
-}
+
+
+
+
 
 async function changeCategoryMainTopic() {
   if (!currentCategoryId) return alert("⚠️ Select a category first.");
@@ -368,11 +360,18 @@ async function moveTitle() {
 }
 
 async function deleteMainTopic() {
+  // Silmeden önce varsayılan mı kontrol et
+const infoRes = await fetch(`${API}/get-main-topic-info/${currentMainTopicId}?email=${email}`);
+const infoData = await infoRes.json();
+if (infoData.is_default) {
+  return alert("❌ Varsayılan ana başlık silinemez.");
+}
+
   if (!currentMainTopicId) return alert("⚠️ Select a main topic first.");
   if (!confirm("Are you sure you want to delete this main topic? It must have no categories under it.")) return;
 
-  // Kategori kontrolü
-  const res = await fetch(`${API}/list-categories?main_id=${currentMainTopicId}&email=${email}`);
+  // Kategori kontrolü (düzeltilmiş parametre!)
+  const res = await fetch(`${API}/list-categories?main_topic_id=${currentMainTopicId}&email=${email}`);
   const data = await res.json();
   if (!data.categories || data.categories.length > 0) {
     return alert("❌ Cannot delete. This main topic still has categories.");
@@ -385,42 +384,62 @@ async function deleteMainTopic() {
     return alert("❌ At least one main topic must remain.");
   }
 
-  const deleteRes = await fetch(`${API}/delete-main-category`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ main_id: currentMainTopicId, email })
+  const deleteRes = await fetch(`${API}/delete-main-category/${currentMainTopicId}?email=${email}`, {
+    method: "DELETE"
   });
   const deleteData = await deleteRes.json();
   if (deleteData.success) loadMainTopics();
   else alert("❌ Failed to delete main topic");
 }
+
 async function deleteCategory() {
   if (!currentCategoryId) return alert("⚠️ Select a category first.");
   if (!confirm("Are you sure you want to delete this category? It must have no titles under it.")) return;
 
-  // Title kontrolü
-  const res = await fetch(`${API}/list-titles?category_id=${currentCategoryId}&email=${email}`);
+  const token = localStorage.getItem("accessToken");
+
+  // 1. Bu kategoride başlık var mı?
+  const res = await fetch(`${API}/list-titles?category_id=${currentCategoryId}&email=${email}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
   const data = await res.json();
   if (!data.titles || data.titles.length > 0) {
     return alert("❌ Cannot delete. This category still has titles.");
   }
 
-  // Minimum kontrolü
-  const resAll = await fetch(`${API}/list-categories?main_id=${currentMainTopicId}&email=${email}`);
+  // 2. Ana başlıkta en az 1 kategori kalacak mı?
+  const resAll = await fetch(`${API}/list-categories?main_topic_id=${currentMainTopicId}&email=${email}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!resAll.ok) return alert("❌ Failed to fetch categories");
   const all = await resAll.json();
-  if (all.categories.length <= 1) {
+  const catList = all.categories || [];
+  if (catList.length <= 1) {
     return alert("❌ At least one category must remain under this main topic.");
   }
 
-  const deleteRes = await fetch(`${API}/delete-category`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_id: currentCategoryId, email })
+  // 3. Silme isteği gönder
+  const deleteRes = await fetch(`${API}/delete-category/${currentCategoryId}?email=${email}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
   });
+
   const deleteData = await deleteRes.json();
-  if (deleteData.success) loadCategories(currentMainTopicId);
-  else alert("❌ Failed to delete category");
+  if (deleteData.success) {
+    loadCategories(currentMainTopicId);
+  } else {
+    alert("❌ Category could not be deleted.");
+  }
 }
+
 
 // ✨ Helper: Highlight Active Selection
 function highlightSelected(selectedDiv, containerId) {
