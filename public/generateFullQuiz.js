@@ -238,13 +238,19 @@ async function generateFullQuiz() {
         block.querySelectorAll(".q").forEach(s => {
           const key = s.dataset.key;
           const val = s.innerText.trim();
-          if (key.startsWith("option")) {
+          if (key === "option") {
             q.options = q.options || [];
             q.options.push(val);
+          } else if (key === "difficulty") {
+            q.difficulty = val; // 💡 doğrudan metinden al (AI üretmişse)
           } else {
             q[key] = val;
           }
         });
+  
+        // Otomatik zorluk yoksa varsayılan atayalım
+        if (!q.difficulty) q.difficulty = "medium";
+  
         questions.push(q);
       }
     });

@@ -563,40 +563,56 @@ res.redirect(302, redirectUrl.toString());
 
 
 /////////////Sql////////
-app.post("/save-questions", authMiddleware, async (req, res) => {
-  const { categoryId, titleName, questions } = req.body;
+app.post("/save-questions", async (req, res) => {
+  const { titleName, categoryId, questions } = req.body;
   const email = req.user?.email;
-  if (!email) return res.status(401).json({ error: "Unauthorized" });
+
+  if (!titleName || !categoryId || !questions || !email) {
+    return res.status(400).json({ error: "Eksik veri" });
+  }
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const titleRes = await client.query(`
-      INSERT INTO titles (name, category_id, user_email)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (name, category_id, user_email) DO NOTHING
-      RETURNING id
-    `, [titleName, categoryId, email]);
+    // Başlığı bul veya oluştur
+    const { rows: titleRows } = await client.query(
+      "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
+      [titleName, email]
+    );
 
-    const titleId = titleRes.rows[0]?.id || (
-      await client.query(`SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3`,
-        [titleName, categoryId, email])
-    ).rows[0]?.id;
+    let titleId = titleRows[0]?.id;
+    if (!titleId) {
+      const insert = await client.query(
+        "INSERT INTO titles (name, category_id, user_email) VALUES ($1, $2, $3) RETURNING id",
+        [titleName, categoryId, email]
+      );
+      titleId = insert.rows[0].id;
+    }
 
+    // Her soruyu ekle
     for (const q of questions) {
-      await client.query(`
-        INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [titleId, q.question, JSON.stringify(q.options), q.answer, q.explanation, q.difficulty || null, email]);
+      await client.query(
+        `INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          titleId,
+          q.question,
+          JSON.stringify(q.options),
+          q.answer || "placeholder", // zorunluysa
+          q.explanation || "",
+          q.difficulty || null,
+          email
+        ]
+      );
     }
 
     await client.query("COMMIT");
     res.json({ success: true });
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("❌ Kaydetme hatası:", err);
-    res.status(500).json({ error: "Soru kaydedilemedi" });
+    console.error("❌ Soru kayıt hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
   } finally {
     client.release();
   }
@@ -742,7 +758,7 @@ app.patch("/update-question/:id", async (req, res) => {
   const { id } = req.params;
   const { question, options, answer, explanation, difficulty } = req.body;
 
-  if (!question || !options || !answer || !Array.isArray(options)) {
+  if (!question || !options || !Array.isArray(options)) {
     return res.status(400).json({ error: "Eksik veya geçersiz veri" });
   }
 
