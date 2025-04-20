@@ -545,7 +545,8 @@ if (included && Array.isArray(included)) {
 }
 
 // 🔁 4. Frontend'e yönlendir
-const originalRedirect = req.query.redirect || "https://doitwithai.org/AiQuestionMaker.html";
+const originalRedirect = req.query.state || "https://doitwithai.org/AiQuestionMaker.html";
+
 const redirectUrl = new URL(originalRedirect);
 redirectUrl.searchParams.set("accessToken", accessToken);
 redirectUrl.searchParams.set("userEmail", email);
