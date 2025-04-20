@@ -1225,6 +1225,24 @@ app.post("/rename-category", async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+app.post("/rename-main-topic", async (req, res) => {
+  const { main_topic_id, new_name, email } = req.body;
+  if (!main_topic_id || !new_name || !email) {
+    return res.status(400).json({ success: false, message: "Eksik veri" });
+  }
+
+  try {
+    const result = await pool.query(
+      "UPDATE main_topics SET name = $1 WHERE id = $2 AND user_email = $3",
+      [new_name, main_topic_id, email]
+    );
+
+    res.json({ success: result.rowCount > 0 });
+  } catch (err) {
+    console.error("Main topic rename error:", err);
+    res.status(500).json({ success: false });
+  }
+});
 
 // === SUNUCU BAŞLAT ===
 const PORT = process.env.PORT || 3001;

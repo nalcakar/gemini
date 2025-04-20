@@ -76,7 +76,10 @@ async function loadCategories(mainTopicId) {
     };
     container.appendChild(div);
   });
+
+  if (editMode) renderEditControls(); // 👈 Bunu EKLE
 }
+
 
 // 📝 3. Load Titles
 async function loadTitles(categoryId) {
@@ -97,13 +100,36 @@ async function loadTitles(categoryId) {
     div.className = "item";
     div.textContent = title.name;
     div.onclick = () => {
-      currentTitleId = title.id; // ⬅️ bu satırı ekle
+      currentTitleId = title.id;
       highlightSelected(div, "titles");
       loadQuestionsByTitleName(title.name);
     };
     container.appendChild(div);
   });
+
+  // ✅ editMode aktifse, edit butonlarını geri ekle
+  if (editMode) renderEditControls();
 }
+async function renameMainTopic() {
+  if (!currentMainTopicId) return alert("⚠️ Select a main topic first.");
+  const newName = prompt("Enter new name for the Main Topic:");
+  if (!newName) return;
+
+  const res = await fetch(`${API}/rename-main-topic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ main_topic_id: currentMainTopicId, new_name: newName, email })
+  });
+
+  const data = await res.json();
+  if (data.success) {
+    alert("✅ Main topic renamed.");
+    loadMainTopics(); // yeniden yükle
+  } else {
+    alert("❌ Failed to rename main topic.");
+  }
+}
+
 
 async function loadQuestionsByTitleName(titleName) {
   const container = document.getElementById("modalQuestionList");
@@ -212,9 +238,10 @@ function renderEditControls() {
     if (section === "mainTopics") {
       if (section === "mainTopics") {
         controls.innerHTML = `
-          <button onclick="addMainTopic()">➕</button>
-          <button onclick="deleteMainTopic()">🗑️</button>
-        `;
+  <button onclick="addMainTopic()">➕</button>
+  <button onclick="renameMainTopic()">✏️</button>
+  <button onclick="deleteMainTopic()">🗑️</button>
+`;
       }
       
     } else if (section === "categories") {
