@@ -966,9 +966,9 @@ app.delete("/delete-category/:id", async (req, res) => {
 });
 
 // === Ana başlık silme (eğer altında kategori yoksa)
-app.delete("/delete-main-category/:id", async (req, res) => {
+app.delete("/delete-main-category/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const email = req.query.email;
+  const email = req.user?.email;
   if (!id || !email) return res.status(400).json({ success: false });
 
   try {
@@ -976,10 +976,12 @@ app.delete("/delete-main-category/:id", async (req, res) => {
       "SELECT 1 FROM categories WHERE main_topic_id = $1 LIMIT 1",
       [id]
     );
+
     const mainInfo = await pool.query("SELECT is_default FROM main_topics WHERE id = $1", [id]);
     if (mainInfo.rows[0]?.is_default) {
       return res.status(403).json({ success: false, message: "Varsayılan ana başlık silinemez." });
     }
+
     if (categoryCheck.rows.length > 0) {
       return res.status(400).json({ success: false, message: "Bu ana başlığa ait kategoriler var." });
     }
@@ -991,6 +993,7 @@ app.delete("/delete-main-category/:id", async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+
 
 // === Başlık adını güncelle
 app.put("/update-title-name", async (req, res) => {

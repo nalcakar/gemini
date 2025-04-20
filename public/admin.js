@@ -360,37 +360,79 @@ async function moveTitle() {
 }
 
 async function deleteMainTopic() {
-  // Silmeden önce varsayılan mı kontrol et
-const infoRes = await fetch(`${API}/get-main-topic-info/${currentMainTopicId}?email=${email}`);
-const infoData = await infoRes.json();
-if (infoData.is_default) {
-  return alert("❌ Varsayılan ana başlık silinemez.");
-}
-
   if (!currentMainTopicId) return alert("⚠️ Select a main topic first.");
   if (!confirm("Are you sure you want to delete this main topic? It must have no categories under it.")) return;
 
-  // Kategori kontrolü (düzeltilmiş parametre!)
-  const res = await fetch(`${API}/list-categories?main_topic_id=${currentMainTopicId}&email=${email}`);
-  const data = await res.json();
-  if (!data.categories || data.categories.length > 0) {
-    return alert("❌ Cannot delete. This main topic still has categories.");
-  }
+  try {
+    // 1. Varsayılan mı kontrol et (hatalara karşı korumalı)
+    const infoRes = await fetch(`${API}/get-main-topic-info/${currentMainTopicId}?email=${email}`);
+    const infoText = await infoRes.text();
 
-  // Minimum kontrolü
-  const resAll = await fetch(`${API}/list-main-categories?email=${email}`);
-  const all = await resAll.json();
-  if (all.main_categories.length <= 1) {
-    return alert("❌ At least one main topic must remain.");
-  }
+    console.log("🧪 get-main-topic-info status:", infoRes.status);
+    console.log("🧪 get-main-topic-info response:", infoText);
 
-  const deleteRes = await fetch(`${API}/delete-main-category/${currentMainTopicId}?email=${email}`, {
-    method: "DELETE"
-  });
-  const deleteData = await deleteRes.json();
-  if (deleteData.success) loadMainTopics();
-  else alert("❌ Failed to delete main topic");
+    let infoData;
+    try {
+      infoData = JSON.parse(infoText);
+    } catch (parseErr) {
+      console.error("❌ JSON parse error in get-main-topic-info:", infoText);
+      return alert("❌ Server returned invalid data while checking main topic.");
+    }
+
+    if (infoData.is_default) {
+      return alert("❌ Varsayılan ana başlık silinemez.");
+    }
+
+    // 2. Kategori kontrolü
+    const res = await fetch(`${API}/list-categories?main_topic_id=${currentMainTopicId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!data.categories || data.categories.length > 0) {
+      return alert("❌ Cannot delete. This main topic still has categories.");
+    }
+
+    // 3. Tüm main topic sayısı kontrolü
+    const resAll = await fetch(`${API}/list-main-categories`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const all = await resAll.json();
+
+    if (!all.main_categories || all.main_categories.length <= 1) {
+      return alert("❌ At least one main topic must remain.");
+    }
+
+    // 4. Silme işlemi
+    const deleteRes = await fetch(`${API}/delete-main-category/${currentMainTopicId}?email=${email}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const deleteText = await deleteRes.text();
+    let deleteData;
+    try {
+      deleteData = JSON.parse(deleteText);
+    } catch (err) {
+      console.error("❌ JSON parse error in delete-main-category:", deleteText);
+      return alert("❌ Server returned invalid data. Check if token or ID is wrong.");
+    }
+
+    if (deleteData.success) {
+      alert("✅ Main topic deleted.");
+      currentMainTopicId = null;
+      loadMainTopics();
+    } else {
+      alert(deleteData.message || "❌ Failed to delete main topic.");
+    }
+
+  } catch (err) {
+    console.error("❌ deleteMainTopic error:", err);
+    alert("⚠️ Unexpected error occurred while deleting the main topic.");
+  }
 }
+
+
 
 async function deleteCategory() {
   if (!currentCategoryId) return alert("⚠️ Select a category first.");
