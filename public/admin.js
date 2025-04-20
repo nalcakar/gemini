@@ -16,6 +16,7 @@ if (!token || !email) {
 }
 
 // Main → Category → Title
+let currentTitleId = null;
 let currentMainTopicId = null;
 let currentCategoryId = null;
 
@@ -96,6 +97,7 @@ async function loadTitles(categoryId) {
     div.className = "item";
     div.textContent = title.name;
     div.onclick = () => {
+      currentTitleId = title.id; // ⬅️ bu satırı ekle
       highlightSelected(div, "titles");
       loadQuestionsByTitleName(title.name);
     };
@@ -335,15 +337,37 @@ async function renameTitle() {
 async function deleteTitle() {
   if (!currentTitleId) return alert("⚠️ Select a title first.");
   if (!confirm("Are you sure? This will work only if all questions are deleted.")) return;
-  const res = await fetch(`${API}/delete-title`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title_id: currentTitleId, email })
-  });
-  const data = await res.json();
-  if (data.success) loadTitles(currentCategoryId);
-  else alert("❌ Cannot delete title (might still have questions)");
+
+  try {
+    const res = await fetch(`${API}/delete-title/${currentTitleId}?email=${email}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const text = await res.text();
+    console.log("🔍 delete-title response:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      console.error("❌ JSON parse error from delete-title:", text);
+      return alert("❌ Server returned invalid data. Sunucu HTML dönüyor olabilir.");
+    }
+
+    if (data.success) {
+      alert("✅ Title deleted.");
+      loadTitles(currentCategoryId);
+    } else {
+      alert(data.message || "❌ Cannot delete title (might still have questions)");
+    }
+
+  } catch (err) {
+    console.error("❌ deleteTitle network error:", err);
+    alert("⚠️ Unexpected error while deleting title.");
+  }
 }
+
 
 async function moveTitle() {
   if (!currentTitleId) return alert("⚠️ Select a title first.");
@@ -361,61 +385,22 @@ async function moveTitle() {
 
 async function deleteMainTopic() {
   if (!currentMainTopicId) return alert("⚠️ Select a main topic first.");
-  if (!confirm("Are you sure you want to delete this main topic? It must have no categories under it.")) return;
+  if (!confirm("Are you sure you want to delete this main topic?")) return;
 
   try {
-    // 1. Varsayılan mı kontrol et (hatalara karşı korumalı)
-    const infoRes = await fetch(`${API}/get-main-topic-info/${currentMainTopicId}?email=${email}`);
-    const infoText = await infoRes.text();
-
-    console.log("🧪 get-main-topic-info status:", infoRes.status);
-    console.log("🧪 get-main-topic-info response:", infoText);
-
-    let infoData;
-    try {
-      infoData = JSON.parse(infoText);
-    } catch (parseErr) {
-      console.error("❌ JSON parse error in get-main-topic-info:", infoText);
-      return alert("❌ Server returned invalid data while checking main topic.");
-    }
-
-    if (infoData.is_default) {
-      return alert("❌ Varsayılan ana başlık silinemez.");
-    }
-
-    // 2. Kategori kontrolü
-    const res = await fetch(`${API}/list-categories?main_topic_id=${currentMainTopicId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-
-    if (!data.categories || data.categories.length > 0) {
-      return alert("❌ Cannot delete. This main topic still has categories.");
-    }
-
-    // 3. Tüm main topic sayısı kontrolü
-    const resAll = await fetch(`${API}/list-main-categories`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const all = await resAll.json();
-
-    if (!all.main_categories || all.main_categories.length <= 1) {
-      return alert("❌ At least one main topic must remain.");
-    }
-
-    // 4. Silme işlemi
-    const deleteRes = await fetch(`${API}/delete-main-category/${currentMainTopicId}?email=${email}`, {
+    // ✅ Silme isteği
+    const deleteRes = await fetch(`${API}/delete-main-category/${currentMainTopicId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    const deleteText = await deleteRes.text();
+    const text = await deleteRes.text();
     let deleteData;
     try {
-      deleteData = JSON.parse(deleteText);
+      deleteData = JSON.parse(text);
     } catch (err) {
-      console.error("❌ JSON parse error in delete-main-category:", deleteText);
-      return alert("❌ Server returned invalid data. Check if token or ID is wrong.");
+      console.error("❌ JSON parse error:", text);
+      return alert("❌ Server returned invalid data (HTML instead of JSON). Sunucu yeniden deploy edilmiş mi?");
     }
 
     if (deleteData.success) {
@@ -425,12 +410,12 @@ async function deleteMainTopic() {
     } else {
       alert(deleteData.message || "❌ Failed to delete main topic.");
     }
-
   } catch (err) {
     console.error("❌ deleteMainTopic error:", err);
     alert("⚠️ Unexpected error occurred while deleting the main topic.");
   }
 }
+
 
 
 

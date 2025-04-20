@@ -1207,6 +1207,24 @@ app.get("*", (req, res, next) => {
   // Aksi halde index.html'e yönlendir
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+app.post("/rename-category", async (req, res) => {
+  const { category_id, new_name, email } = req.body;
+  if (!category_id || !new_name || !email) {
+    return res.status(400).json({ success: false, message: "Eksik bilgi" });
+  }
+
+  try {
+    const result = await pool.query(
+      "UPDATE categories SET name = $1 WHERE id = $2 AND user_email = $3",
+      [new_name, category_id, email]
+    );
+
+    res.json({ success: result.rowCount > 0 });
+  } catch (err) {
+    console.error("Kategori yeniden adlandırma hatası:", err);
+    res.status(500).json({ success: false });
+  }
+});
 
 // === SUNUCU BAŞLAT ===
 const PORT = process.env.PORT || 3001;
