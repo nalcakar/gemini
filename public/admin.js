@@ -10,10 +10,16 @@ function toggleEditMode() {
 }
 // 🔐 Giriş kontrolü
 if (!token || !email) {
-  alert("⚠️ You must log in with Patreon to use the admin panel.");
-  location.href = "/login.html";
-  throw new Error("Not logged in");
+  // Giriş yapılmamışsa kullanıcıya login butonu göster, yönlendirme yapma
+  document.getElementById("user-box").innerHTML = `
+    <div class="user-box-inner">
+      <a class="login-btn" href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">
+        Login with Patreon
+      </a>
+    </div>`;
+  return; // işlem durdur
 }
+
 
 // Main → Category → Title
 let currentTitleId = null;
@@ -44,9 +50,31 @@ async function loadMainTopics() {
     div.textContent = topic.name;
     div.onclick = () => {
       currentMainTopicId = topic.id;
+      currentCategoryId = null;
+      currentTitleId = null;
+    
       highlightSelected(div, "mainTopics");
+      // ✅ Fade ile içerik temizle
+  updatePanelWithFade("titles", "<h3>📝 Titles</h3><p>⬅️ Select a category</p>");
+  updatePanelWithFade("modalQuestionList", "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>");
+
+    
+      // ✅ titles panelini sıfırla
+      const titles = document.getElementById("titles");
+      if (titles) {
+        titles.innerHTML = "<h3>📝 Titles</h3><p>⬅️ Select a category</p>";
+      }
+    
+      // ✅ questions panelini sıfırla
+      const questions = document.getElementById("modalQuestionList");
+      if (questions) {
+        questions.innerHTML = "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>";
+      }
+    
       loadCategories(topic.id);
     };
+    
+    
     container.appendChild(div);
   });
 }
@@ -71,7 +99,16 @@ async function loadCategories(mainTopicId) {
     div.textContent = cat.name;
     div.onclick = () => {
       currentCategoryId = cat.id;
+      currentTitleId = null;
       highlightSelected(div, "categories");
+      updatePanelWithFade("modalQuestionList", "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>");
+
+      // ❌ Soruları da temizle
+      const questionPanel = document.getElementById("modalQuestionList");
+      if (questionPanel) {
+        questionPanel.innerHTML = "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>";
+      }
+    
       loadTitles(cat.id);
     };
     container.appendChild(div);
@@ -124,6 +161,7 @@ async function renameMainTopic() {
   const data = await res.json();
   if (data.success) {
     alert("✅ Main topic renamed.");
+    clearSelectionUI();    
     loadMainTopics(); // yeniden yükle
   } else {
     alert("❌ Failed to rename main topic.");
@@ -307,7 +345,7 @@ async function addCategory() {
     // Clear dependent selections
     currentCategoryId = null;
     currentTitleId = null;
-
+    clearSelectionUI();     
     loadCategories(currentMainTopicId); // reload categories only under current main topic
   } else {
     alert("❌ Failed to add category");
@@ -335,17 +373,90 @@ async function renameCategory() {
 
 async function changeCategoryMainTopic() {
   if (!currentCategoryId) return alert("⚠️ Select a category first.");
-  const newMainTopicId = prompt("Enter new Main Topic ID:");
-  if (!newMainTopicId) return;
-  const res = await fetch(`${API}/move-category-to-main`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_id: currentCategoryId, new_main_id: newMainTopicId, email })
+
+  const res = await fetch(`${API}/list-main-topics`, {
+    headers: { Authorization: `Bearer ${token}` }
   });
+
   const data = await res.json();
-  if (data.success) loadCategories(newMainTopicId);
-  else alert("❌ Failed to move category");
+  const topics = data.topics || [];
+
+  const oldMainTopicId = currentMainTopicId;
+
+  showModalWithOptions("Select new Main Topic:", topics, async (selectedId) => {
+    if (selectedId == currentMainTopicId) {
+      alert("⚠️ You selected the current main topic. No changes made.");
+      return;
+    }
+
+    const moveRes = await fetch(`${API}/move-category`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: currentCategoryId,
+        newMainId: selectedId,
+        email
+      })
+    });
+
+    const result = await moveRes.json();
+
+    if (result.success) {
+      alert("✅ Category moved.");
+
+      clearSelectionUI();         // ✅ UI'daki tüm seçimleri sıfırla
+      currentMainTopicId = selectedId;
+
+      await loadCategories(oldMainTopicId);  // eski konumdaki kategori listesini yenile
+      await loadCategories(selectedId);      // yeni konumdaki kategori listesini yenile
+      await loadMainTopics();                // tüm main topic listesini yenile
+
+      // yeni seçilen main topic’i vurgula
+      const mainTopicDivs = document.querySelectorAll("#mainTopics .item");
+      const newTopicName = topics.find(t => t.id == selectedId)?.name;
+
+      mainTopicDivs.forEach(div => {
+        if (div.textContent === newTopicName) {
+          highlightSelected(div, "mainTopics");
+        }
+      });
+
+      if (editMode) renderEditControls();
+    } else {
+      alert("❌ Move failed.");
+    }
+  }, currentMainTopicId); // ✅ mevcut olanı parametre olarak geçiyoruz
 }
+
+
+async function moveTitleToCategory() {
+  if (!currentTitleId) return alert("⚠️ Select a title first.");
+
+  const res = await fetch(`${API}/list-categories?main_topic_id=${currentMainTopicId}&email=${email}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  const data = await res.json();
+  const categories = data.categories || [];
+
+  showModalWithOptions("Select new Category:", categories, async (selectedId) => {
+    const moveRes = await fetch(`${API}/move-title-to-category`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title_id: currentTitleId, new_category_id: selectedId, email })
+    });
+
+    const result = await moveRes.json();
+    if (result.success) {
+      alert("✅ Title moved.");
+      currentCategoryId = selectedId;
+      loadTitles(selectedId);
+    } else {
+      alert("❌ Move failed.");
+    }
+  });
+}
+
 
 async function renameTitle() {
   if (!currentTitleId) return alert("⚠️ Select a title first.");
@@ -384,6 +495,7 @@ async function deleteTitle() {
 
     if (data.success) {
       alert("✅ Title deleted.");
+      clearSelectionUI();   
       loadTitles(currentCategoryId);
     } else {
       alert(data.message || "❌ Cannot delete title (might still have questions)");
@@ -398,17 +510,59 @@ async function deleteTitle() {
 
 async function moveTitle() {
   if (!currentTitleId) return alert("⚠️ Select a title first.");
-  const newCategoryId = prompt("Enter new category ID:");
-  if (!newCategoryId) return;
-  const res = await fetch(`${API}/move-title-to-category`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title_id: currentTitleId, new_category_id: newCategoryId, email })
+  if (!currentCategoryId) return alert("⚠️ Select the current category first.");
+
+  const res = await fetch(`${API}/list-categories?main_topic_id=${currentMainTopicId}&email=${email}`, {
+    headers: { Authorization: `Bearer ${token}` }
   });
+
   const data = await res.json();
-  if (data.success) loadTitles(newCategoryId);
-  else alert("❌ Failed to move title");
+  const categories = data.categories || [];
+
+  const currentTitleDiv = [...document.querySelectorAll("#titles .item")].find(div =>
+    div.classList.contains("active")
+  );
+  const currentTitleName = currentTitleDiv?.innerText || "";
+  const oldCategoryId = currentCategoryId;
+
+  showModalWithOptions("Select new Category:", categories, async (selectedId) => {
+    const moveRes = await fetch(`${API}/move-title-to-category`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        titleId: currentTitleId,
+        newCategoryId: selectedId,
+        email
+      })
+    });
+
+    const result = await moveRes.json();
+
+    if (result.success) {
+      alert("✅ Title moved.");
+      currentCategoryId = selectedId;
+
+      await loadTitles(oldCategoryId);
+      await loadTitles(selectedId);
+
+      const titleDivs = document.querySelectorAll("#titles .item");
+      titleDivs.forEach(div => {
+        if (div.textContent.trim() === currentTitleName.trim()) {
+          highlightSelected(div, "titles");
+        }
+      });
+
+      if (editMode) renderEditControls();
+    } else {
+      alert("❌ Move failed.");
+    }
+  }, currentCategoryId);
 }
+
+
+
+
+
 
 async function deleteMainTopic() {
   if (!currentMainTopicId) return alert("⚠️ Select a main topic first.");
@@ -432,6 +586,7 @@ async function deleteMainTopic() {
 
     if (deleteData.success) {
       alert("✅ Main topic deleted.");
+      clearSelectionUI();  
       currentMainTopicId = null;
       loadMainTopics();
     } else {
@@ -495,6 +650,7 @@ async function deleteCategory() {
       const deleteData = JSON.parse(text);
       if (deleteData.success) {
         alert("✅ Category deleted successfully.");
+        clearSelectionUI(); 
         loadCategories(currentMainTopicId);
       } else {
         alert(deleteData.message || "❌ Category could not be deleted.");
@@ -522,3 +678,116 @@ document.addEventListener("click", function (e) {
     e.preventDefault(); // ⛔ sayfa kaymasını engeller
   }
 });
+
+function highlightSelected(div, sectionId) {
+  document.querySelectorAll(`#${sectionId} .item`).forEach(el => el.classList.remove("active"));
+  div.classList.add("active");
+}
+function showModalWithOptions(label, items, callback, currentId = null) {
+  const modal = document.getElementById("modalContainer");
+  const select = document.getElementById("modalSelect");
+  const modalLabel = document.getElementById("modalLabel");
+
+  if (!modal || !select || !modalLabel) {
+    console.error("❌ Modal öğeleri bulunamadı.");
+    return;
+  }
+
+  modalLabel.textContent = label;
+
+  const currentItems = items.filter(item => (item.id ?? '') == currentId);
+  const otherItems = items.filter(item => (item.id ?? '') != currentId);
+
+  const renderOptions = (label, list, isCurrent = false) => `
+    <optgroup label="${label}">
+      ${list.map(item => 
+        `<option value="${item.id}" ${isCurrent ? 'selected' : ''}>${item.name}</option>`
+      ).join("")}
+    </optgroup>
+  `;
+
+  select.innerHTML =
+    renderOptions("✅ Current Selection", currentItems, true) +
+    renderOptions("🔁 Other Options", otherItems, false);
+
+  // Fade-in animasyon
+  modal.style.opacity = 0;
+  modal.style.display = "block";
+  requestAnimationFrame(() => {
+    modal.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+    modal.style.opacity = 1;
+    modal.style.transform = "translate(-50%, -30%) scale(1)";
+  });
+
+  // ESC tuşuyla kapatma
+  const keyListener = (e) => {
+    if (e.key === "Escape") closeModal();
+    if (e.key === "ArrowDown") select.selectedIndex = (select.selectedIndex + 1) % select.options.length;
+    if (e.key === "ArrowUp") select.selectedIndex = (select.selectedIndex - 1 + select.options.length) % select.options.length;
+  };
+  document.addEventListener("keydown", keyListener);
+
+  window.confirmModalSelection = () => {
+    const selectedId = select.value;
+    if (selectedId == currentId) {
+      alert("⚠️ You selected the current item. No changes made.");
+      return;
+    }
+    closeModal();
+    callback(selectedId);
+  };
+
+  window.closeModal = () => {
+    modal.style.opacity = 0;
+    modal.style.transform = "translate(-50%, -35%) scale(0.95)";
+    setTimeout(() => {
+      modal.style.display = "none";
+    }, 250);
+    document.removeEventListener("keydown", keyListener);
+  };
+}
+
+function clearSelectionUI() {
+  currentMainTopicId = null;
+  currentCategoryId = null;
+  currentTitleId = null;
+
+  const titles = document.getElementById("titles");
+  const questions = document.getElementById("modalQuestionList"); // ✅ doğru ID
+
+  if (titles) {
+    titles.innerHTML = "<h3>📝 Titles</h3><p>⬅️ Select a category</p>";
+  }
+
+  if (questions) {
+    questions.innerHTML = "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>";
+  }
+
+  document.querySelectorAll(".item.active").forEach(el => el.classList.remove("active"));
+}
+function updatePanelWithFade(id, newContent) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.style.transition = "opacity 0.3s ease";
+  el.style.opacity = 0;
+
+  setTimeout(() => {
+    el.innerHTML = newContent;
+    el.style.opacity = 1;
+  }, 200);
+}
+function flashMessage(text, duration = 2000) {
+  const box = document.getElementById("flashMessage");
+  box.textContent = text;
+  box.style.display = "block";
+  box.style.opacity = 1;
+
+  setTimeout(() => {
+    box.style.transition = "opacity 0.5s ease";
+    box.style.opacity = 0;
+    setTimeout(() => {
+      box.style.display = "none";
+    }, 500);
+  }, duration);
+}
