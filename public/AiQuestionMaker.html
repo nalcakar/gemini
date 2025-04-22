@@ -531,7 +531,15 @@ window.showSection = function(type) {
           <strong>🧭 Suggestions:</strong>
           <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
         </div>
-
+<div style="margin-top: 10px;">
+  <label><strong>🎯 Difficulty Level:</strong></label>
+  <select id="difficultySelect" style="margin-left: 8px; padding: 6px; border-radius: 6px;">
+    <option value="">(Auto)</option>
+    <option value="Easy">Easy</option>
+    <option value="Medium">Medium</option>
+    <option value="Hard">Hard</option>
+  </select>
+</div>
         <div style="font-size: 14px; color: #555; margin-top: 10px;">
           💡 Tip: Try short topics like “Electricity”, “Photosynthesis”, “Shakespeare”<br/>
           You can narrow it down: “Photosynthesis — role in ecosystems”

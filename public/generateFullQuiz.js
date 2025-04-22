@@ -57,6 +57,8 @@ async function generateFullQuiz() {
 
     // 🌍 Kullanıcının seçtiği dil (yoksa boş)
     const selectedLang = document.getElementById("languageSelect")?.value || "";
+    const selectedDifficulty = document.getElementById("difficultySelect")?.value || "";
+
     const topicFocus = document.getElementById("topicFocus")?.value.trim() || "";
     localStorage.setItem("questionLangPref", selectedLang); // Hatırla
 
@@ -69,7 +71,8 @@ async function generateFullQuiz() {
       body: JSON.stringify({
         mycontent: extractedText,
         userLanguage: selectedLang,
-        userFocus: topicFocus
+        userFocus: topicFocus,
+        userDifficulty: selectedDifficulty
       })
       
     });

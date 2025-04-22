@@ -207,7 +207,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
-  const { mycontent, userLanguage, userFocus } = req.body;
+  const { mycontent, userLanguage, userFocus, userDifficulty } = req.body;
 
   const user = req.user || {};
 
@@ -268,6 +268,7 @@ You are an expert question generator.
 
 Your task is to generate ${questionCount} multiple choice questions based on the topic: "${mycontent}"
 ${userFocus ? `The user wants to focus on: "${userFocus}"\n` : ""}
+${userDifficulty ? `The desired difficulty level is: ${userDifficulty}.\n` : ""}
 
 All output must be written in: ${promptLanguage}
 
