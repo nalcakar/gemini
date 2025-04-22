@@ -254,7 +254,7 @@ Kurallar:
 - Sorular sadece bu formatta dönsün.
 - Listeleme (1., 2., vs.) kullanma.
 - Sorular arasında boşluk bırakma.
-- Türkçe yaz.
+- ${questionLanguage} dilinde yaz.
 `
     : `
 "${mycontent}" metnine göre ${questionLanguage} dilinde ${questionCount} adet çoktan seçmeli soru üret.
