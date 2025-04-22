@@ -230,11 +230,36 @@ app.post("/generate-questions", async (req, res) => {
   };
 
   let questionLanguage = "İngilizce";
-if (userLanguage && userLanguage.trim()) {
-  questionLanguage = userLanguage.trim();
-} else if (languageMap[langCode]) {
-  questionLanguage = languageMap[langCode];
-}
+  if (userLanguage && userLanguage.trim()) {
+    questionLanguage = userLanguage.trim();
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
+  
+  // AI'ın anlayacağı şekilde ISO'ya çevir
+  const isoMap = {
+    "İngilizce": "English",
+    "Türkçe": "Turkish",
+    "Arapça": "Arabic",
+    "Fransızca": "French",
+    "İspanyolca": "Spanish",
+    "Almanca": "German",
+    "İtalyanca": "Italian",
+    "Portekizce": "Portuguese",
+    "Rusça": "Russian",
+    "Çince": "Chinese",
+    "Japonca": "Japanese",
+    "Korece": "Korean",
+    "Flemenkçe": "Dutch",
+    "Lehçe": "Polish",
+    "Hintçe": "Hindi",
+    "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese",
+    "Tayca": "Thai",
+    "Romence": "Romanian",
+    "Ukraynaca": "Ukrainian"
+  };
+  const promptLanguage = isoMap[questionLanguage] || "English";
   const isShortTopic = mycontent.length < 80;
 
   const prompt = isShortTopic
@@ -244,7 +269,7 @@ You are an expert question generator.
 Your task is to generate ${questionCount} multiple choice questions based on the topic: "${mycontent}"
 ${userFocus ? `The user wants to focus on: "${userFocus}"\n` : ""}
 
-All output must be written in: ${questionLanguage}.
+All output must be written in: ${promptLanguage}
 
 Each question must follow **exactly** this structure:
 
@@ -262,12 +287,12 @@ Rules:
 - Use only the specified format above.
 - Do NOT number the questions (no 1., 2., etc.)
 - Do NOT include any extra commentary or explanation.
-- Write in: ${questionLanguage} only.
+- Write in: ${promptLanguage} only.
 `
   : `
 You are an expert quiz assistant.
 
-Here is some content to work with in ${questionLanguage}:
+Here is some content to work with in ${promptLanguage}:
 "${mycontent}"
 
 Generate exactly ${questionCount} multiple choice questions based on this content.
