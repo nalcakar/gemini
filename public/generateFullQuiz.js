@@ -681,3 +681,18 @@ document.addEventListener("input", function (e) {
     }, 1000); // 1 saniye sonra tetikle
   }
 });
+document.addEventListener("click", function (e) {
+  if (e.target.classList.contains("focus-suggestion")) {
+    const input = document.getElementById("topicFocus");
+    if (!input) return;
+
+    const newVal = e.target.textContent.trim();
+    const current = input.value.trim();
+
+    // Eğer zaten içeriyorsa tekrar ekleme
+    if (current.includes(newVal)) return;
+
+    input.value = current.length ? `${current}, ${newVal}` : newVal;
+    input.dispatchEvent(new Event("input")); // eğer başka tetikleyici varsa
+  }
+});

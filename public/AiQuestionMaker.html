@@ -293,7 +293,19 @@ details summary {
   from { opacity: 1; transform: translateY(0); }
   to   { opacity: 0; transform: translateY(10px); }
 }
-
+.focus-suggestion {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+.focus-suggestion:hover {
+  background: #bae6fd;
+}
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -520,11 +532,17 @@ function renderUserBox() {
              style="padding: 10px; width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid #ccc;" />
     </div>
 
+    <div id="focusSuggestions" style="margin-top: 12px;">
+      <strong>🧭 Suggestions:</strong>
+      <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+    </div>
+
     <div style="font-size: 14px; color: #555; margin-top: 10px;">
       💡 Tip: Try short topics like “Electricity”, “Photosynthesis”, “Shakespeare”<br/>
       You can narrow it down: “Photosynthesis — role in ecosystems”
     </div>
   `;
+
   break;
 
 

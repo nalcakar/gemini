@@ -218,7 +218,7 @@ app.post("/generate-questions", async (req, res) => {
   };
 
   const userTier = user.tier;
-  const questionCount = tierQuestionCounts[userTier] || 5; // Giriş yapmayan: 5
+  const questionCount = tierQuestionCounts[userTier] || 5;
 
   const langCode = franc(mycontent);
   const languageMap = {
@@ -228,47 +228,63 @@ app.post("/generate-questions", async (req, res) => {
     "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
     "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
-  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "ingilizce";
 
+  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
   const isShortTopic = mycontent.length < 80;
 
   const prompt = isShortTopic
     ? `
-  "${mycontent}" başlıklı bir konu hakkında ${questionCount} adet çoktan seçmeli soru üret.
-  
-  ${userFocus ? `Odaklanılacak özel yön: ${userFocus}` : ""}
-  
-  Kurallar:
-  - Sorular öğretici, düşündürücü ve konuya açıklık getirici olsun.
-  - Temel bilgiler, örnekler, yanlış anlaşılabilecek kısımlar ele alınsın.
-  - Her soru *** ile başlasın.
-  - 4 şık /// ile başlasın.
-  - Doğru cevap ~~Cevap: ile belirtilsin.
-  - Açıklama &&Açıklama: ile başlasın (2-3 cümle).
-  
-  Sadece bu formatta düz metin döndür.
-  `
+"${mycontent}" başlıklı bir konu hakkında ${questionCount} adet çoktan seçmeli soru üret.
+
+${userFocus ? `Kullanıcının odaklanmak istediği yön: "${userFocus}"\n` : ""}
+
+Her soru şu kesin formatta verilmeli:
+
+***
+[Soru metni]
+
+/// A) [Şık 1]  
+/// B) [Şık 2]  
+/// C) [Şık 3]  
+/// D) [Şık 4]  
+~~Cevap: [Doğru Şık - örn: C) Yoğun pratik]  
+&&Açıklama: [Bu cevabın neden doğru olduğunu açıklayan en az 2 cümlelik detay.]
+
+Kurallar:
+- Sorular sadece bu formatta dönsün.
+- Listeleme (1., 2., vs.) kullanma.
+- Sorular arasında boşluk bırakma.
+- Türkçe yaz.
+`
     : `
-  Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli tam ${questionCount} soru üret.
-  Kurallar:
-  - Her soru *** ile başlasın.
-  - 4 şık /// ile başlasın.
-  - Cevap ~~Cevap: [cevap]
-  - Açıklama &&Açıklama: [açıklama]
-  - Sadece metin olarak döndür.
-  Metin:
-  ${mycontent}`;
-  
+"${mycontent}" metnine göre ${questionLanguage} dilinde ${questionCount} adet çoktan seçmeli soru üret.
+
+Format:
+
+***
+[Soru metni]
+
+/// A) ...
+/// B) ...
+/// C) ...
+/// D) ...
+~~Cevap: ...
+&&Açıklama: ...
+
+Lütfen sadece yukarıdaki formatta düz metin olarak döndür. Ek bilgi ekleme.
+`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    res.json({ questions: await result.response.text() });
+    const raw = await result.response.text();
+    res.json({ questions: raw });
   } catch (err) {
     console.error("Gemini hata:", err.message);
     res.status(500).json({ error: "Soru üretilemedi" });
   }
 });
+
 
 
 app.post("/suggest-topic-focus", async (req, res) => {
