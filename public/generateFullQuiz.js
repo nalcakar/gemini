@@ -654,48 +654,75 @@ async function generateFullQuiz() {
 
   let suggestTimeout;
 
-document.addEventListener("input", function (e) {
-  if (e.target.id === "topicInput") {
-    clearTimeout(suggestTimeout);
-
-    const value = e.target.value.trim();
-    if (value.length < 4) return;
-
-    suggestTimeout = setTimeout(() => {
-      const lang = document.getElementById("languageSelect")?.value || "";
-
-      fetch("https://gemini-j8xd.onrender.com/suggest-topic-focus", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: value, language: lang })
-      })
-        .then(res => res.json())
-        .then(data => {
-          const wrapper = document.getElementById("focusSuggestions");
-          if (!wrapper || !Array.isArray(data.suggestions)) return;
-
-          const chipHTML = data.suggestions.map(txt =>
-            `<span class="focus-suggestion">${txt}</span>`).join("");
-          wrapper.querySelector("div").innerHTML = chipHTML;
+  document.addEventListener("input", function (e) {
+    if (e.target.id === "topicInput") {
+      clearTimeout(suggestTimeout);
+      const value = e.target.value.trim();
+      if (value.length < 4) return;
+  
+      suggestTimeout = setTimeout(() => {
+        const lang = document.getElementById("languageSelect")?.value || "";
+  
+        fetch("https://gemini-j8xd.onrender.com/suggest-topic-focus", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: value, language: lang })
         })
-        .catch(err => {
-          console.error("❌ Otomatik öneri hatası:", err);
-        });
-    }, 1000); // 1 saniye sonra tetikle
-  }
-});
-document.addEventListener("click", function (e) {
-  if (e.target.classList.contains("focus-suggestion")) {
+          .then(res => res.json())
+          .then(data => {
+            const wrapper = document.getElementById("focusSuggestions");
+            if (!wrapper || !Array.isArray(data.suggestions)) return;
+  
+            const selectedRaw = localStorage.getItem("topicFocusSuggestions") || "";
+            const selected = selectedRaw.split(",").map(s => s.trim());
+  
+            const chipHTML = data.suggestions.map(txt => `
+              <span class="focus-suggestion ${selected.includes(txt) ? "selected-suggestion" : ""}" data-value="${txt}">
+                ${txt} <span class="remove-suggestion" style="margin-left:6px; cursor:pointer;">✖</span>
+              </span>
+            `).join("");
+  
+            wrapper.querySelector("div").innerHTML = chipHTML;
+          })
+          .catch(err => console.error("❌ Otomatik öneri hatası:", err));
+      }, 1000); // 1 saniye sonra tetikle
+    }
+  });
+  document.addEventListener("click", function (e) {
+    const suggestionBox = e.target.closest(".focus-suggestion");
+  
+    if (!suggestionBox) return;
+  
+    const value = suggestionBox.dataset.value;
+    if (!value) return;
+  
     const input = document.getElementById("topicFocus");
-    if (!input) return;
-
-    const newVal = e.target.textContent.trim();
-    const current = input.value.trim();
-
-    // Eğer zaten içeriyorsa tekrar ekleme
-    if (current.includes(newVal)) return;
-
-    input.value = current.length ? `${current}, ${newVal}` : newVal;
-    input.dispatchEvent(new Event("input")); // eğer başka tetikleyici varsa
-  }
-});
+    const current = input.value.split(",").map(s => s.trim());
+  
+    if (e.target.classList.contains("remove-suggestion")) {
+      // ❌ Sil
+      suggestionBox.remove();
+      const updated = current.filter(item => item !== value);
+      input.value = updated.join(", ");
+      localStorage.setItem("topicFocusSuggestions", input.value);
+      return;
+    }
+  
+    // ✅ Seç / kaldır
+    if (!current.includes(value)) {
+      current.push(value);
+      suggestionBox.classList.add("selected-suggestion");
+    } else {
+      const index = current.indexOf(value);
+      if (index !== -1) current.splice(index, 1);
+      suggestionBox.classList.remove("selected-suggestion");
+    }
+  
+    input.value = current.join(", ");
+    localStorage.setItem("topicFocusSuggestions", input.value);
+    input.dispatchEvent(new Event("input"));
+  });
+  
+  
+  
+  

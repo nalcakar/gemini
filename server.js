@@ -369,6 +369,7 @@ app.post("/suggest-topic-focus", async (req, res) => {
 Kurallar:
 - ${lang} dilinde yaz.
 - Her biri sadece 1 satır, en fazla 4 kelime olsun.
+- Anahtar kelime: Açıklama
 - Liste formatı kullan: - ...
 - Sadece kısa terimler döndür. Açıklama, giriş yazma.
 - Sorularda odaklanılması faydalı olacak kavramları hedefle.
