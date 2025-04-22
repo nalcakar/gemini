@@ -207,7 +207,8 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
-  const { mycontent } = req.body;
+  const { mycontent, userLanguage } = req.body;
+
   const user = req.user || {};
 
   const tierQuestionCounts = {
@@ -227,7 +228,7 @@ app.post("/generate-questions", async (req, res) => {
     "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
     "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
-  const questionLanguage = languageMap[langCode] || "ingilizce";
+  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "ingilizce";
 
   const prompt = `
 Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli tam ${questionCount} soru üret.

@@ -329,6 +329,33 @@ details summary {
 
 <!-- 🟨 Generate button sabit olarak alt tarafta -->
 <div style="text-align: center; margin-top: 20px;">
+  <div style="text-align:center; margin-top: 20px;">
+    <label><strong>🌍 Question Language:</strong></label>
+    <select id="languageSelect" style="padding: 8px; margin-left: 8px; border-radius: 6px;">
+      <option value="">🌐 Auto Detect</option>
+      <option value="İngilizce">English</option>
+      <option value="Türkçe">Türkçe</option>
+      <option value="İspanyolca">Español</option>
+      <option value="Fransızca">Français</option>
+      <option value="Almanca">Deutsch</option>
+      <option value="İtalyanca">Italiano</option>
+      <option value="Portekizce">Português</option>
+      <option value="Rusça">Русский</option>
+      <option value="Arapça">العربية</option>
+      <option value="Çince">中文</option>
+      <option value="Japonca">日本語</option>
+      <option value="Korece">한국어</option>
+      <option value="Flemenkçe">Nederlands</option>
+      <option value="Lehçe">Polski</option>
+      <option value="Hintçe">हिंदी</option>
+      <option value="Bengalce">বাংলা</option>
+      <option value="Vietnamca">Tiếng Việt</option>
+      <option value="Tayca">ภาษาไทย</option>
+      <option value="Romence">Română</option>
+      <option value="Ukraynaca">Українська</option>
+    </select>
+  </div>
+  
   <button id="generateQuizButton" onclick="generateFullQuiz()" class="generate-btn">
     Generate Multiple Choice Questions
   </button>
@@ -344,10 +371,18 @@ details summary {
   <br/>
 
   <!-- Title Input -->
-  <input id="quizTitle" list="titleSuggestions" 
-         placeholder="📘 Enter a new or existing title" 
-         style="padding: 10px; width: 300px; margin:10px; border-radius:8px;" />
-  <datalist id="titleSuggestions"></datalist>
+  <div style="margin:10px 0;">
+    <label><strong>📘 Title:</strong></label>
+    <select id="titleDropdown" list="titleSuggestions" style="padding:8px; margin-left:8px; border-radius:6px;">
+      <option value="">-- Select Title --</option>
+      <option value="__new__">➕ Add New Title</option>
+    </select>
+    <datalist id="titleSuggestions"></datalist>
+  </div>
+  
+  <!-- Yeni başlık girilmesi gereken input -->
+  <input id="newTitleInput" type="text" placeholder="Enter new title..." 
+         style="display:none; padding: 10px; width: 300px; border-radius:8px; margin: 10px 0;" />
   <br/>
 
   <!-- Save Button -->
@@ -386,9 +421,7 @@ function renderUserBox() {
   const container = document.getElementById("user-box");
 
   const currentPage = encodeURIComponent(window.location.href);
-  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback?redirect=${currentPage}&scope=identity`;
-
-  container.innerHTML = accessToken && name
+  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  container.innerHTML = accessToken && name
     ? `<div class="user-box-inner">
         <span class="user-name">${name}</span>
         <span class="badge ${membership.toLowerCase()}">${membership}</span>
@@ -480,7 +513,7 @@ function renderUserBox() {
     <h2>🧠 Topic Generator</h2>
     <p>Enter some text to get a relevant topic.</p>
     <textarea id="topicInput" placeholder="Paste your text..."></textarea>
-    <button class="generate-btn" onclick="alert('Topic generation coming soon')">Generate Topic</button>
+
   `;
   break;
   case 'audio':
@@ -556,7 +589,8 @@ function renderUserBox() {
     window.history.replaceState({}, document.title, window.location.pathname);
     location.reload();
   }
-
+  window.openModal = openModal;
+  window.closeModal = closeModal;
 </script>
 <!-- Modal Açma Butonu -->
 <!-- Modal Açma Butonu -->

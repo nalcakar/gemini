@@ -2,83 +2,7 @@ let lastDeletedQuestion = null;
 let currentTitle = "";
 let shouldReloadQuestions = false;
 
-function openModal() {
-    const titleName = document.getElementById("quizTitle")?.value.trim();
-    const token = localStorage.getItem("accessToken");
-    const email = localStorage.getItem("userEmail");
-    const modal = document.getElementById("questionModal");
-    const container = document.getElementById("modalQuestionList");
-  
-    modal.classList.add("show");
-  
-    if (!titleName || !token) {
-      container.innerHTML = "<p style='color:red;'>Başlık veya oturum bilgisi eksik.</p>";
-      return;
-    }
-  
-    if (!shouldReloadQuestions && currentTitle === titleName) return;
-  
-    container.innerHTML = "<p style='text-align:center;'>Yükleniyor...</p>";
-  
-    fetch(`https://gemini-j8xd.onrender.com/get-questions-by-name?title=${encodeURIComponent(titleName)}&email=${encodeURIComponent(email)}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.questions || data.questions.length === 0) {
-          container.innerHTML = "<p style='color:gray;'>Bu başlığa ait hiç soru bulunamadı.</p>";
-          return;
-        }
-  
-        container.innerHTML = `<p>📌 Toplam Soru: <strong>${data.questions.length}</strong></p>`;
-  
-        data.questions.forEach((q, i) => {
-          const block = document.createElement("details");
-  
-          // 🎨 Zorluk rozeti
-          let badge = "";
-          if (q.difficulty === "easy") {
-            badge = `<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟢 Kolay</span>`;
-          }
-          if (q.difficulty === "medium") {
-            badge = `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟡 Orta</span>`;
-          }
-          if (q.difficulty === "hard") {
-            badge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🔴 Zor</span>`;
-          }
-  
-          block.innerHTML = `
-            <summary>Q${i + 1}. ${q.question} ${badge}</summary>
-            <ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>
-            <p><strong>💡 Açıklama:</strong> ${q.explanation}</p>
-            <div style="margin-top: 8px;">
-              <button onclick="editExistingQuestion(${q.id})">✏️ Düzenle</button>
-              <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Sil</button>
-            </div>
-          `;
-          container.appendChild(block);
-        });
-  
-        currentTitle = titleName;
-        shouldReloadQuestions = false;
-  
-        // MathJax varsa render et
-        if (window.MathJax) {
-          MathJax.typesetPromise?.();
-        }
-  
-        // Gerekirse istatistik vs. güncelle
-        updateStats?.();
-  
-      })
-      .catch(err => {
-        container.innerHTML = "<p style='color:red;'>❌ Sorular alınamadı.</p>";
-        console.error("get-questions error:", err);
-      });
-  }
-  
+
   
   
   function closeModal() {
@@ -511,8 +435,7 @@ function openModal() {
   
 
 // === Fonksiyonları global scope'a aç ===
-window.openModal = openModal;
-window.closeModal = closeModal;
+
 window.collapseAllDetails = collapseAllDetails;
 window.filterQuestions = filterQuestions;
 window.filterByDifficulty = filterByDifficulty;

@@ -3,22 +3,38 @@ const token = localStorage.getItem("accessToken");
 const email = localStorage.getItem("userEmail");
 let editMode = false;
 
+document.addEventListener("DOMContentLoaded", () => {
+  if (!token || !email) {
+    document.getElementById("user-box").innerHTML = `
+      <div class="user-box-inner">
+        <p style="font-size:16px;color:#444;margin-bottom:12px;">
+          🔒 You must log in with Patreon to use the admin panel.
+        </p>
+        <a class="login-btn" style="padding:10px 18px; background:#e85c33; color:white; border-radius:8px; text-decoration:none; display:inline-block;" 
+           href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">
+          Login with Patreon
+        </a>
+      </div>`;
+    document.getElementById("mainTopics").innerHTML = "<p style='color:gray;'>⚠️ Content is hidden until you log in.</p>";
+    document.getElementById("categories").innerHTML = "";
+    document.getElementById("titles").innerHTML = "";
+    document.getElementById("modalQuestionList").innerHTML = "";
+    return;
+  }
+
+  // ✅ Token/email varsa devam et
+  loadMainTopics();
+});
+
+
+
+// editMode fonksiyonu dışarıda kalmalı
 function toggleEditMode() {
   editMode = !editMode;
   document.body.classList.toggle("edit-mode", editMode);
   renderEditControls();
 }
-// 🔐 Giriş kontrolü
-if (!token || !email) {
-  // Giriş yapılmamışsa kullanıcıya login butonu göster, yönlendirme yapma
-  document.getElementById("user-box").innerHTML = `
-    <div class="user-box-inner">
-      <a class="login-btn" href="https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&scope=identity">
-        Login with Patreon
-      </a>
-    </div>`;
-  return; // işlem durdur
-}
+
 
 
 // Main → Category → Title
@@ -26,9 +42,6 @@ let currentTitleId = null;
 let currentMainTopicId = null;
 let currentCategoryId = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-  loadMainTopics();
-});
 
 // 📘 1. Load Main Topics
 async function loadMainTopics() {

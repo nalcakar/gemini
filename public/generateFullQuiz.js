@@ -1,132 +1,169 @@
+
+function getCurrentSectionText() {
+  const lastSection = localStorage.getItem("lastSection");
+
+  if (lastSection === "topic") {
+    const topicInput = document.getElementById("topicInput");
+    if (topicInput && topicInput.value.trim().length > 0) {
+      return topicInput.value.trim();
+    }
+  }
+
+  const ids = [
+    "textManualInput",
+    "textOutput",
+    "imageTextOutput",
+    "audioTextOutput"
+  ];
+
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el && el.offsetHeight > 0 && el.offsetWidth > 0 && el.value.trim().length > 0) {
+      return el.value.trim();
+    }
+  }
+
+  return "";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const savedLang = localStorage.getItem("questionLangPref");
+  if (savedLang) {
+    const langSelect = document.getElementById("languageSelect");
+    if (langSelect) langSelect.value = savedLang;
+  }
+});
+
+
+
 async function generateFullQuiz() {
-    let extractedText = window.extractedText || "";
-  
-    if (!extractedText) {
-      const idsToCheck = ["textManualInput", "textOutput", "imageTextOutput", "audioTextOutput"];
-      for (const id of idsToCheck) {
-        const el = document.getElementById(id);
-        if (el && el.value.trim().length > 0) {
-          extractedText = el.value.trim();
-          break;
+  let extractedText = getCurrentSectionText();
+  const lastSection = localStorage.getItem("lastSection");
+
+  // Kısa metin (örneğin "Hamlet") sadece "topic" modunda kabul edilir
+  if (!extractedText || (lastSection !== "topic" && extractedText.trim().length < 10)) {
+    alert("⚠️ Please paste or upload some text first.");
+    return;
+  }
+
+  const button = event?.target || document.querySelector("#generateQuizButton");
+  button.disabled = true;
+  button.textContent = "⏳ Generating...";
+
+  try {
+    const accessToken = localStorage.getItem("accessToken") || "";
+    const userEmail = localStorage.getItem("userEmail") || "";
+    const isLoggedIn = !!accessToken;
+
+    // 🌍 Kullanıcının seçtiği dil (yoksa boş)
+    const selectedLang = document.getElementById("languageSelect")?.value || "";
+    localStorage.setItem("questionLangPref", selectedLang); // Hatırla
+
+    const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        mycontent: extractedText,
+        userLanguage: selectedLang
+      })
+    });
+
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+    if (!data.questions || typeof data.questions !== "string") {
+      throw new Error("Invalid response from AI");
+    }
+
+    const raw = data.questions;
+    const parsedQuestions = raw
+      .split("***")
+      .map(q => q.trim())
+      .filter(Boolean)
+      .map(block => {
+        const question = block.split("///")[0].trim();
+        const answerMatch = block.match(/~~Cevap:\s*(.+)/i);
+        const explanationMatch = block.match(/&&Açıklama:\s*([\s\S]*)/i);
+
+        const options = [];
+        const optionsMatch = block.match(/(\/\/\/.*)/gi);
+        if (optionsMatch?.length === 1 && optionsMatch[0].includes("///")) {
+          optionsMatch[0]
+            .split("///")
+            .map(opt => opt.replace("///", "").trim())
+            .filter(opt => opt.length > 0)
+            .forEach(opt => options.push(opt));
+        } else if (optionsMatch?.length > 1) {
+          optionsMatch.forEach(optLine => {
+            options.push(optLine.replace("///", "").trim());
+          });
         }
-      }
-    }
-  
-    if (!extractedText || extractedText.trim().length < 10) {
-      alert("⚠️ Please paste or upload some text first.");
-      return;
-    }
-  
-    const button = event?.target || document.querySelector("#generateQuizButton");
-    button.disabled = true;
-    button.textContent = "⏳ Generating...";
-  
-    try {
-      const accessToken = localStorage.getItem("accessToken") || "";
-      const userEmail = localStorage.getItem("userEmail") || "";
-      const isLoggedIn = !!accessToken;
-  
-      const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ mycontent: extractedText })
+
+        return {
+          question,
+          options,
+          answer: answerMatch ? answerMatch[1].trim() : "",
+          explanation: explanationMatch ? explanationMatch[1].trim() : ""
+        };
       });
-  
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data = await res.json();
-      if (!data.questions || typeof data.questions !== "string") {
-        throw new Error("Invalid response from AI");
+
+    const output = document.getElementById("quizOutput");
+    output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
+
+    parsedQuestions.forEach((q, i) => {
+      const div = document.createElement("div");
+      div.className = "quiz-preview";
+      div.dataset.index = i;
+
+      div.innerHTML = `
+        <b>Q${i + 1}.</b> <span class="q" data-key="question">${q.question}</span>
+        <ul>${q.options.map((opt, j) =>
+          `<li class="q" data-key="option${j + 1}">${opt}</li>`).join("")}</ul>
+        <p><strong>✅ Answer:</strong> <span class="q" data-key="answer">${q.answer}</span></p>
+        <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation">${q.explanation}</span></p>
+        ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : ""}
+        <div style="margin-top: 8px;">
+          <button onclick="editQuestion(this)">✏️ Düzenle</button>
+          <button onclick="deleteQuestion(this)">🗑️ Sil</button>
+        </div>
+      `;
+      output.appendChild(div);
+    });
+
+    const saveBox = document.getElementById("saveQuizSection");
+    if (saveBox && isLoggedIn) {
+      saveBox.style.display = "block";
+      saveBox.style.opacity = "1";
+
+      if (!document.getElementById("saveInstructions")) {
+        const msg = document.createElement("p");
+        msg.id = "saveInstructions";
+        msg.textContent = "🎉 Continue to save the questions you selected below.";
+        msg.style = "font-weight: 500; font-size: 14px;";
+        saveBox.insertBefore(msg, saveBox.firstChild);
       }
-  
-      const raw = data.questions;
-      const parsedQuestions = raw
-        .split("***")
-        .map(q => q.trim())
-        .filter(Boolean)
-        .map(block => {
-          const question = block.split("///")[0].trim();
-          const answerMatch = block.match(/~~Cevap:\s*(.+)/i);
-          const explanationMatch = block.match(/&&Açıklama:\s*([\s\S]*)/i);
-  
-          const options = [];
-          const optionsMatch = block.match(/(\/\/\/.*)/gi);
-          if (optionsMatch?.length === 1 && optionsMatch[0].includes("///")) {
-            optionsMatch[0]
-              .split("///")
-              .map(opt => opt.replace("///", "").trim())
-              .filter(opt => opt.length > 0)
-              .forEach(opt => options.push(opt));
-          } else if (optionsMatch?.length > 1) {
-            optionsMatch.forEach(optLine => {
-              options.push(optLine.replace("///", "").trim());
-            });
-          }
-  
-          return {
-            question,
-            options,
-            answer: answerMatch ? answerMatch[1].trim() : "",
-            explanation: explanationMatch ? explanationMatch[1].trim() : ""
-          };
-        });
-  
-      const output = document.getElementById("quizOutput");
-      output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
-  
-      parsedQuestions.forEach((q, i) => {
-        const div = document.createElement("div");
-        div.className = "quiz-preview";
-        div.dataset.index = i;
-  
-        div.innerHTML = `
-          <b>Q${i + 1}.</b> <span class="q" data-key="question">${q.question}</span>
-          <ul>${q.options.map((opt, j) =>
-            `<li class="q" data-key="option${j + 1}">${opt}</li>`).join("")}</ul>
-          <p><strong>✅ Answer:</strong> <span class="q" data-key="answer">${q.answer}</span></p>
-          <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation">${q.explanation}</span></p>
-          ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : ""}
-          <div style="margin-top: 8px;">
-            <button onclick="editQuestion(this)">✏️ Düzenle</button>
-            <button onclick="deleteQuestion(this)">🗑️ Sil</button>
-          </div>
-        `;
-        output.appendChild(div);
-      });
-  
-      // ✅ Kaydetme alanı sadece giriş yapan ve soru oluşturanlar için
-      const saveBox = document.getElementById("saveQuizSection");
-      if (saveBox && isLoggedIn) {
-        saveBox.style.display = "block";
-        saveBox.style.opacity = "1";
-  
-        if (!document.getElementById("saveInstructions")) {
-          const msg = document.createElement("p");
-          msg.id = "saveInstructions";
-          msg.textContent = "🎉 Continue to save the questions you selected below.";
-          msg.style = "font-weight: 500; font-size: 14px;";
-          saveBox.insertBefore(msg, saveBox.firstChild);
-        }
-  
-        if (!saveBox.dataset.loaded) {
-          await loadMainTopics();
-          saveBox.dataset.loaded = "true";
-        }
+
+      if (!saveBox.dataset.loaded) {
+        await loadMainTopics();
+        saveBox.dataset.loaded = "true";
       }
-  
-    } catch (err) {
-      console.error("❌ Error:", err);
-      alert(`❌ Failed to generate questions.\n${err.message}`);
     }
-  
-    button.disabled = false;
-    button.textContent = "Generate Multiple Choice Questions";
-    if (typeof updateFloatingButtonVisibility === "function") {
-        updateFloatingButtonVisibility();
+
+  } catch (err) {
+    console.error("❌ Error:", err);
+    alert(`❌ Failed to generate questions.\n${err.message}`);
+  }
+
+  button.disabled = false;
+  button.textContent = "Generate Multiple Choice Questions";
+  if (typeof updateFloatingButtonVisibility === "function") {
+    updateFloatingButtonVisibility();
   }
 }
+
+
   
   // Düzenle: soruları input haline getir
   window.editQuestion = function (btn) {
@@ -212,11 +249,22 @@ async function generateFullQuiz() {
     const email = localStorage.getItem("userEmail");
     if (!token || !email) return alert("❌ Lütfen giriş yapın.");
   
-    const title = document.getElementById("quizTitle")?.value.trim();
-    const categoryId = document.getElementById("categorySelect")?.value;
+    // Yeni sistem: dropdown + optional yeni input
+    let title = "";
+    const dropdown = document.getElementById("titleDropdown");
+    const input = document.getElementById("newTitleInput");
   
-    if (!title || !categoryId) {
-      alert("⚠️ Lütfen başlık ve kategori seçiniz.");
+    if (dropdown?.value === "__new__") {
+      title = input?.value.trim();
+      if (!title) return alert("⚠️ Lütfen yeni bir başlık giriniz.");
+    } else {
+      title = dropdown?.value;
+      if (!title) return alert("⚠️ Lütfen bir başlık seçiniz.");
+    }
+  
+    const categoryId = document.getElementById("categorySelect")?.value;
+    if (!categoryId) {
+      alert("⚠️ Lütfen bir kategori seçiniz.");
       return;
     }
   
@@ -229,7 +277,7 @@ async function generateFullQuiz() {
         block.querySelectorAll(".q").forEach(s => {
           const key = s.dataset.key;
           const val = s.innerText.trim();
-        
+  
           if (key?.startsWith("option")) {
             q.options = q.options || [];
             q.options.push(val);
@@ -237,9 +285,8 @@ async function generateFullQuiz() {
             q[key] = val;
           }
         });
-        
   
-        // 🧠 Otomatik boş alan koruması
+        // Varsayılanları ekle
         q.options = q.options || [];
         q.answer = q.answer || "placeholder";
         q.explanation = q.explanation || "";
@@ -281,6 +328,7 @@ async function generateFullQuiz() {
       alert("❌ Sunucuya bağlanılamadı.");
     }
   }
+  
   
   
   
@@ -346,34 +394,37 @@ async function generateFullQuiz() {
       });
   
       const data = await res.json();
+  
       const list = document.getElementById("titleSuggestions");
-      list.innerHTML = "";
-  
-      // Başlıkları datalist'e ekle
-      data.titles.forEach(t => {
-        const opt = document.createElement("option");
-        opt.value = t.name;
-        list.appendChild(opt);
-      });
-  
-      // View Questions butonunu göster/gizle
-      const titleInput = document.getElementById("quizTitle")?.value.trim();
-      const matches = data.titles.map(t => t.name);
-      const viewBtnWrapper = document.getElementById("viewQuestionsWrapper");
-  
-      if (titleInput && matches.includes(titleInput)) {
-        viewBtnWrapper.style.display = "block";
-      } else {
-        viewBtnWrapper.style.display = "none";
+      if (list) {
+        list.innerHTML = "";
+        data.titles.forEach(t => {
+          const opt = document.createElement("option");
+          opt.value = t.name;
+          list.appendChild(opt);
+        });
       }
   
-      // ✅ Mobil floating buton kontrolü
+      const dropdown = document.getElementById("titleDropdown");
+      if (dropdown) {
+        dropdown.innerHTML = `<option value="">-- Select Title --</option><option value="__new__">➕ Add New Title</option>`;
+        data.titles.forEach(t => {
+          const opt = document.createElement("option");
+          opt.value = t.name;
+          opt.textContent = t.name;
+          dropdown.appendChild(opt);
+        });
+      }
+  
+      // 🎯 Bu kısmı güncel sistemle uyumlu hale getiriyoruz:
       updateFloatingButtonVisibility();
   
     } catch (err) {
-      console.error("Failed to load titles:", err);
+      console.error("❌ Başlıklar yüklenemedi:", err);
     }
   }
+  
+  
   
   // 🔁 Ayrıca kullanıcı manuel yazarsa da butonu kontrol et
   document.getElementById("quizTitle")?.addEventListener("input", () => {
@@ -394,18 +445,30 @@ async function generateFullQuiz() {
   
   
   function updateFloatingButtonVisibility() {
-    const title = document.getElementById("quizTitle")?.value.trim();
-    const suggestions = Array.from(document.querySelectorAll("#titleSuggestions option")).map(opt => opt.value);
+    const dropdown = document.getElementById("titleDropdown");
+    const input = document.getElementById("newTitleInput");
     const token = localStorage.getItem("accessToken");
   
-    const mobileBtn = document.getElementById("floatingMobileQuestionsBtn");
+    let title = "";
+    if (dropdown?.value === "__new__") {
+      title = input?.value?.trim() || "";
+    } else {
+      title = dropdown?.value || "";
+    }
+  
+    const suggestions = Array.from(document.querySelectorAll("#titleSuggestions option")).map(opt => opt.value);
+    const isValid = token && title.length > 0 && suggestions.includes(title);
+  
+    const viewBtnWrapper = document.getElementById("viewQuestionsWrapper");
+    const mobileBtn = document.getElementById("openModalBtn");
     const fixedBtn = document.getElementById("fixedQuestionsToggle");
   
-    const valid = token && title.length > 0 && suggestions.includes(title);
-  
-    if (mobileBtn) mobileBtn.style.display = (valid && window.innerWidth < 768) ? "flex" : "none";
-    if (fixedBtn) fixedBtn.classList.toggle("show", valid);
+    if (viewBtnWrapper) viewBtnWrapper.style.display = isValid ? "block" : "none";
+    if (mobileBtn) mobileBtn.style.display = isValid && window.innerWidth < 768 ? "block" : "none";
+    if (fixedBtn) fixedBtn.classList.toggle("show", isValid);
   }
+  
+  
   
   document.addEventListener("DOMContentLoaded", () => {
     updateFloatingButtonVisibility(); // ✅ başlangıçta buton gizli kalır
@@ -427,4 +490,158 @@ async function generateFullQuiz() {
     updateFloatingButtonVisibility();
   });
   
-  /// edit
+  document.getElementById("titleDropdown")?.addEventListener("change", (e) => {
+    const value = e.target.value;
+    const newInput = document.getElementById("newTitleInput");
+  
+    if (value === "__new__") {
+      newInput.style.display = "inline-block";
+      newInput.focus();
+    } else {
+      newInput.style.display = "none";
+    }
+  
+    updateFloatingButtonVisibility(); // 🧾 Mevcut soruları göster butonu kontrolü
+  });
+  async function loadTitles(categoryId) {
+    const token = localStorage.getItem("accessToken");
+    const email = localStorage.getItem("userEmail");
+  
+    if (!token || !email || !categoryId) return;
+  
+    try {
+      const res = await fetch(`https://gemini-j8xd.onrender.com/list-titles?category_id=${categoryId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+  
+      const data = await res.json();
+  
+      // 🟡 Datalist için (autocomplete önerileri)
+      const list = document.getElementById("titleSuggestions");
+      if (list) {
+        list.innerHTML = "";
+        data.titles.forEach(t => {
+          const opt = document.createElement("option");
+          opt.value = t.name;
+          list.appendChild(opt);
+        });
+      }
+  
+      // 🔵 Yeni sistem: dropdown
+      const dropdown = document.getElementById("titleDropdown");
+      if (dropdown) {
+        dropdown.innerHTML = `<option value="">-- Select Title --</option><option value="__new__">➕ Add New Title</option>`;
+        data.titles.forEach(t => {
+          const opt = document.createElement("option");
+          opt.value = t.name;
+          opt.textContent = t.name;
+          dropdown.appendChild(opt);
+        });
+      }
+  
+      // 📂 Mevcut sorular için görünürlük kontrolü
+      const titleInput = document.getElementById("quizTitle")?.value.trim();
+      const matches = data.titles.map(t => t.name);
+      const viewBtnWrapper = document.getElementById("viewQuestionsWrapper");
+  
+      if (titleInput && matches.includes(titleInput)) {
+        viewBtnWrapper.style.display = "block";
+      } else {
+        viewBtnWrapper.style.display = "none";
+      }
+  
+      updateFloatingButtonVisibility();
+  
+    } catch (err) {
+      console.error("❌ Başlıklar yüklenemedi:", err);
+    }
+  }
+  function openModal() {
+    const dropdown = document.getElementById("titleDropdown");
+    const input = document.getElementById("newTitleInput");
+    const token = localStorage.getItem("accessToken");
+    const email = localStorage.getItem("userEmail");
+    const modal = document.getElementById("questionModal");
+    const container = document.getElementById("modalQuestionList");
+  
+    modal.classList.add("show");
+  
+    if (!token || !email) {
+      container.innerHTML = "<p style='color:red;'>❌ Giriş yapmadınız. Lütfen giriş yapın.</p>";
+      return;
+    }
+  
+    let titleName = "";
+    if (dropdown?.value === "__new__") {
+      titleName = input?.value?.trim();
+    } else {
+      titleName = dropdown?.value;
+    }
+  
+    if (!titleName) {
+      container.innerHTML = "<p style='color:red;'>❌ Lütfen bir başlık seçin veya yazın.</p>";
+      return;
+    }
+  
+    if (!shouldReloadQuestions && currentTitle === titleName) return;
+  
+    container.innerHTML = "<p style='text-align:center;'>Yükleniyor...</p>";
+  
+    fetch(`https://gemini-j8xd.onrender.com/get-questions-by-name?title=${encodeURIComponent(titleName)}&email=${encodeURIComponent(email)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.questions || data.questions.length === 0) {
+          container.innerHTML = "<p style='color:gray;'>Bu başlığa ait hiç soru bulunamadı.</p>";
+          return;
+        }
+  
+        container.innerHTML = `<p>📌 Toplam Soru: <strong>${data.questions.length}</strong></p>`;
+  
+        data.questions.forEach((q, i) => {
+          const block = document.createElement("details");
+  
+          // 🎨 Zorluk rozeti
+          let badge = "";
+          if (q.difficulty === "easy") {
+            badge = `<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟢 Kolay</span>`;
+          }
+          if (q.difficulty === "medium") {
+            badge = `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟡 Orta</span>`;
+          }
+          if (q.difficulty === "hard") {
+            badge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🔴 Zor</span>`;
+          }
+  
+          block.innerHTML = `
+            <summary>Q${i + 1}. ${q.question} ${badge}</summary>
+            <ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>
+            <p><strong>💡 Açıklama:</strong> ${q.explanation}</p>
+            <div style="margin-top: 8px;">
+              <button onclick="editExistingQuestion(${q.id})">✏️ Düzenle</button>
+              <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Sil</button>
+            </div>
+          `;
+          container.appendChild(block);
+        });
+  
+        currentTitle = titleName;
+        shouldReloadQuestions = false;
+  
+        if (window.MathJax) {
+          MathJax.typesetPromise?.();
+        }
+  
+        updateStats?.();
+      })
+      .catch(err => {
+        container.innerHTML = "<p style='color:red;'>❌ Sorular alınamadı.</p>";
+        console.error("get-questions error:", err);
+      });
+  }
+    

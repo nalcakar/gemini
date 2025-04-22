@@ -239,9 +239,7 @@
   const container = document.getElementById("user-box");
 
   const currentPage = encodeURIComponent(window.location.href);
-  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback?redirect=${currentPage}&scope=identity`;
-
-  container.innerHTML = accessToken && name
+  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  container.innerHTML = accessToken && name
     ? `<div class="user-box-inner">
         <span class="user-name">${name}</span>
         <span class="badge ${membership.toLowerCase()}">${membership}</span>
