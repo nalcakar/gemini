@@ -336,18 +336,44 @@ app.post("/suggest-topic-focus", async (req, res) => {
     return res.status(400).json({ error: "Konu çok kısa." });
   }
 
-  const lang = language?.trim() || "Türkçe"; // default Türkçe
+  const userLang = language?.trim() || "Türkçe";
+  const isoMap = {
+    "İngilizce": "English",
+    "Türkçe": "Turkish",
+    "Arapça": "Arabic",
+    "Fransızca": "French",
+    "İspanyolca": "Spanish",
+    "Almanca": "German",
+    "İtalyanca": "Italian",
+    "Portekizce": "Portuguese",
+    "Rusça": "Russian",
+    "Çince": "Chinese",
+    "Japonca": "Japanese",
+    "Korece": "Korean",
+    "Flemenkçe": "Dutch",
+    "Lehçe": "Polish",
+    "Hintçe": "Hindi",
+    "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese",
+    "Tayca": "Thai",
+    "Romence": "Romanian",
+    "Ukraynaca": "Ukrainian"
+  };
+  const lang = isoMap[userLang] || "Turkish";
 
   const prompt = `
 "${topic}" başlıklı bir konu için, ${lang} dilinde soru üretmek istiyoruz.
 
-Bu konuda odaklanılabilecek 5 kısa yön öner:
-- Her biri sadece 1 satır ve 3-4 kelime olsun.
-- ${lang} dilinde yaz.
-- Liste formatı kullan: - ...
-- Açıklama veya giriş yazma.
+"${topic}" başlığı altında en çok kullanılan ve eğitim amaçlı sorularda sık geçen 10 anahtar kavram veya kavram grubunu öner.
 
-Sadece listeyi döndür.
+Kurallar:
+- ${lang} dilinde yaz.
+- Her biri sadece 1 satır, en fazla 4 kelime olsun.
+- Liste formatı kullan: - ...
+- Sadece kısa terimler döndür. Açıklama, giriş yazma.
+- Sorularda odaklanılması faydalı olacak kavramları hedefle.
+
+Yalnızca listeyi döndür.
 `;
 
   try {
