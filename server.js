@@ -270,6 +270,47 @@ app.post("/generate-questions", async (req, res) => {
   }
 });
 
+
+app.post("/suggest-topic-focus", async (req, res) => {
+  const { topic, language } = req.body;
+
+  if (!topic || topic.trim().length < 3) {
+    return res.status(400).json({ error: "Konu çok kısa." });
+  }
+
+  const lang = language?.trim() || "Türkçe"; // default Türkçe
+
+  const prompt = `
+"${topic}" başlıklı bir konu için, ${lang} dilinde soru üretmek istiyoruz.
+
+Bu konuda odaklanılabilecek 5 kısa yön öner:
+- Her biri sadece 1 satır ve 3-4 kelime olsun.
+- ${lang} dilinde yaz.
+- Liste formatı kullan: - ...
+- Açıklama veya giriş yazma.
+
+Sadece listeyi döndür.
+`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
+
+    const suggestions = text
+      .split("\n")
+      .map(line => line.replace(/^-/, "").trim())
+      .filter(line => line.length > 2);
+
+    res.json({ suggestions });
+  } catch (err) {
+    console.error("🧠 Odak öneri hatası:", err.message);
+    res.status(500).json({ error: "Odak önerileri üretilemedi." });
+  }
+});
+
+
+
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
   const { mycontent } = req.body;

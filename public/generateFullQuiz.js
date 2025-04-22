@@ -648,3 +648,36 @@ async function generateFullQuiz() {
       });
   }
     
+
+  let suggestTimeout;
+
+document.addEventListener("input", function (e) {
+  if (e.target.id === "topicInput") {
+    clearTimeout(suggestTimeout);
+
+    const value = e.target.value.trim();
+    if (value.length < 4) return;
+
+    suggestTimeout = setTimeout(() => {
+      const lang = document.getElementById("languageSelect")?.value || "";
+
+      fetch("https://gemini-j8xd.onrender.com/suggest-topic-focus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: value, language: lang })
+      })
+        .then(res => res.json())
+        .then(data => {
+          const wrapper = document.getElementById("focusSuggestions");
+          if (!wrapper || !Array.isArray(data.suggestions)) return;
+
+          const chipHTML = data.suggestions.map(txt =>
+            `<span class="focus-suggestion">${txt}</span>`).join("");
+          wrapper.querySelector("div").innerHTML = chipHTML;
+        })
+        .catch(err => {
+          console.error("❌ Otomatik öneri hatası:", err);
+        });
+    }, 1000); // 1 saniye sonra tetikle
+  }
+});
