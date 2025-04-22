@@ -452,108 +452,106 @@ function renderUserBox() {
 }
 
 
-  window.showSection = function(type) {
-    localStorage.setItem("lastSection", type);
-    const content = document.getElementById('section-content');
-    const isProUser = localStorage.getItem("membershipType") === "Pro";
-    let html = "";
+window.showSection = function(type) {
+  localStorage.setItem("lastSection", type);
+  const content = document.getElementById('section-content');
+  const isProUser = localStorage.getItem("membershipType") === "Pro";
+  let html = "";
 
-    const lockedOverlay = (msg = "Pro only") => `
-  <div style="
-    position:absolute;
-    top:0; left:0; right:0; bottom:0;
-    background:rgba(255,255,255,0.85);
-    backdrop-filter: blur(2px);
-    display:flex;
-    flex-direction: column;
-    align-items:center;
-    justify-content:center;
-    font-size:14px;
-    font-weight:500;
-    color:#b91c1c;
-    text-align:center;
-    border-radius:8px;
-    padding: 10px;
-  ">
-    🔒 ${msg}<br>
-    <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
-       style="margin-top:8px; background:#1e40af; color:white; padding:6px 14px; border-radius:8px;
-              text-decoration:none; font-size:13px;">
-      🌟 Upgrade to Pro
-    </a>
-  </div>`;
+  const lockedOverlay = (msg = "Pro only") => `
+    <div style="
+      position:absolute;
+      top:0; left:0; right:0; bottom:0;
+      background:rgba(255,255,255,0.85);
+      backdrop-filter: blur(2px);
+      display:flex;
+      flex-direction: column;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      font-weight:500;
+      color:#b91c1c;
+      text-align:center;
+      border-radius:8px;
+      padding: 10px;
+    ">
+      🔒 ${msg}<br>
+      <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
+         style="margin-top:8px; background:#1e40af; color:white; padding:6px 14px; border-radius:8px;
+                text-decoration:none; font-size:13px;">
+        🌟 Upgrade to Pro
+      </a>
+    </div>`;
 
+  switch(type) {
+    case 'document':
+      html = `
+        <h2><i class="fas fa-file-alt" style="color:#3b82f6;"></i> Upload File (.pdf, .docx, .txt)</h2>
+        <p>You can upload a document below. Extracted content will appear below.</p>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.txt" />
+        <div style="position:relative;">
+          <input type="file" id="fileInput" accept=".pdf,.docx,.txt" ${!isProUser ? "disabled" : ""} />
+          <textarea id="textOutput" placeholder="Extracted text will appear here..." style="margin-top:12px; height:160px;"></textarea>
+          ${!isProUser ? lockedOverlay("Pro required to upload") : ""}
+        </div>
+      `;
+      break;
 
-    switch(type) {
-      case 'document':
-  html = `
-    <h2><i class="fas fa-file-alt" style="color:#3b82f6;"></i> Upload File (.pdf, .docx, .txt)</h2>
-    <p>You can upload a document below. Extracted content will appear below.</p>
-    <input type="file" id="fileInput" accept=".pdf,.docx,.txt" />
-    <div style="position:relative;">
-      <input type="file" id="fileInput" accept=".pdf,.docx,.txt" ${!isProUser ? "disabled" : ""} />
-      <textarea id="textOutput" placeholder="Extracted text will appear here..." style="margin-top:12px; height:160px;"></textarea>
-      ${!isProUser ? lockedOverlay("Pro required to upload") : ""}
-    </div>
-  `;
-  break;
+    case 'text':
+      html = `
+        <h2>✏️ Paste Your Text</h2>
+        <p>Paste your notes and click Generate Quiz.</p>
+        <textarea id="textManualInput" placeholder="Your content here..."></textarea>
+        <div id="quizOutput" class="quiz-preview"></div>
+      `;
+      break;
 
-      case 'text':
-        html = `
-          <h2>✏️ Paste Your Text</h2>
-          <p>Paste your notes and click Generate Quiz.</p>
-          <textarea id="textManualInput" placeholder="Your content here..."></textarea>
-         
-          <div id="quizOutput" class="quiz-preview"></div>
-        `;
-        break;
+    case 'image':
+      html = `
+        <h2>🖼️ Upload Image</h2>
+        <p>We'll extract content from the image and create a quiz.</p>
+        <input type="file" id="imageInput" accept="image/*" />
+        <textarea id="imageTextOutput" placeholder="Text from image will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+      `;
+      break;
 
-      case 'image':
-        html = `
-          <h2>🖼️ Upload Image</h2>
-        
-          <p>We'll extract content from the image and create a quiz.</p>
-          <input type="file" id="imageInput" accept="image/*" />
-<textarea id="imageTextOutput" placeholder="Text from image will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+    case 'topic':
+      html = `
+        <h2>🧠 Enter a Topic</h2>
+        <input id="topicInput" type="text" placeholder="e.g. Hamlet, Photosynthesis, World War II"
+               style="padding: 12px; width: 100%; border-radius: 10px; font-size: 16px; border: 1px solid #ddd;" />
 
-        `;
-        break;
+        <div style="margin-top: 10px;">
+          <label for="topicFocus"><strong>🔍 Want to focus on something specific?</strong> (optional)</label><br />
+          <input id="topicFocus" type="text" placeholder="e.g. main characters, key impacts, experiments"
+                 style="padding: 10px; width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid #ccc;" />
+        </div>
 
-      
-        case 'topic':
-  html = `
-    <h2>🧠 Enter a Topic</h2>
-    <input id="topicInput" type="text" placeholder="e.g. Hamlet, Photosynthesis, World War II"
-           style="padding: 12px; width: 100%; border-radius: 10px; font-size: 16px; border: 1px solid #ddd;" />
+        <div id="focusSuggestions" style="margin-top: 12px;">
+          <strong>🧭 Suggestions:</strong>
+          <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
 
-    <div style="margin-top: 10px;">
-      <label for="topicFocus"><strong>🔍 Want to focus on something specific?</strong> (optional)</label><br />
-      <input id="topicFocus" type="text" placeholder="e.g. main characters, key impacts, experiments"
-             style="padding: 10px; width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid #ccc;" />
-    </div>
+        <div style="font-size: 14px; color: #555; margin-top: 10px;">
+          💡 Tip: Try short topics like “Electricity”, “Photosynthesis”, “Shakespeare”<br/>
+          You can narrow it down: “Photosynthesis — role in ecosystems”
+        </div>
+      `;
+      break;
+  }
 
-    <div id="focusSuggestions" style="margin-top: 12px;">
-      <strong>🧭 Suggestions:</strong>
-      <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
-    </div>
+  content.innerHTML = html;
+  content.style.display = "block";
+  window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
 
-    <div style="font-size: 14px; color: #555; margin-top: 10px;">
-      💡 Tip: Try short topics like “Electricity”, “Photosynthesis”, “Shakespeare”<br/>
-      You can narrow it down: “Photosynthesis — role in ecosystems”
-    </div>
-  `;
+  // ✅ 🌍 Dil tercihini localStorage'dan tekrar dropdown'a uygula
+  const savedLang = localStorage.getItem("questionLangPref");
+  const langSelect = document.getElementById("languageSelect");
+  if (savedLang && langSelect) {
+    langSelect.value = savedLang;
+  }
+};
 
-  break;
-
-
-
-
-    }
-
-    content.innerHTML = html;
-    content.style.display = "block";
-    window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
-  };
 
   function generateQuiz() {
     const input = document.getElementById("textInput")?.value || "";

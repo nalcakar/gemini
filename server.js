@@ -229,7 +229,12 @@ app.post("/generate-questions", async (req, res) => {
     "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
 
-  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
+  let questionLanguage = "İngilizce";
+if (userLanguage && userLanguage.trim()) {
+  questionLanguage = userLanguage.trim();
+} else if (languageMap[langCode]) {
+  questionLanguage = languageMap[langCode];
+}
   const isShortTopic = mycontent.length < 80;
 
   const prompt = isShortTopic
