@@ -207,7 +207,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
-  const { mycontent, userLanguage } = req.body;
+  const { mycontent, userLanguage, userFocus } = req.body;
 
   const user = req.user || {};
 
@@ -230,16 +230,35 @@ app.post("/generate-questions", async (req, res) => {
   };
   const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "ingilizce";
 
-  const prompt = `
-Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli tam ${questionCount} soru üret.
-Kurallar:
-- Her soru *** ile başlasın.
-- 4 şık /// ile başlasın.
-- Cevap ~~Cevap: [cevap]
-- Açıklama &&Açıklama: [açıklama]
-- Sadece metin olarak döndür.
-Metin:
-${mycontent}`;
+  const isShortTopic = mycontent.length < 80;
+
+  const prompt = isShortTopic
+    ? `
+  "${mycontent}" başlıklı bir konu hakkında ${questionCount} adet çoktan seçmeli soru üret.
+  
+  ${userFocus ? `Odaklanılacak özel yön: ${userFocus}` : ""}
+  
+  Kurallar:
+  - Sorular öğretici, düşündürücü ve konuya açıklık getirici olsun.
+  - Temel bilgiler, örnekler, yanlış anlaşılabilecek kısımlar ele alınsın.
+  - Her soru *** ile başlasın.
+  - 4 şık /// ile başlasın.
+  - Doğru cevap ~~Cevap: ile belirtilsin.
+  - Açıklama &&Açıklama: ile başlasın (2-3 cümle).
+  
+  Sadece bu formatta düz metin döndür.
+  `
+    : `
+  Metin ${questionLanguage} dilindedir. Bu dilde çoktan seçmeli tam ${questionCount} soru üret.
+  Kurallar:
+  - Her soru *** ile başlasın.
+  - 4 şık /// ile başlasın.
+  - Cevap ~~Cevap: [cevap]
+  - Açıklama &&Açıklama: [açıklama]
+  - Sadece metin olarak döndür.
+  Metin:
+  ${mycontent}`;
+  
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });

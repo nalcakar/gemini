@@ -57,6 +57,7 @@ async function generateFullQuiz() {
 
     // 🌍 Kullanıcının seçtiği dil (yoksa boş)
     const selectedLang = document.getElementById("languageSelect")?.value || "";
+    const topicFocus = document.getElementById("topicFocus")?.value.trim() || "";
     localStorage.setItem("questionLangPref", selectedLang); // Hatırla
 
     const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
@@ -67,8 +68,10 @@ async function generateFullQuiz() {
       },
       body: JSON.stringify({
         mycontent: extractedText,
-        userLanguage: selectedLang
+        userLanguage: selectedLang,
+        userFocus: topicFocus
       })
+      
     });
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
