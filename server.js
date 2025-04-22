@@ -238,36 +238,43 @@ if (userLanguage && userLanguage.trim()) {
   const isShortTopic = mycontent.length < 80;
 
   const prompt = isShortTopic
-    ? `
-"${mycontent}" başlıklı bir konu hakkında ${questionCount} adet çoktan seçmeli soru üret.
+  ? `
+You are an expert question generator.
 
-${userFocus ? `Kullanıcının odaklanmak istediği yön: "${userFocus}"\n` : ""}
+Your task is to generate ${questionCount} multiple choice questions based on the topic: "${mycontent}"
+${userFocus ? `The user wants to focus on: "${userFocus}"\n` : ""}
 
-Her soru şu kesin formatta verilmeli:
+All output must be written in: ${questionLanguage}.
+
+Each question must follow **exactly** this structure:
 
 ***
-[Soru metni]
+[Question text]
 
-/// A) [Şık 1]  
-/// B) [Şık 2]  
-/// C) [Şık 3]  
-/// D) [Şık 4]  
-~~Cevap: [Doğru Şık - örn: C) Yoğun pratik]  
-&&Açıklama: [Bu cevabın neden doğru olduğunu açıklayan en az 2 cümlelik detay.]
+/// A) Option 1  
+/// B) Option 2  
+/// C) Option 3  
+/// D) Option 4  
+~~Cevap: [Correct option]  
+&&Açıklama: [Explanation of why this answer is correct. At least 2 full sentences.]
 
-Kurallar:
-- Sorular sadece bu formatta dönsün.
-- Listeleme (1., 2., vs.) kullanma.
-- Sorular arasında boşluk bırakma.
-- ${questionLanguage} dilinde yaz.
+Rules:
+- Use only the specified format above.
+- Do NOT number the questions (no 1., 2., etc.)
+- Do NOT include any extra commentary or explanation.
+- Write in: ${questionLanguage} only.
 `
-    : `
-"${mycontent}" metnine göre ${questionLanguage} dilinde ${questionCount} adet çoktan seçmeli soru üret.
+  : `
+You are an expert quiz assistant.
+
+Here is some content to work with in ${questionLanguage}:
+"${mycontent}"
+
+Generate exactly ${questionCount} multiple choice questions based on this content.
 
 Format:
-
 ***
-[Soru metni]
+[Question text]
 
 /// A) ...
 /// B) ...
@@ -276,8 +283,12 @@ Format:
 ~~Cevap: ...
 &&Açıklama: ...
 
-Lütfen sadece yukarıdaki formatta düz metin olarak döndür. Ek bilgi ekleme.
+Rules:
+- All output must be in ${questionLanguage}.
+- Use ONLY this format, no extra notes or headers.
+- Don't number the questions.
 `;
+
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
