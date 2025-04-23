@@ -335,14 +335,37 @@ app.post("/suggest-topic-focus", async (req, res) => {
     return res.status(400).json({ error: "Konu çok kısa." });
   }
 
-  const lang = language?.trim() || "Türkçe"; // default Türkçe
+  // Dil kodu algıla
+  const langCode = franc(topic);
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+
+  const isoMap = {
+    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
+    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
+    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
+    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
+  };
+
+  let questionLanguage = "Türkçe";
+  if (language && language.trim()) {
+    questionLanguage = language.trim();
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
 
   const prompt = `
-"${topic}" başlıklı bir konu için, ${lang} dilinde soru üretmek istiyoruz.
+"${topic}" başlıklı bir konu için, ${questionLanguage} dilinde soru üretmek istiyoruz.
 
-Bu konuda odaklanılabilecek 5 kısa yön öner:
-- Her biri sadece 1 satır ve 3-4 kelime olsun.
-- ${lang} dilinde yaz.
+Bu konuda odaklanılabilecek 10 kısa yön öner:
+- Her biri en fazla 4 kelime olsun.
+- ${questionLanguage} dilinde yaz.
 - Liste formatı kullan: - ...
 - Açıklama veya giriş yazma.
 
