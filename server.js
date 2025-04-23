@@ -207,7 +207,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
-  const { mycontent, userLanguage, userFocus } = req.body;
+  const { mycontent, userLanguage, userFocus, difficulty } = req.body;
 
   const user = req.user || {};
 
