@@ -58,6 +58,8 @@ async function generateFullQuiz() {
     // 🌍 Kullanıcının seçtiği dil (yoksa boş)
     const selectedLang = document.getElementById("languageSelect")?.value || "";
     const topicFocus = document.getElementById("topicFocus")?.value.trim() || "";
+    const difficulty = document.getElementById("difficultySelect")?.value || "";
+
     localStorage.setItem("questionLangPref", selectedLang); // Hatırla
 
     const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
@@ -69,8 +71,9 @@ async function generateFullQuiz() {
       body: JSON.stringify({
         mycontent: extractedText,
         userLanguage: selectedLang,
-        userFocus: topicFocus
-      })
+        userFocus: topicFocus,
+        difficulty
+      }),
       
     });
 
@@ -117,11 +120,15 @@ async function generateFullQuiz() {
 
     parsedQuestions.forEach((q, i) => {
       const div = document.createElement("div");
+      const difficultyIcon = q.difficulty === "easy" ? "🟢 Easy"
+                    : q.difficulty === "hard" ? "🔴 Hard"
+                    : "🟡 Medium";
       div.className = "quiz-preview";
       div.dataset.index = i;
 
       div.innerHTML = `
         <b>Q${i + 1}.</b> <span class="q" data-key="question">${q.question}</span>
+        <p><strong>Difficulty:</strong> ${difficultyIcon}</p>
         <ul>${q.options.map((opt, j) =>
           `<li class="q" data-key="option${j + 1}">${opt}</li>`).join("")}</ul>
         <p><strong>✅ Answer:</strong> <span class="q" data-key="answer">${q.answer}</span></p>
@@ -671,9 +678,16 @@ document.addEventListener("input", function (e) {
           const wrapper = document.getElementById("focusSuggestions");
           if (!wrapper || !Array.isArray(data.suggestions)) return;
 
-          const chipHTML = data.suggestions.map(txt =>
-            `<span class="focus-suggestion">${txt}</span>`).join("");
-          wrapper.querySelector("div").innerHTML = chipHTML;
+          const container = wrapper.querySelector("div");
+          container.innerHTML = ""; // önceki önerileri temizle
+          
+          data.suggestions.forEach(txt => {
+            const span = document.createElement("span");
+            span.className = "focus-suggestion";
+            span.textContent = txt; // innerHTML değil, textContent!
+            container.appendChild(span);
+          });
+          
         })
         .catch(err => {
           console.error("❌ Otomatik öneri hatası:", err);
@@ -686,13 +700,28 @@ document.addEventListener("click", function (e) {
     const input = document.getElementById("topicFocus");
     if (!input) return;
 
-    const newVal = e.target.textContent.trim();
+    const tag = e.target;
+    const newVal = tag.textContent.trim();
     const current = input.value.trim();
 
-    // Eğer zaten içeriyorsa tekrar ekleme
-    if (current.includes(newVal)) return;
+    // Zaten seçilmişse → kaldır (sil)
+    if (tag.classList.contains("selected")) {
+      tag.classList.remove("selected");
+      const updated = current.split(",").map(s => s.trim()).filter(t => t !== newVal).join(", ");
+      input.value = updated;
+    } else {
+      // Yeni seçim
+      tag.classList.add("selected");
+      input.value = current.length ? `${current}, ${newVal}` : newVal;
+    }
 
-    input.value = current.length ? `${current}, ${newVal}` : newVal;
-    input.dispatchEvent(new Event("input")); // eğer başka tetikleyici varsa
+    input.dispatchEvent(new Event("input"));
+  }
+
+  // 🧹 Temizleme butonuna tıklandıysa
+  if (e.target.id === "clearFocusButton") {
+    document.getElementById("topicFocus").value = "";
+    document.querySelectorAll(".focus-suggestion.selected").forEach(el => el.classList.remove("selected"));
   }
 });
+

@@ -268,7 +268,7 @@ You are an expert question generator.
 
 Your task is to generate ${questionCount} multiple choice questions based on the topic: "${mycontent}"
 ${userFocus ? `The user wants to focus on: "${userFocus}"\n` : ""}
-
+${difficulty ? `Target difficulty: ${difficulty}` : ""}
 All output must be written in: ${promptLanguage}
 
 Each question must follow **exactly** this structure:

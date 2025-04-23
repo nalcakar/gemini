@@ -306,6 +306,11 @@ details summary {
 .focus-suggestion:hover {
   background: #bae6fd;
 }
+
+.focus-suggestion.selected {
+  background: #0284c7;
+  color: white;
+}
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -365,6 +370,15 @@ details summary {
       <option value="Tayca">ภาษาไทย</option>
       <option value="Romence">Română</option>
       <option value="Ukraynaca">Українська</option>
+    </select>
+  </div>
+  <div style="margin-top: 14px;">
+    <label><strong>🧩 Difficulty:</strong></label>
+    <select id="difficultySelect" style="padding: 8px; margin-left: 8px; border-radius: 6px;">
+      <option value="">🤖 Let AI decide</option>
+      <option value="easy">🟢 Easy</option>
+      <option value="medium" selected>🟡 Medium</option>
+      <option value="hard">🔴 Hard</option>
     </select>
   </div>
   
@@ -528,6 +542,11 @@ window.showSection = function(type) {
         </div>
 
         <div id="focusSuggestions" style="margin-top: 12px;">
+          <button id="clearFocusButton"
+  style="margin-top: 10px; background: #f87171; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+  🧹 Clear All
+</button>
+
           <strong>🧭 Suggestions:</strong>
           <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
         </div>
