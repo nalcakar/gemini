@@ -207,7 +207,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
-  const { mycontent, userLanguage, userFocus, userDifficulty } = req.body;
+  const { mycontent, userLanguage, userFocus } = req.body;
 
   const user = req.user || {};
 
@@ -268,7 +268,6 @@ You are an expert question generator.
 
 Your task is to generate ${questionCount} multiple choice questions based on the topic: "${mycontent}"
 ${userFocus ? `The user wants to focus on: "${userFocus}"\n` : ""}
-${userDifficulty ? `The desired difficulty level is: ${userDifficulty}.\n` : ""}
 
 All output must be written in: ${promptLanguage}
 
@@ -336,45 +335,18 @@ app.post("/suggest-topic-focus", async (req, res) => {
     return res.status(400).json({ error: "Konu çok kısa." });
   }
 
-  const userLang = language?.trim() || "Türkçe";
-  const isoMap = {
-    "İngilizce": "English",
-    "Türkçe": "Turkish",
-    "Arapça": "Arabic",
-    "Fransızca": "French",
-    "İspanyolca": "Spanish",
-    "Almanca": "German",
-    "İtalyanca": "Italian",
-    "Portekizce": "Portuguese",
-    "Rusça": "Russian",
-    "Çince": "Chinese",
-    "Japonca": "Japanese",
-    "Korece": "Korean",
-    "Flemenkçe": "Dutch",
-    "Lehçe": "Polish",
-    "Hintçe": "Hindi",
-    "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese",
-    "Tayca": "Thai",
-    "Romence": "Romanian",
-    "Ukraynaca": "Ukrainian"
-  };
-  const lang = isoMap[userLang] || "Turkish";
+  const lang = language?.trim() || "Türkçe"; // default Türkçe
 
   const prompt = `
 "${topic}" başlıklı bir konu için, ${lang} dilinde soru üretmek istiyoruz.
 
-"${topic}" başlığı altında en çok kullanılan ve eğitim amaçlı sorularda sık geçen 10 anahtar kavram veya kavram grubunu öner.
-
-Kurallar:
+Bu konuda odaklanılabilecek 5 kısa yön öner:
+- Her biri sadece 1 satır ve 3-4 kelime olsun.
 - ${lang} dilinde yaz.
-- Her biri sadece 1 satır, en fazla 4 kelime olsun.
-- Anahtar kelime: Açıklama
 - Liste formatı kullan: - ...
-- Sadece kısa terimler döndür. Açıklama, giriş yazma.
-- Sorularda odaklanılması faydalı olacak kavramları hedefle.
+- Açıklama veya giriş yazma.
 
-Yalnızca listeyi döndür.
+Sadece listeyi döndür.
 `;
 
   try {
