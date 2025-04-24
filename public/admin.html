@@ -229,8 +229,18 @@
   </div>
 
   <script src="admin.js"></script>
-  
   <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' }
+    };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+  <script>
+
+
+
     function renderUserBox() {
   const name = localStorage.getItem("userName");
   const membership = localStorage.getItem("membershipType") || "Free";
@@ -317,102 +327,141 @@
 
 function adminEditQuestion(id) {
   const btn = document.querySelector(`button[onclick="adminEditQuestion(${id})"]`);
-  const details = btn?.closest("details");
-  if (!details) return;
+  const block = btn?.closest("details");
+  if (!block) return;
 
-  // Tüm açık düzenleme modlarını iptal et
-  document.querySelectorAll("details").forEach(d => {
-    const original = d.dataset.originalHTML;
-    if (original) {
-      d.innerHTML = original;
-      delete d.dataset.originalHTML;
+  if (block.querySelector("textarea")) return; // zaten edit modundaysa çık
+
+  const summary = block.querySelector("summary");
+  const questionSpan = summary.querySelector(".q[data-key='question']");
+  const questionText = questionSpan?.dataset.latex || questionSpan?.textContent.trim() || "";
+
+  // ✅ Yardımcı: textarea oluştur ve canlı güncelleme bağla
+  const createBoundField = (value, targetEl, labelText = "") => {
+    const wrapper = document.createElement("div");
+    wrapper.style.marginTop = "12px";
+
+    if (labelText) {
+      const label = document.createElement("strong");
+      label.textContent = labelText;
+      wrapper.appendChild(label);
     }
-  });
 
-  document.querySelectorAll('button[onclick^="adminEditQuestion"]').forEach(b => b.disabled = true);
-  document.querySelectorAll('button[onclick^="adminDeleteQuestion"]').forEach(b => b.disabled = true);
+    const preview = document.createElement("div");
+    preview.className = "latex-preview";
+    preview.dataset.latex = value;
+    preview.textContent = value;
+    preview.style.cssText = "margin-top: 4px; margin-bottom: 6px; font-weight: 500;";
 
-  const summary = details.querySelector("summary");
-  const listItems = details.querySelectorAll("ul li");
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.className = "q-edit";
+    textarea.dataset.key = targetEl?.dataset.key || "";
+    textarea.style.cssText = `
+      width: 100%; padding: 6px; resize: none;
+      font-size: 14px; border-radius: 6px; line-height: 1.4; overflow: hidden;
+    `;
 
-  // ✅ Explanation'ı doğru biçimde al
-  let explanation = "";
-const explanationP = Array.from(details.querySelectorAll("p")).find(p =>
-  p.innerText.trim().startsWith("💡 Explanation:")
-);
-if (explanationP) {
-  const strong = explanationP.querySelector("strong");
-  if (strong && explanationP.childNodes.length >= 2) {
-    explanation = explanationP.childNodes[1].textContent.trim();
-  } else {
-    explanation = explanationP.innerText.replace(/^💡 Explanation:\s*/i, "").trim();
-  }
-}
+    const resize = () => {
+      textarea.style.height = "auto";
+      textarea.style.height = textarea.scrollHeight + "px";
+    };
 
-  const question = summary?.innerText.replace(/^Q\d+\.\s*/, "").replace(/🟢.*|🟡.*|🔴.*/, "").trim();
-  const options = Array.from(listItems).map(li => li.innerText);
+    textarea.addEventListener("input", () => {
+      const val = textarea.value.trim();
+      if (targetEl) {
+        targetEl.textContent = val;
+        targetEl.dataset.latex = val;
+      }
+      preview.textContent = val;
+      preview.dataset.latex = val;
+      if (window.MathJax?.typesetPromise) {
+        MathJax.typesetPromise([preview]);
+      }
+      resize();
+    });
 
-  details.dataset.originalHTML = details.innerHTML;
+    setTimeout(resize, 30);
 
-  const label = document.createElement("div");
-  label.innerHTML = `<span style="display:inline-block; background:#fcd34d; color:#78350f; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:500; margin-bottom:10px;">📝 Editing mode</span>`;
-
-  const qTextarea = createAutoResizingTextarea(question);
-  const summaryText = document.createElement("div");
-  summaryText.innerHTML = "<strong>Question:</strong>";
-  summaryText.appendChild(qTextarea);
-
-  const optionTextareas = options.map(opt => createAutoResizingTextarea(opt));
-
-  const explanationDiv = document.createElement("div");
-  explanationDiv.innerHTML = "<p><strong>💡 Explanation:</strong></p>";
-  const explanationTextarea = createAutoResizingTextarea(explanation);
-  explanationDiv.appendChild(explanationTextarea);
-
-  const difficultySelectWrapper = document.createElement("div");
-  difficultySelectWrapper.style.margin = "10px 0";
-  difficultySelectWrapper.innerHTML = `
-    <label><strong>Difficulty:</strong>
-      <select id="difficulty-${id}" style="margin-left:8px; padding:6px; border-radius:6px;">
-        <option value="">(None)</option>
-        <option value="easy">🟢 Easy</option>
-        <option value="medium">🟡 Medium</option>
-        <option value="hard">🔴 Hard</option>
-      </select>
-    </label>
-  `;
-
-  const currentDifficulty = details.dataset.difficulty || "";
-  difficultySelectWrapper.querySelector("select").value = currentDifficulty;
-
-  const saveBtn = document.createElement("button");
-  saveBtn.textContent = "💾 Save";
-  saveBtn.style = "padding:8px 16px; margin-right:10px; background-color:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;";
-  saveBtn.onclick = () => saveExistingQuestion(id, saveBtn);
-
-  const cancelBtn = document.createElement("button");
-  cancelBtn.textContent = "❌ Cancel";
-  cancelBtn.style = "padding:8px 16px; background-color:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer;";
-  cancelBtn.onclick = () => {
-    details.innerHTML = details.dataset.originalHTML || "";
-    delete details.dataset.originalHTML;
-    document.querySelectorAll('button[onclick^="adminEditQuestion"]').forEach(b => b.disabled = false);
-    document.querySelectorAll('button[onclick^="adminDeleteQuestion"]').forEach(b => b.disabled = false);
+    wrapper.appendChild(preview);
+    wrapper.appendChild(textarea);
+    return wrapper;
   };
 
-  details.innerHTML = "";
-  details.appendChild(label);
-  details.appendChild(summaryText);
-  optionTextareas.forEach(t => details.appendChild(t));
-  details.appendChild(explanationDiv);
-  details.appendChild(difficultySelectWrapper);
+  const editorWrapper = document.createElement("div");
 
-  const btnWrapper = document.createElement("div");
-  btnWrapper.style.marginTop = "10px";
-  btnWrapper.appendChild(saveBtn);
-  btnWrapper.appendChild(cancelBtn);
-  details.appendChild(btnWrapper);
+  // ✅ Soru
+  editorWrapper.appendChild(createBoundField(questionText, questionSpan, "Question:"));
+
+  // ✅ Şıklar
+  const options = block.querySelectorAll("li.q[data-key]");
+  options.forEach((el, idx) => {
+    const text = el.dataset.latex || el.textContent.trim();
+    editorWrapper.appendChild(createBoundField(text, el, `Option ${String.fromCharCode(65 + idx)}:`));
+  });
+
+  // ✅ Açıklama
+  const explanationSpan = block.querySelector(".q[data-key='explanation']");
+  if (explanationSpan) {
+    const explanationText = explanationSpan.dataset.latex || explanationSpan.textContent.trim();
+    editorWrapper.appendChild(createBoundField(explanationText, explanationSpan, "Explanation:"));
+  }
+
+  // ✅ Zorluk seviyesi
+  const currentDiffText = block.querySelector(".difficulty-line")?.innerText.toLowerCase() || "";
+  let difficulty = "medium";
+  if (currentDiffText.includes("easy")) difficulty = "easy";
+  if (currentDiffText.includes("hard")) difficulty = "hard";
+
+  const select = document.createElement("select");
+  select.className = "q-difficulty";
+  select.style.cssText = "margin-top: 12px; padding: 6px 10px; border-radius: 6px; font-size: 14px;";
+  ["easy", "medium", "hard"].forEach(level => {
+    const opt = document.createElement("option");
+    opt.value = level;
+    opt.textContent = {
+      easy: "🟢 Easy",
+      medium: "🟡 Medium",
+      hard: "🔴 Hard"
+    }[level];
+    if (level === difficulty) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  editorWrapper.appendChild(select);
+
+  // ✅ Kaydet Butonu
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "✅ Save";
+  saveBtn.style.marginTop = "12px";
+  saveBtn.onclick = () => saveQuestionEdits(block);
+  editorWrapper.appendChild(saveBtn);
+
+  // ✅ İptal Butonu
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "❌ Cancel";
+  cancelBtn.style.margin = "12px 0 0 8px";
+  cancelBtn.onclick = () => {
+    const original = block.dataset.originalHTML;
+    if (original) {
+      block.innerHTML = original;
+      delete block.dataset.originalHTML;
+      if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
+    }
+  };
+  editorWrapper.appendChild(cancelBtn);
+
+  // 🔁 Orijinal HTML'yi yedekle ve temizle
+  block.dataset.originalHTML = block.innerHTML;
+  block.innerHTML = "";
+  block.appendChild(editorWrapper);
+
+  // MathJax başlat
+  if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
 }
+
+
+
 async function saveExistingQuestion(id, btn) {
   const details = btn.closest("details");
   const textareas = details.querySelectorAll("textarea");

@@ -240,40 +240,41 @@ async function loadQuestionsByTitleName(titleName) {
 
   data.questions.forEach((q, i) => {
     const block = document.createElement("details");
-    block.className = "question-card";
-
-    // ✅ Seviye bilgisi edit için dataset'e aktarılır
-    block.dataset.difficulty = q.difficulty || "";
-
-    const question = q.question || "(no question)";
-    const options = Array.isArray(q.options) ? q.options : [];
-    const explanation = q.explanation || "No explanation provided.";
+    block.setAttribute("data-id", q.id);
+    const question = q.question || "";
+    const options = q.options || [];
+    const explanation = q.explanation || "";
     const answer = q.answer || "";
-
-    let badge = "";
-    if (q.difficulty === "easy") {
-      badge = `<span class="difficulty-badge easy" style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟢 Easy</span>`;
-    } else if (q.difficulty === "medium") {
-      badge = `<span class="difficulty-badge medium" style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟡 Medium</span>`;
-    } else if (q.difficulty === "hard") {
-      badge = `<span class="difficulty-badge hard" style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🔴 Hard</span>`;
-    } else {
-      badge = `<span class="difficulty-badge unknown" style="background:#e5e7eb;color:#6b7280;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">❔ Unknown</span>`;
-    }
-
+    const difficulty = q.difficulty || "medium";
+  
+    const badge = {
+      easy: "🟢 Easy",
+      medium: "🟡 Medium",
+      hard: "🔴 Hard"
+    }[difficulty] || "";
+  
     block.innerHTML = `
-      <summary>Q${i + 1}. ${question} ${badge}</summary>
-      <ul>${options.map(opt => `<li>${opt}</li>`).join("")}</ul>
-      <p><strong>✅ Answer:</strong> ${answer}</p>
-      <p><strong>💡 Explanation:</strong> ${explanation}</p>
-      <div style="margin-top: 8px;">
-        <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
-        <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
-      </div>
-    `;
-
+    <summary>
+      Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> ${badge}
+    </summary>
+    <ul>
+      ${options.map((opt, idx) => `
+        <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
+      `).join("")}
+    </ul>
+    <p><strong>✅ Answer:</strong> ${answer}</p>
+    <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${explanation}">${explanation}</span></p>
+    <div style="margin-top: 8px;">
+      <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
+      <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
+    </div>
+  `;
+  
+  
     container.appendChild(block);
   });
+  
+ 
 
   if (typeof updateStats === "function") updateStats();
   if (window.MathJax) MathJax.typesetPromise?.();
@@ -836,3 +837,77 @@ function adminDeleteQuestion(id, btn) {
 }
 
 
+// ✅ Admin panelde bir soruyu güncellerken tüm textarea'lardan veri alır,
+// doğru alanlara eşleştirir, PATCH atar ve render sonrası günceller
+function saveQuestionEdits(block) {
+  const id = block.getAttribute("data-id");
+  if (!id) return alert("❌ Soru ID'si bulunamadı.");
+
+  const edits = block.querySelectorAll(".q-edit");
+  const selectedDiff = block.querySelector(".q-difficulty")?.value || "medium";
+
+  const data = {
+    question: "",
+    explanation: "",
+    options: [],
+    answer: "",
+    difficulty: selectedDiff
+  };
+
+  edits.forEach(input => {
+    const key = input.dataset.key;
+    const val = input.value.trim();
+
+    if (key === "question") data.question = val;
+    else if (key === "explanation") data.explanation = val;
+    else if (key === "answer") data.answer = val;
+    else if (key?.startsWith("option")) data.options.push(val);
+  });
+
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+
+  fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      question: data.question,
+      explanation: data.explanation,
+      options: data.options,
+      difficulty: data.difficulty,
+      answer: data.options[0] // Gerçek cevap gerekirse burada ayarlanır
+    })
+  }).then(res => {
+    if (!res.ok) return alert("❌ Update failed.");
+
+    const index = Array.from(document.querySelectorAll("#modalQuestionList details")).indexOf(block);
+    const badge = {
+      easy: "🟢 Easy",
+      medium: "🟡 Medium",
+      hard: "🔴 Hard"
+    }[data.difficulty] || "";
+
+    block.innerHTML = `
+      <summary>
+        Q${index + 1}. <span class="q" data-key="question" data-latex="${data.question}">${data.question}</span>
+        <span class="difficulty-badge ${data.difficulty}">${badge}</span>
+      </summary>
+      <ul>
+        ${data.options.map((opt, i) => `<li class="q" data-key="option${i + 1}" data-latex="${opt}">${opt}</li>`).join("")}
+      </ul>
+      <p><strong>✅ Answer:</strong> ${data.options[0]}</p>
+      <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${data.explanation}">${data.explanation}</span></p>
+      <div style="margin-top: 8px;">
+        <button onclick="adminEditQuestion(${id})">✏️ Edit</button>
+        <button onclick="adminDeleteQuestion(${id}, this)">🗑️ Delete</button>
+      </div>
+    `;
+
+    block.open = true;
+    if (window.MathJax?.typesetPromise) MathJax.typesetPromise([block]);
+    flashMessage("✅ Question saved.");
+  }).catch(() => alert("❌ Server error"));
+}

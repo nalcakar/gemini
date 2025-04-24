@@ -85,17 +85,24 @@ let shouldReloadQuestions = false;
       },
       body: JSON.stringify(updated)
     })
-      .then(res => {
-        if (res.ok) {
-          shouldReloadQuestions = true;
-          currentTitle = "";
-          location.reload(); // reloads the modal content
-        } else {
-          alert("❌ Update failed.");
-        }
-      })
-      .catch(() => alert("❌ Server error"));
+    .then(res => {
+      if (res.ok) {
+        shouldReloadQuestions = true;
+        currentTitle = "";
+        location.reload();
+      } else {
+        alert("❌ Update failed.");
+      }
+    })
+    .catch(() => alert("❌ Server error"))
+    .finally(() => {
+      // ✅ Butonları tekrar aktif et
+      document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = false);
+      document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = false);
+    });
   }
+  
+
   
   
   function createAutoResizingTextarea(value) {
@@ -135,124 +142,135 @@ let shouldReloadQuestions = false;
   
   window.editExistingQuestion = function (id) {
     const btn = document.querySelector(`button[onclick="editExistingQuestion(${id})"]`);
-    const details = btn?.closest("details");
-    if (!details) return;
+    const block = btn?.closest("details");
+    if (!block) return;
+    if (block.querySelector("textarea")) return;
   
-    // ❌ Cancel all other edits
-    document.querySelectorAll("details").forEach(d => {
-      const original = d.dataset.originalHTML;
-      if (original) {
-        d.innerHTML = original;
-        delete d.dataset.originalHTML;
-      }
-    });
+    const summary = block.querySelector("summary");
+    let questionSpan = summary.querySelector(".q[data-key='question']");
+    let questionText = "";
   
-    document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = true);
-    document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = true);
-  
-    // ✅ Get original question from <summary>
-    const summary = details.querySelector("summary");
-    const originalText = summary?.innerText || "";
-    const match = originalText.match(/^Q\d+\.\s*(.+)$/);
-    const question = match ? match[1].trim() : "";
-  
-    // ✅ Get options from <li>
-    const listItems = details.querySelectorAll("ul li");
-    const options = Array.from(listItems).map(li => li.innerText.trim());
-  
-    // ✅ Get explanation (with fallback logic)
-    let explanation = "";
-    const explanationSpan = details.querySelector("span.q[data-key='explanation']");
-    if (explanationSpan) {
-      explanation = explanationSpan.innerText.trim();
+    if (questionSpan) {
+      questionText = questionSpan.dataset.latex || questionSpan.textContent.trim();
     } else {
-      const explanationP = Array.from(details.querySelectorAll("p")).find(p =>
-        p.innerText.toLowerCase().includes("explanation") || p.innerText.toLowerCase().includes("açıklama")
-      );
-      if (explanationP) {
-        explanation = explanationP.innerText.replace(/💡?\s*(Explanation|Açıklama):?\s*/i, "").trim();
-      }
+      const match = summary.textContent.match(/^Q\d+\.\s*(.*)$/);
+      questionText = match?.[1] || summary.textContent.trim();
+  
+      questionSpan = document.createElement("span");
+      questionSpan.className = "q";
+      questionSpan.dataset.key = "question";
+      questionSpan.dataset.latex = questionText;
+      questionSpan.textContent = questionText;
+      summary.innerHTML = `Q${id}. `;
+      summary.appendChild(questionSpan);
     }
   
-    // ✅ Store original HTML to support cancel
-    details.dataset.originalHTML = details.innerHTML;
-  
-    // 📝 Edit banner
-    const label = document.createElement("div");
-    label.innerHTML = `<span style="display:inline-block; background:#fcd34d; color:#78350f; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:500; margin-bottom:10px;">📝 Editing mode</span>`;
-  
-    // ✅ Question textarea
-    const qTextarea = createAutoResizingTextarea(question);
-    qTextarea.dataset.key = "question";
-    const summaryText = document.createElement("div");
-    summaryText.innerHTML = "<strong>Question:</strong>";
-    summaryText.appendChild(qTextarea);
-  
-    // ✅ Options
-    const optionTextareas = options.map((opt, index) => {
-      const t = createAutoResizingTextarea(opt);
-      t.dataset.key = `option${index + 1}`;
-      return t;
-    });
-  
-    // ✅ Explanation
-    const explanationDiv = document.createElement("div");
-    explanationDiv.innerHTML = "<p><strong>💡 Explanation:</strong></p>";
-    const explanationTextarea = createAutoResizingTextarea(explanation);
-    explanationTextarea.dataset.key = "explanation";
-    explanationDiv.appendChild(explanationTextarea);
-  
-    // ✅ Difficulty select dropdown
-    const difficultySelectWrapper = document.createElement("div");
-    difficultySelectWrapper.style.margin = "10px 0";
-    difficultySelectWrapper.innerHTML = `
-      <label><strong>Difficulty:</strong>
-        <select id="difficulty-${id}" style="margin-left:8px; padding:6px; border-radius:6px;">
-          <option value="">(None)</option>
-          <option value="easy">🟢 Easy</option>
-          <option value="medium">🟡 Medium</option>
-          <option value="hard">🔴 Hard</option>
-        </select>
-      </label>
-    `;
-    const currentDifficulty = details.dataset.difficulty || "";
-    difficultySelectWrapper.querySelector("select").value = currentDifficulty;
-  
-    // ✅ Buttons
-    const saveBtn = document.createElement("button");
-    saveBtn.textContent = "💾 Save";
-    saveBtn.style = "padding:8px 16px; margin-right:10px; background-color:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;";
-    saveBtn.onclick = () => saveExistingQuestion(id, saveBtn);
-  
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "❌ Cancel";
-    cancelBtn.style = "padding:8px 16px; background-color:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer;";
-    cancelBtn.onclick = () => {
-      details.innerHTML = details.dataset.originalHTML || "";
-      delete details.dataset.originalHTML;
-      document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = false);
-      document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = false);
+    const enableAutoUpdate = (textarea, targetEl) => {
+      const resize = () => {
+        textarea.style.height = "auto";
+        textarea.style.height = textarea.scrollHeight + "px";
+      };
+      const applyResize = () => {
+        if (document.body.contains(textarea)) resize();
+      };
+      textarea.addEventListener("input", () => {
+        const val = textarea.value.trim();
+        if (targetEl) {
+          targetEl.textContent = val;
+          targetEl.dataset.latex = val;
+          if (window.MathJax?.typesetPromise) MathJax.typesetPromise([targetEl]).then(resize);
+        }
+        resize();
+      });
+      setTimeout(resize, 30);
     };
   
-    const btnWrapper = document.createElement("div");
-    btnWrapper.style.marginTop = "10px";
-    btnWrapper.appendChild(saveBtn);
-    btnWrapper.appendChild(cancelBtn);
+    const qTextarea = document.createElement("textarea");
+    qTextarea.value = questionText;
+    qTextarea.className = "q-edit";
+    qTextarea.dataset.key = "question";
+    qTextarea.style.cssText = `
+      width: 100%; margin-top: 8px; padding: 8px; font-size: 15px;
+      border-radius: 6px; overflow: hidden; resize: none; line-height: 1.4;
+    `;
+    summary.insertAdjacentElement("afterend", qTextarea);
+    enableAutoUpdate(qTextarea, questionSpan);
   
-    // ✅ Assemble everything
-    details.innerHTML = "";
-    details.appendChild(label);
-    details.appendChild(summaryText);
-    optionTextareas.forEach(t => details.appendChild(t));
-    details.appendChild(explanationDiv);
-    details.appendChild(difficultySelectWrapper);
-    details.appendChild(btnWrapper);
+    // 📌 Şıklar (li elemanları varsa al, yoksa gösterme)
+    const options = Array.from(block.querySelectorAll("ul li"));
+    if (options.length > 0) {
+      options.forEach((li, i) => {
+        const val = li.dataset.latex || li.textContent.trim();
+        const textarea = document.createElement("textarea");
+        textarea.className = "q-edit";
+        textarea.dataset.key = `option${i}`;
+        textarea.value = val;
+        textarea.style.cssText = `
+          width: 100%; margin-top: 6px; padding: 6px;
+          font-size: 14px; border-radius: 6px; resize: none; line-height: 1.4;
+        `;
+        li.insertAdjacentElement("afterend", textarea);
+        enableAutoUpdate(textarea, li);
+      });
+    }
+  
+    // 📌 Açıklama
+    const expSpan = block.querySelector(".q[data-key='explanation']");
+    if (expSpan) {
+      const val = expSpan.dataset.latex || expSpan.textContent.trim();
+      const textarea = document.createElement("textarea");
+      textarea.className = "q-edit";
+      textarea.dataset.key = "explanation";
+      textarea.value = val;
+      textarea.style.cssText = `
+        width: 100%; margin-top: 6px; padding: 6px;
+        font-size: 14px; border-radius: 6px; resize: none; line-height: 1.4;
+      `;
+      expSpan.insertAdjacentElement("afterend", textarea);
+      enableAutoUpdate(textarea, expSpan);
+    }
+  
+    // 🎯 Zorluk seviyesi
+    const difficultyText = block.querySelector(".difficulty-line")?.innerText.toLowerCase() || "";
+    let difficulty = "medium";
+    if (difficultyText.includes("easy")) difficulty = "easy";
+    else if (difficultyText.includes("hard")) difficulty = "hard";
+  
+    const select = document.createElement("select");
+    select.className = "q-difficulty";
+    select.style.cssText = "margin-top: 6px; padding: 6px 10px; font-size: 14px; border-radius: 6px;";
+    ["easy", "medium", "hard"].forEach(level => {
+      const opt = document.createElement("option");
+      opt.value = level;
+      opt.textContent = {
+        easy: "🟢 Easy",
+        medium: "🟡 Medium",
+        hard: "🔴 Hard"
+      }[level];
+      if (level === difficulty) opt.selected = true;
+      select.appendChild(opt);
+    });
+    const diffLine = block.querySelector(".difficulty-line");
+    if (diffLine) diffLine.insertAdjacentElement("afterend", select);
+    else block.appendChild(select);
+  
+    btn.textContent = "✅ Save";
+    btn.onclick = () => saveExistingQuestion(id, btn);
+  
+    if (window.MathJax?.typesetPromise) {
+      MathJax.typesetPromise();
+    }
   };
   
   
   
   
-  async function saveExistingQuestion(id, btn) {
+  
+  
+  
+  
+  
+  function saveExistingQuestion(id, btn) {
     const details = btn.closest("details");
     const textareas = details.querySelectorAll("textarea");
   
@@ -264,56 +282,59 @@ let shouldReloadQuestions = false;
     const token = localStorage.getItem("accessToken");
     const email = localStorage.getItem("userEmail");
   
-    const res = await fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
+    fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({ question, options, explanation, difficulty, answer: "placeholder" })
-    });
+    })
+      .then(res => {
+        if (res.ok) {
+          alert("✅ Updated");
   
-    if (res.ok) {
-      alert("✅ Updated");
+          const oldSummary = details.querySelector("summary")?.innerText || "";
+          const match = oldSummary.match(/^Q\d+\./);
+          const prefix = match ? match[0] : "";
   
-      // ❗ Orijinal Qx. numarasını summary'den al
-      const oldSummary = details.querySelector("summary")?.innerText || "";
-      const match = oldSummary.match(/^Q\d+\./);
-      const prefix = match ? match[0] : "";
+          let badge = "";
+          if (difficulty === "easy") badge = `<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;">🟢 Easy</span>`;
+          if (difficulty === "medium") badge = `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;">🟡 Medium</span>`;
+          if (difficulty === "hard") badge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;">🔴 Hard</span>`;
   
-      let badge = "";
-      if (difficulty === "easy") badge = `<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;">🟢 Easy</span>`;
-      if (difficulty === "medium") badge = `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;">🟡 Medium</span>`;
-      if (difficulty === "hard") badge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;">🔴 Hard</span>`;
+          details.innerHTML = `
+            <summary>${prefix} ${question}</summary>
+            <p class="difficulty-line" data-level="${difficulty}">
+              <strong>Difficulty:</strong> ${badge}
+            </p>
+            <ul>${options.map(opt => `<li>${opt}</li>`).join("")}</ul>
+            <p><strong>💡 Explanation:</strong> ${explanation}</p>
+            <div style="margin-top: 8px;">
+              <button onclick="editExistingQuestion(${id})">✏️ Edit</button>
+              <button onclick="deleteExistingQuestion(${id}, this)">🗑️ Delete</button>
+            </div>
+          `;
+          details.dataset.difficulty = difficulty;
   
-      details.innerHTML = `
-        <summary>${prefix} ${question}</summary>
-        <p class="difficulty-line" data-level="${difficulty}">
-          <strong>Difficulty:</strong> ${badge}
-        </p>
-        <ul>${options.map(opt => `<li>${opt}</li>`).join("")}</ul>
-        <p><strong>💡 Explanation:</strong> ${explanation}</p>
-        <div style="margin-top: 8px;">
-          <button onclick="editExistingQuestion(${id})">✏️ Edit</button>
-          <button onclick="deleteExistingQuestion(${id}, this)">🗑️ Delete</button>
-        </div>
-      `;
-      details.dataset.difficulty = difficulty;
+          document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = false);
+          document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = false);
   
-      document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = false);
-      document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = false);
+          shouldReloadQuestions = true;
+          currentTitle = "";
   
-      shouldReloadQuestions = true;
-      currentTitle = "";
-  
-      if (window.MathJax) {
-        MathJax.typesetPromise?.();
-      }
-    } else {
-      alert("❌ Update failed.");
-    }
+          refreshMath();
+        } else {
+          alert("❌ Update failed.");
+        }
+      });
   }
   
+  function refreshMath() {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+    }
+  }
   
   
   

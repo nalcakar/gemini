@@ -775,12 +775,12 @@ app.get("/list-main-topics", authMiddleware, async (req, res) => {
 
   const client = await pool.connect();
   try {
-    // 🟨 Kullanıcının hiç main_topic'i yoksa 1 defaya mahsus "Genel" ekle
+    // 🟨 If user has no main_topic, add "Default" once
     const existing = await client.query("SELECT id FROM main_topics WHERE user_email = $1 LIMIT 1", [email]);
     if (existing.rowCount === 0) {
       const insertMain = await client.query(`
         INSERT INTO main_topics (name, user_email, is_default)
-        VALUES ('Genel', $1, true)
+        VALUES ('Default', $1, true)
         RETURNING id
       `, [email]);
     
@@ -788,10 +788,9 @@ app.get("/list-main-topics", authMiddleware, async (req, res) => {
     
       await client.query(`
         INSERT INTO categories (name, main_topic_id, user_email, is_default)
-        VALUES ('Genel', $1, $2, true)
+        VALUES ('Default', $1, $2, true)
       `, [main_id, email]);
     }
-    
 
     const result = await client.query(
       `SELECT id, name FROM main_topics WHERE user_email = $1 ORDER BY name ASC`,
@@ -807,6 +806,7 @@ app.get("/list-main-topics", authMiddleware, async (req, res) => {
 
 
 
+
 app.get("/list-categories", authMiddleware, async (req, res) => {
   const email = req.user?.email;
   const mainTopicId = req.query.main_topic_id;
@@ -814,7 +814,7 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
 
   const client = await pool.connect();
   try {
-    // Sadece hiç kategori yoksa "Genel" ekle
+    // 🟨 Only insert "Default" category if none exists and main topic is default
     const existing = await client.query(`
       SELECT id FROM categories 
       WHERE main_topic_id = $1 AND user_email = $2 
@@ -827,9 +827,10 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
     if (existing.rowCount === 0 && isDefaultMain) {
       await client.query(`
         INSERT INTO categories (name, main_topic_id, user_email, is_default)
-        VALUES ('Genel', $1, $2, true)
+        VALUES ('Default', $1, $2, true)
       `, [mainTopicId, email]);
     }
+
     const result = await client.query(
       `SELECT id, name FROM categories 
        WHERE main_topic_id = $1 AND user_email = $2 
@@ -844,6 +845,7 @@ app.get("/list-categories", authMiddleware, async (req, res) => {
     client.release();
   }
 });
+
 
 
 

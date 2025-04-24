@@ -140,10 +140,8 @@ async function generateFullQuiz() {
       return box;
     };
 
-    output.appendChild(createControls());
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      window.MathJax.typesetPromise();
-    }
+    
+    
     parsedQuestions.forEach((q, i) => {
       const details = document.createElement("details");
       details.className = "quiz-preview";
@@ -151,29 +149,44 @@ async function generateFullQuiz() {
       details.style.margin = "15px auto";
       details.dataset.index = i;
       details.dataset.difficulty = q.difficulty;
-
+    
       const badge = q.difficulty === "easy" ? "🟢 Easy"
                   : q.difficulty === "hard" ? "🔴 Hard"
                   : "🟡 Medium";
-
+    
+      const questionHTML = `<span class="q" data-key="question" data-latex="${q.question.replace(/"/g, '&quot;')}">${q.question}</span>`;
+      const optionsHTML = q.options.map((opt, j) =>
+        `<li class="q" data-key="option${j + 1}" data-latex="${opt.replace(/"/g, '&quot;')}">${opt}</li>`
+      ).join("");
+      const answerHTML = `<span class="q" data-key="answer" data-latex="${q.answer.replace(/"/g, '&quot;')}">${q.answer}</span>`;
+      const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
+    
       details.innerHTML = `
-        <summary><b>Q${i + 1}.</b> ${q.question}</summary>
-        <ul>${q.options.map((opt, j) =>
-          `<li class="q" data-key="option${j + 1}">${opt}</li>`).join("")}</ul>
-        <p><strong>✅ Answer:</strong> <span class="q" data-key="answer">${q.answer}</span></p>
-        <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation">${q.explanation}</span></p>
-        <p><strong>Difficulty:</strong> ${badge}</p>
+        <summary><b>Q${i + 1}.</b> ${questionHTML}</summary>
+        <ul>${optionsHTML}</ul>
+        <p><strong>✅ Answer:</strong> ${answerHTML}</p>
+        <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
+        <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
         ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : ""}
         <div style="margin-top: 8px;">
           <button onclick="editQuestion(this)">✏️ Düzenle</button>
           <button onclick="deleteQuestion(this)">🗑️ Sil</button>
         </div>
       `;
+    
       output.appendChild(details);
     });
+    
+    output.appendChild(createControls());
+    
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+    }
 
     output.appendChild(createControls());
-
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise();
+    }
     if (saveBox && isLoggedIn) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
@@ -206,169 +219,212 @@ async function generateFullQuiz() {
 
   
   // Düzenle: soruları input haline getir
-  window.editQuestion = function (btn) {
-    const block = btn.closest("details");
-    const elements = block.querySelectorAll(".q");
-  
-    // 🔍 Difficulty çözümle
-    let difficulty = "medium";
-    const diffText = block.querySelector("p strong")?.nextSibling?.textContent?.toLowerCase() || "";
-    if (diffText.includes("easy")) difficulty = "easy";
-    else if (diffText.includes("hard")) difficulty = "hard";
-  
-    // 📝 Qx. Soru metnini yakala
-    const summary = block.querySelector("summary");
-    const summaryMatch = summary?.innerText.match(/^Q\d+\.\s*(.+)/);
-    const questionText = summaryMatch ? summaryMatch[1] : "";
-    const textareaQ = document.createElement("textarea");
-    textareaQ.value = questionText;
-    textareaQ.className = "q-edit";
-    textareaQ.dataset.key = "question";
-    textareaQ.style = `
-      width: 100%;
-      min-height: 28px;
-      font-size: 15px;
-      margin-bottom: 6px;
-      padding: 2px 4px;
-      resize: none;
-      overflow: hidden;
-      line-height: 1.4;
-    `;
-    summary.innerHTML = `Q${block.dataset.index * 1 + 1}. `;
-    summary.appendChild(textareaQ);
-  
-    const autoResize = () => {
-      textareaQ.style.height = "auto";
-      textareaQ.style.height = textareaQ.scrollHeight + "px";
+  // Eklenmiş MathJax güncellemesi ile tam editQuestion ve saveQuestionEdits fonksiyonları
+
+// Güncellenmiş editQuestion — MathJax formüllerini data-latex ile korur
+
+window.editQuestion = function (btn) {
+  const block = btn.closest("details");
+  if (block.querySelector("textarea")) return;
+
+  const summary = block.querySelector("summary");
+  const questionSpan = summary.querySelector(".q[data-key='question']");
+  const questionText = questionSpan?.dataset.latex || summary.textContent.replace(/^Q\d+\.\s*/, "").trim();
+
+  // Soru metni görünür kalsın
+  questionSpan.style.fontWeight = "bold";
+
+  // 🎯 Auto-resize + MathJax + canlı yansıtma helper
+  const enableAutoUpdate = (textarea, targetEl) => {
+    const resize = () => {
+      textarea.style.height = "auto";
+      textarea.style.height = textarea.scrollHeight + "px";
     };
-    textareaQ.addEventListener("input", autoResize);
-    autoResize();
-  
-    // Diğer alanları textarea'ya çevir
-    elements.forEach(el => {
-      const val = el.innerText;
-      const input = document.createElement("textarea");
-      input.value = val;
-      input.className = "q-edit";
-      input.dataset.key = el.dataset.key;
-      input.style = `
-        width: 100%;
-        min-height: 28px;
-        font-size: 15px;
-        margin-bottom: 6px;
-        padding: 2px 4px;
-        resize: none;
-        overflow: hidden;
-        line-height: 1.4;
-      `;
-  
-      input.addEventListener("input", () => {
-        input.style.height = "auto";
-        input.style.height = input.scrollHeight + "px";
-      });
-      input.dispatchEvent(new Event("input"));
-  
-      el.replaceWith(input);
-    });
-  
-    // 🎯 Dropdown olarak difficulty seçimi
-    const select = document.createElement("select");
-    select.className = "q-difficulty";
-    select.style = "margin: 6px 0; padding: 4px 8px; border-radius: 6px; font-size: 14px;";
-    ["easy", "medium", "hard"].forEach(level => {
-      const opt = document.createElement("option");
-      opt.value = level;
-      opt.textContent = {
-        easy: "🟢 Easy",
-        medium: "🟡 Medium",
-        hard: "🔴 Hard"
-      }[level];
-      if (level === difficulty) opt.selected = true;
-      select.appendChild(opt);
-    });
-  
-    // 🔻 Açıklamanın altına yerleştir
-    const explanationInput = block.querySelector("textarea[data-key='explanation']");
-    if (explanationInput) {
-      explanationInput.insertAdjacentElement("afterend", select);
-    } else {
-      block.appendChild(select);
-    }
-  
-    btn.textContent = "✅ Güncelle";
-    btn.onclick = () => saveQuestionEdits(block);
-  };
-  
-  
-  
-  function saveQuestionEdits(block) {
-    const edits = block.querySelectorAll(".q-edit");
-    const selectedDiff = block.querySelector(".q-difficulty")?.value || "medium";
-  
-    // 🟢 Yeni <details> yapısı oluştur
-    const details = document.createElement("details");
-    details.className = "quiz-preview";
-    details.style.maxWidth = "700px";
-    details.style.margin = "15px auto";
-    details.dataset.index = block.dataset.index;
-    details.dataset.difficulty = selectedDiff;
-  
-    const difficultyIcon = selectedDiff === "easy" ? "🟢 Easy"
-                         : selectedDiff === "hard" ? "🔴 Hard"
-                         : "🟡 Medium";
-  
-    let questionText = "";
-    let answerHTML = "";
-    let explanationHTML = "";
-    let optionsHTML = "";
-  
-    edits.forEach(input => {
-      const key = input.dataset.key;
-      const val = input.value.trim();
-  
-      if (key === "question") {
-        questionText = val;
-      } else if (key === "answer") {
-        answerHTML = `<p><strong>✅ Answer:</strong> <span class="q" data-key="answer">${val}</span></p>`;
-      } else if (key === "explanation") {
-        explanationHTML = `<p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation">${val}</span></p>`;
-      } else if (key.startsWith("option")) {
-        if (!optionsHTML) optionsHTML += "<ul>";
-        optionsHTML += `<li class="q" data-key="${key}">${val}</li>`;
+
+    const applyResize = () => {
+      if (document.body.contains(textarea)) {
+        resize();
+      }
+    };
+
+    textarea.addEventListener("input", () => {
+      const val = textarea.value.trim();
+      if (targetEl) {
+        targetEl.textContent = val;
+        targetEl.dataset.latex = val;
+
+        if (window.MathJax && window.MathJax.typesetPromise) {
+          MathJax.typesetPromise([targetEl]).then(applyResize).catch(console.error);
+        } else {
+          applyResize();
+        }
+      } else {
+        applyResize();
       }
     });
-    if (optionsHTML) optionsHTML += "</ul>";
-  
-    const summaryHTML = `<summary><b>Q${parseInt(details.dataset.index) + 1}.</b> ${questionText}</summary>`;
-  
-    const difficultyHTML = `<p><strong>Difficulty:</strong> ${difficultyIcon}</p>`;
-    const checkboxHTML = localStorage.getItem("userEmail")
-      ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : "";
-  
-    const buttonsHTML = `
-      <div style="margin-top: 8px;">
-        <button onclick="editQuestion(this)">✏️ Düzenle</button>
-        <button onclick="deleteQuestion(this)">🗑️ Sil</button>
-      </div>
+
+    // ✨ İlk açılışta MathJax render sonrası yüksekliği ayarla
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([targetEl])
+        .then(applyResize)
+        .catch(console.error);
+    } else {
+      requestAnimationFrame(() => {
+        setTimeout(applyResize, 20);
+        setTimeout(applyResize, 100);
+      });
+    }
+  };
+
+  // ✅ Soru textarea
+  const qTextarea = document.createElement("textarea");
+  qTextarea.value = questionText;
+  qTextarea.className = "q-edit";
+  qTextarea.dataset.key = "question";
+  qTextarea.style.cssText = `
+    width: 100%; margin-top: 8px; padding: 8px; font-size: 15px;
+    border-radius: 6px; overflow: hidden; resize: none; line-height: 1.4;
+  `;
+  summary.insertAdjacentElement("afterend", qTextarea);
+  enableAutoUpdate(qTextarea, questionSpan);
+
+  // ✅ Diğer alanlar (şıklar, cevap, açıklama)
+  const elements = block.querySelectorAll(".q, li[data-key]");
+  elements.forEach(el => {
+    const key = el.dataset.key;
+    if (key === "question") return;
+
+    const value = el.dataset.latex || el.textContent.trim();
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.className = "q-edit";
+    textarea.dataset.key = key;
+    textarea.style.cssText = `
+      width: 100%; margin-top: 6px; padding: 6px;
+      font-size: 14px; border-radius: 6px; overflow: hidden;
+      resize: none; line-height: 1.4;
     `;
-  
-    details.innerHTML = `
-      ${summaryHTML}
-      ${optionsHTML}
-      ${answerHTML}
-      ${explanationHTML}
-      ${difficultyHTML}
-      ${checkboxHTML}
-      ${buttonsHTML}
-    `;
-  
-    // Eski bloğun yerine yenisini koy
-    block.replaceWith(details);
-    // ✅ MathJax ile yeniden render et
-if (window.MathJax && window.MathJax.typesetPromise) {
-  window.MathJax.typesetPromise();
+    el.insertAdjacentElement("afterend", textarea);
+    enableAutoUpdate(textarea, el);
+  });
+
+  // ✅ Zorluk seviyesi seçici
+  let difficulty = "medium";
+  const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
+  if (diffText.includes("easy")) difficulty = "easy";
+  else if (diffText.includes("hard")) difficulty = "hard";
+
+  const select = document.createElement("select");
+  select.className = "q-difficulty";
+  select.style.cssText = "margin-top: 6px; padding: 6px 10px; border-radius: 6px; font-size: 14px;";
+  ["easy", "medium", "hard"].forEach(level => {
+    const opt = document.createElement("option");
+    opt.value = level;
+    opt.textContent = {
+      easy: "🟢 Easy",
+      medium: "🟡 Medium",
+      hard: "🔴 Hard"
+    }[level];
+    if (level === difficulty) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  const diffLine = block.querySelector(".difficulty-line");
+  if (diffLine) diffLine.insertAdjacentElement("afterend", select);
+  else block.appendChild(select);
+
+  // ✅ Buton güncelle
+  btn.textContent = "✅ Güncelle";
+  btn.onclick = () => saveQuestionEdits(block);
+
+  // MathJax genel tekrar (gerekirse)
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    window.MathJax.typesetPromise().catch(console.error);
+  }
+};
+
+
+
+
+
+
+function saveQuestionEdits(block) {
+  const edits = block.querySelectorAll(".q-edit");
+  const selectedDiff = block.querySelector(".q-difficulty")?.value || "medium";
+
+  const newDetails = document.createElement("details");
+  newDetails.className = "quiz-preview";
+  newDetails.style.maxWidth = "700px";
+  newDetails.style.margin = "15px auto";
+  newDetails.dataset.index = block.dataset.index;
+  newDetails.dataset.difficulty = selectedDiff;
+
+  const difficultyIcon = selectedDiff === "easy" ? "🟢 Easy"
+                        : selectedDiff === "hard" ? "🔴 Hard"
+                        : "🟡 Medium";
+
+  let questionText = "";
+  let answerHTML = "";
+  let explanationHTML = "";
+  let optionsHTML = "";
+
+  edits.forEach(input => {
+    const key = input.dataset.key;
+    const val = input.value.trim();
+
+    if (key === "question") {
+      questionText = val;
+    } else if (key === "answer") {
+      answerHTML = `<p><strong>✅ Answer:</strong> <span class="q" data-key="answer" data-latex="${val}">${val}</span></p>`;
+    } else if (key === "explanation") {
+      explanationHTML = `<p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${val}">${val}</span></p>`;
+    } else if (key.startsWith("option")) {
+      if (!optionsHTML) optionsHTML += "<ul>";
+      optionsHTML += `<li class="q" data-key="${key}" data-latex="${val}">${val}</li>`;
+    }
+  });
+  if (optionsHTML) optionsHTML += "</ul>";
+
+  // 🔁 summary tek satır ve temiz şekilde yapılsın
+  const summaryHTML = `
+    <summary>
+      <b>Q${parseInt(newDetails.dataset.index) + 1}.</b>
+      <span class="q" data-key="question" data-latex="${questionText}">${questionText}</span>
+    </summary>
+  `;
+
+  const difficultyHTML = `<p><strong>Difficulty:</strong> ${difficultyIcon}</p>`;
+  const checkboxHTML = localStorage.getItem("userEmail")
+    ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : "";
+
+  const buttonsHTML = `
+    <div style="margin-top: 8px;">
+      <button onclick="editQuestion(this)">✏️ Düzenle</button>
+      <button onclick="deleteQuestion(this)">🗑️ Sil</button>
+    </div>
+  `;
+
+  newDetails.innerHTML = `
+    ${summaryHTML}
+    ${optionsHTML}
+    ${answerHTML}
+    ${explanationHTML}
+    ${difficultyHTML}
+    ${checkboxHTML}
+    ${buttonsHTML}
+  `;
+
+  // ✨ Eski bloğun yerine temiz yeni bloğu koy
+  block.replaceWith(newDetails);
+  newDetails.open = true; // kullanıcı güncellemeyi hemen görsün
+
+  // ✅ MathJax yeniden çalışsın
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    window.MathJax.typesetPromise().catch(console.error);
   }
 }
+
+
   
   
   window.deleteQuestion = function (btn) {
@@ -410,9 +466,10 @@ if (window.MathJax && window.MathJax.typesetPromise) {
       const check = block.querySelector(".qcheck");
       if (check?.checked) {
         const q = {};
+  
         block.querySelectorAll(".q").forEach(s => {
           const key = s.dataset.key;
-          const val = s.innerText.trim();
+          const val = s.dataset.latex?.trim() || s.innerText.trim(); // ✅ MathJax için data-latex öncelikli
   
           if (key?.startsWith("option")) {
             q.options = q.options || [];
@@ -422,8 +479,8 @@ if (window.MathJax && window.MathJax.typesetPromise) {
           }
         });
   
-        // ✅ Difficulty değerini DOM'dan doğru al
-        const diffText = block.querySelector("p")?.innerText?.toLowerCase() || "";
+        // ✅ Difficulty DOM'dan alınır
+        const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
         if (diffText.includes("easy")) {
           q.difficulty = "easy";
         } else if (diffText.includes("hard")) {
@@ -472,6 +529,7 @@ if (window.MathJax && window.MathJax.typesetPromise) {
       alert("❌ Sunucuya bağlanılamadı.");
     }
   }
+  
   
   
   
@@ -764,9 +822,17 @@ block.dataset.difficulty = (q.difficulty || "medium").toLowerCase();
           }
   
           block.innerHTML = `
-          <summary>Q${i + 1}. ${q.question}</summary>
-          <ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>
-          <p><strong>💡 Açıklama:</strong> ${q.explanation}</p>
+          <summary>
+            Q${i + 1}. <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span>
+          </summary>
+          <ul>
+            ${q.options.map((opt, idx) => `
+              <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
+            `).join("")}
+          </ul>
+          <p><strong>💡 Açıklama:</strong>
+            <span class="q" data-key="explanation" data-latex="${q.explanation}">${q.explanation}</span>
+          </p>
           <p class="difficulty-line" data-level="${q.difficulty}">
             <strong>Difficulty:</strong> ${badge}
           </p>
