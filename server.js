@@ -287,7 +287,8 @@ Rules:
 - Use only the specified format above.
 - Do NOT number the questions (no 1., 2., etc.)
 - Do NOT include any extra commentary or explanation.
-- Write in: ${promptLanguage} only.
++ Write in: ${promptLanguage} only.
++ - If the question contains a mathematical formula or expression, format it in LaTeX using $...$ for inline math.
 `
   : `
 You are an expert quiz assistant.
@@ -311,7 +312,8 @@ Format:
 Rules:
 - All output must be in ${questionLanguage}.
 - Use ONLY this format, no extra notes or headers.
-- Don't number the questions.
++ Don't number the questions.
++ - If the question contains a mathematical formula or expression, format it in LaTeX using $...$ for inline math.
 `;
 
 

@@ -311,6 +311,23 @@ details summary {
   background: #0284c7;
   color: white;
 }
+
+.quiz-preview {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin: 15px auto;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  max-width: 700px;  /* 💡 Eklendi */
+}
+@media (max-width: 768px) {
+  .quiz-preview {
+    max-width: 95%;
+    margin: 12px auto;
+  }
+}
+
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -634,20 +651,26 @@ window.showSection = function(type) {
            placeholder="🔍 Soru içinde ara..." 
            style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;" />
   </div>
-  <button onclick="collapseAllDetails()" 
-        style="margin: 10px 0; padding: 6px 14px; background: #e5e7eb; border: none; border-radius: 8px; cursor: pointer;">
-  🔽 Tümünü Kapat
-</button>
+
 <div id="difficultyFilter" style="margin-bottom: 10px; text-align:center;">
-  <button onclick="filterByDifficulty('easy')" style="margin:4px; padding:6px 10px;">🟢 Kolay</button>
-  <button onclick="filterByDifficulty('medium')" style="margin:4px; padding:6px 10px;">🟡 Orta</button>
-  <button onclick="filterByDifficulty('hard')" style="margin:4px; padding:6px 10px;">🔴 Zor</button>
-  <button onclick="filterByDifficulty('')" style="margin:4px; padding:6px 10px;">🔁 Tümünü Göster</button>
+  <button onclick="filterByDifficulty('easy')" style="margin:4px; padding:6px 10px;">🟢 Easy</button>
+<button onclick="filterByDifficulty('medium')" style="margin:4px; padding:6px 10px;">🟡 Medium</button>
+<button onclick="filterByDifficulty('hard')" style="margin:4px; padding:6px 10px;">🔴 Hard</button>
+<button onclick="filterByDifficulty('')" style="margin:4px; padding:6px 10px;">🔁 Show All</button>
+</div>
+<div style="text-align:center; margin: 8px 0;">
+  <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Hepsini Göster</button>
+  <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Tümünü Kapat</button>
 </div>
   <div class="modal-body" id="modalQuestionList">
     <p style="text-align:center;">Yükleniyor...</p>
   </div>
+  <div style="text-align:center; margin: 8px 0;">
+    <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Hepsini Göster</button>
+    <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Tümünü Kapat</button>
+  </div>
 </div>
+
 <div id="fixedQuestionsToggle" onclick="openModal()" title="Show saved questions">
   🧾
 </div>

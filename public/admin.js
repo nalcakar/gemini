@@ -187,30 +187,37 @@ async function loadQuestionsByTitleName(titleName) {
   container.style.marginTop = "20px";
   container.innerHTML = `
     <div id="questionControlPanel" style="margin-bottom:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f9fafb;">
-      <input id="searchInput" oninput="filterQuestions()" placeholder="🔍 Soru içinde ara..." 
+      <input id="searchInput" oninput="filterQuestions()" placeholder="🔍 Search within questions..." 
              style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid #d1d5db; font-size:14px;" />
       <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;">
-        <button type="button" onclick="collapseAllDetails()">🔽 Tümünü Kapat</button>
-        <button type="button" onclick="filterByDifficulty('easy')">🟢 Kolay</button>
-        <button type="button" onclick="filterByDifficulty('medium')">🟡 Orta</button>
-        <button type="button" onclick="filterByDifficulty('hard')">🔴 Zor</button>
-        <button type="button" onclick="filterByDifficulty('')">🔁 Tümünü Göster</button>
+        <button type="button" onclick="collapseAllDetails()">🔽 Collapse All</button>
+        <button type="button" onclick="filterByDifficulty('easy')">🟢 Easy</button>
+        <button type="button" onclick="filterByDifficulty('medium')">🟡 Medium</button>
+        <button type="button" onclick="filterByDifficulty('hard')">🔴 Hard</button>
+        <button type="button" onclick="filterByDifficulty('')">🔁 Show All</button>
       </div>
     </div>
     <div id="statsBox" style="margin-bottom:12px; font-weight:500;"></div>
-    <p style='text-align:center;'>⏳ Sorular yükleniyor...</p>
+    <p style='text-align:center;'>⏳ Loading questions...</p>
   `;
 
   const token = localStorage.getItem("accessToken");
   const email = localStorage.getItem("userEmail");
 
+  // ✅ API ve kategori kontrolü yapılmazsa '<!DOCTYPE' hatası oluşabilir
+  if (!API || !currentCategoryId || !email) {
+    container.innerHTML = "<p style='color:red;'>❌ Internal error: Missing parameters.</p>";
+    return;
+  }
+
+  // 📥 Başlığa karşılık gelen title_id bulunur
   const titlesRes = await fetch(`${API}/list-titles?category_id=${currentCategoryId}&email=${email}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   const titleData = await titlesRes.json();
   const matchedTitle = titleData.titles.find(t => t.name === titleName);
   if (!matchedTitle) {
-    container.innerHTML += "❌ Başlık bulunamadı.";
+    container.innerHTML += "<p style='color:red;'>❌ Title not found.</p>";
     return;
   }
 
@@ -220,10 +227,11 @@ async function loadQuestionsByTitleName(titleName) {
   const data = await res.json();
 
   if (!data.questions || data.questions.length === 0) {
-    container.innerHTML += "<p style='text-align:center; color:gray;'>⚠️ Bu başlığa ait soru bulunamadı.</p>";
+    container.innerHTML += "<p style='text-align:center; color:gray;'>⚠️ No questions under this title.</p>";
     return;
   }
 
+  // ⏬ UI yeniden oluşturulur
   const controlPanel = document.getElementById("questionControlPanel");
   const statsBox = document.getElementById("statsBox");
   container.innerHTML = "";
@@ -234,29 +242,33 @@ async function loadQuestionsByTitleName(titleName) {
     const block = document.createElement("details");
     block.className = "question-card";
 
-    const question = q.question || "(soru bulunamadı)";
+    // ✅ Seviye bilgisi edit için dataset'e aktarılır
+    block.dataset.difficulty = q.difficulty || "";
+
+    const question = q.question || "(no question)";
     const options = Array.isArray(q.options) ? q.options : [];
-    const explanation = q.explanation || "Açıklama yok";
+    const explanation = q.explanation || "No explanation provided.";
     const answer = q.answer || "";
 
     let badge = "";
     if (q.difficulty === "easy") {
-      badge = `<span class="difficulty-badge easy" style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟢 Kolay</span>`;
+      badge = `<span class="difficulty-badge easy" style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟢 Easy</span>`;
     } else if (q.difficulty === "medium") {
-      badge = `<span class="difficulty-badge medium" style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟡 Orta</span>`;
+      badge = `<span class="difficulty-badge medium" style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟡 Medium</span>`;
     } else if (q.difficulty === "hard") {
-      badge = `<span class="difficulty-badge hard" style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🔴 Zor</span>`;
+      badge = `<span class="difficulty-badge hard" style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🔴 Hard</span>`;
     } else {
-      badge = `<span class="difficulty-badge unknown" style="background:#e5e7eb;color:#6b7280;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">❔ Bilinmiyor</span>`;
+      badge = `<span class="difficulty-badge unknown" style="background:#e5e7eb;color:#6b7280;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">❔ Unknown</span>`;
     }
+
     block.innerHTML = `
       <summary>Q${i + 1}. ${question} ${badge}</summary>
       <ul>${options.map(opt => `<li>${opt}</li>`).join("")}</ul>
-      <p><strong>✅ Cevap:</strong> ${answer}</p>
-      <p><strong>💡 Açıklama:</strong> ${explanation}</p>
+      <p><strong>✅ Answer:</strong> ${answer}</p>
+      <p><strong>💡 Explanation:</strong> ${explanation}</p>
       <div style="margin-top: 8px;">
-        <button onclick="editExistingQuestion(${q.id})">✏️ Düzenle</button>
-        <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Sil</button>
+        <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
+        <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
       </div>
     `;
 
@@ -266,9 +278,9 @@ async function loadQuestionsByTitleName(titleName) {
   if (typeof updateStats === "function") updateStats();
   if (window.MathJax) MathJax.typesetPromise?.();
 
-  // 🔽 SCROLL: Sorular yüklendikten sonra aşağı kaydır
   container.scrollIntoView({ behavior: "smooth" });
 }
+
 
 function renderEditControls() {
   ["mainTopics", "categories", "titles"].forEach(section => {
@@ -804,3 +816,23 @@ function flashMessage(text, duration = 2000) {
     }, 500);
   }, duration);
 }
+function adminDeleteQuestion(id, btn) {
+  const details = btn.closest("details");
+  if (!details) return;
+
+  if (!confirm("Are you sure you want to delete this question?")) return;
+
+  fetch(`https://gemini-j8xd.onrender.com/delete-question/${id}?email=${encodeURIComponent(localStorage.getItem("userEmail"))}`, {
+    method: "DELETE"
+  }).then(res => {
+    if (res.ok) {
+      details.remove();
+      flashMessage("✅ Question deleted.");
+      renumberQuestions();
+    } else {
+      alert("❌ Failed to delete the question.");
+    }
+  }).catch(() => alert("❌ Server error"));
+}
+
+

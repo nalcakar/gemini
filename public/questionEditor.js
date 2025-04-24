@@ -40,7 +40,7 @@ let shouldReloadQuestions = false;
             }
           });
   
-          collapseAllDetails();
+         
   
           // ✅ Geri Al kutusunu göster
           try {
@@ -60,11 +60,7 @@ let shouldReloadQuestions = false;
   }
   
   
-  function collapseAllDetails() {
-    document.querySelectorAll("#modalQuestionList details").forEach(d => d.open = false);
-    document.getElementById("modalQuestionList")?.scrollIntoView({ behavior: "smooth" });
-  }
-  
+
   
   // Placeholder edit fonksiyonu
   
@@ -137,12 +133,12 @@ let shouldReloadQuestions = false;
   
   
   
-  function editExistingQuestion(id) {
+  window.editExistingQuestion = function (id) {
     const btn = document.querySelector(`button[onclick="editExistingQuestion(${id})"]`);
     const details = btn?.closest("details");
     if (!details) return;
   
-    // Diğer düzenlemeleri iptal et
+    // ❌ Cancel all other edits
     document.querySelectorAll("details").forEach(d => {
       const original = d.dataset.originalHTML;
       if (original) {
@@ -151,96 +147,109 @@ let shouldReloadQuestions = false;
       }
     });
   
-    // Diğer düzenle/sil butonlarını devre dışı bırak
     document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = true);
     document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = true);
   
+    // ✅ Get original question from <summary>
     const summary = details.querySelector("summary");
+    const originalText = summary?.innerText || "";
+    const match = originalText.match(/^Q\d+\.\s*(.+)$/);
+    const question = match ? match[1].trim() : "";
+  
+    // ✅ Get options from <li>
     const listItems = details.querySelectorAll("ul li");
-    const explanationP = Array.from(details.querySelectorAll("p")).find(p => p.innerHTML.includes("Açıklama"));
+    const options = Array.from(listItems).map(li => li.innerText.trim());
   
-    const question = summary?.innerText.replace(/^Q\d+\.\s*/, "").replace(/(Kolay|Orta|Zor)/, "").trim();
-    const options = Array.from(listItems).map(li => li.innerText);
-    const explanation = explanationP?.innerText.replace("💡 Açıklama:", "").trim();
+    // ✅ Get explanation (with fallback logic)
+    let explanation = "";
+    const explanationSpan = details.querySelector("span.q[data-key='explanation']");
+    if (explanationSpan) {
+      explanation = explanationSpan.innerText.trim();
+    } else {
+      const explanationP = Array.from(details.querySelectorAll("p")).find(p =>
+        p.innerText.toLowerCase().includes("explanation") || p.innerText.toLowerCase().includes("açıklama")
+      );
+      if (explanationP) {
+        explanation = explanationP.innerText.replace(/💡?\s*(Explanation|Açıklama):?\s*/i, "").trim();
+      }
+    }
   
-    // Orijinal HTML’i sakla
+    // ✅ Store original HTML to support cancel
     details.dataset.originalHTML = details.innerHTML;
   
+    // 📝 Edit banner
     const label = document.createElement("div");
-    label.innerHTML = `<span style="display:inline-block; background:#fcd34d; color:#78350f; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:500; margin-bottom:10px;">📝 Düzenleme modunda</span>`;
+    label.innerHTML = `<span style="display:inline-block; background:#fcd34d; color:#78350f; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:500; margin-bottom:10px;">📝 Editing mode</span>`;
   
+    // ✅ Question textarea
     const qTextarea = createAutoResizingTextarea(question);
+    qTextarea.dataset.key = "question";
     const summaryText = document.createElement("div");
-    summaryText.innerHTML = "<strong>Soru:</strong>";
+    summaryText.innerHTML = "<strong>Question:</strong>";
     summaryText.appendChild(qTextarea);
   
-    const optionTextareas = options.map(opt => createAutoResizingTextarea(opt));
+    // ✅ Options
+    const optionTextareas = options.map((opt, index) => {
+      const t = createAutoResizingTextarea(opt);
+      t.dataset.key = `option${index + 1}`;
+      return t;
+    });
   
+    // ✅ Explanation
     const explanationDiv = document.createElement("div");
-    explanationDiv.innerHTML = "<p><strong>💡 Açıklama:</strong></p>";
+    explanationDiv.innerHTML = "<p><strong>💡 Explanation:</strong></p>";
     const explanationTextarea = createAutoResizingTextarea(explanation);
+    explanationTextarea.dataset.key = "explanation";
     explanationDiv.appendChild(explanationTextarea);
   
-    // 🎨 Zorluk seçimi
+    // ✅ Difficulty select dropdown
     const difficultySelectWrapper = document.createElement("div");
     difficultySelectWrapper.style.margin = "10px 0";
     difficultySelectWrapper.innerHTML = `
-      <label><strong>Zorluk:</strong>
+      <label><strong>Difficulty:</strong>
         <select id="difficulty-${id}" style="margin-left:8px; padding:6px; border-radius:6px;">
-          <option value="">(Yok)</option>
-          <option value="easy">🟢 Kolay</option>
-          <option value="medium">🟡 Orta</option>
-          <option value="hard">🔴 Zor</option>
+          <option value="">(None)</option>
+          <option value="easy">🟢 Easy</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="hard">🔴 Hard</option>
         </select>
       </label>
     `;
-  
-    const currentDifficulty = summary?.innerText.includes("Kolay") ? "easy" :
-                             summary?.innerText.includes("Orta") ? "medium" :
-                             summary?.innerText.includes("Zor") ? "hard" : "";
+    const currentDifficulty = details.dataset.difficulty || "";
     difficultySelectWrapper.querySelector("select").value = currentDifficulty;
   
+    // ✅ Buttons
     const saveBtn = document.createElement("button");
-    saveBtn.textContent = "💾 Kaydet";
-    saveBtn.style.padding = "8px 16px";
-    saveBtn.style.marginRight = "10px";
-    saveBtn.style.backgroundColor = "#10b981";
-    saveBtn.style.color = "white";
-    saveBtn.style.border = "none";
-    saveBtn.style.borderRadius = "8px";
-    saveBtn.style.cursor = "pointer";
+    saveBtn.textContent = "💾 Save";
+    saveBtn.style = "padding:8px 16px; margin-right:10px; background-color:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;";
     saveBtn.onclick = () => saveExistingQuestion(id, saveBtn);
   
     const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "❌ İptal";
-    cancelBtn.style.padding = "8px 16px";
-    cancelBtn.style.backgroundColor = "#ef4444";
-    cancelBtn.style.color = "white";
-    cancelBtn.style.border = "none";
-    cancelBtn.style.borderRadius = "8px";
-    cancelBtn.style.cursor = "pointer";
-  
+    cancelBtn.textContent = "❌ Cancel";
+    cancelBtn.style = "padding:8px 16px; background-color:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer;";
     cancelBtn.onclick = () => {
       details.innerHTML = details.dataset.originalHTML || "";
       delete details.dataset.originalHTML;
-  
       document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = false);
       document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = false);
     };
   
+    const btnWrapper = document.createElement("div");
+    btnWrapper.style.marginTop = "10px";
+    btnWrapper.appendChild(saveBtn);
+    btnWrapper.appendChild(cancelBtn);
+  
+    // ✅ Assemble everything
     details.innerHTML = "";
     details.appendChild(label);
     details.appendChild(summaryText);
     optionTextareas.forEach(t => details.appendChild(t));
     details.appendChild(explanationDiv);
     details.appendChild(difficultySelectWrapper);
-  
-    const btnWrapper = document.createElement("div");
-    btnWrapper.style.marginTop = "10px";
-    btnWrapper.appendChild(saveBtn);
-    btnWrapper.appendChild(cancelBtn);
     details.appendChild(btnWrapper);
-  }
+  };
+  
+  
   
   
   async function saveExistingQuestion(id, btn) {
@@ -261,28 +270,35 @@ let shouldReloadQuestions = false;
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ question, options, explanation, difficulty, answer: "placeholder" })  // 👈 answer zorunlu, dummy değer gönderiyoruz
+      body: JSON.stringify({ question, options, explanation, difficulty, answer: "placeholder" })
     });
   
     if (res.ok) {
-      alert("✅ Güncellendi");
+      alert("✅ Updated");
   
-      const qIndex = Array.from(document.querySelectorAll("details")).indexOf(details);
+      // ❗ Orijinal Qx. numarasını summary'den al
+      const oldSummary = details.querySelector("summary")?.innerText || "";
+      const match = oldSummary.match(/^Q\d+\./);
+      const prefix = match ? match[0] : "";
+  
       let badge = "";
-      if (difficulty === "easy") badge = `<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;">🟢 Kolay</span>`;
-      if (difficulty === "medium") badge = `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;">🟡 Orta</span>`;
-      if (difficulty === "hard") badge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;">🔴 Zor</span>`;
+      if (difficulty === "easy") badge = `<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;">🟢 Easy</span>`;
+      if (difficulty === "medium") badge = `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;">🟡 Medium</span>`;
+      if (difficulty === "hard") badge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;">🔴 Hard</span>`;
   
-      const newHTML = `
-        <summary>Q${qIndex + 1}. ${question} ${badge}</summary>
+      details.innerHTML = `
+        <summary>${prefix} ${question}</summary>
+        <p class="difficulty-line" data-level="${difficulty}">
+          <strong>Difficulty:</strong> ${badge}
+        </p>
         <ul>${options.map(opt => `<li>${opt}</li>`).join("")}</ul>
-        <p><strong>💡 Açıklama:</strong> ${explanation}</p>
+        <p><strong>💡 Explanation:</strong> ${explanation}</p>
         <div style="margin-top: 8px;">
-          <button onclick="editExistingQuestion(${id})">✏️ Düzenle</button>
-          <button onclick="deleteExistingQuestion(${id}, this)">🗑️ Sil</button>
+          <button onclick="editExistingQuestion(${id})">✏️ Edit</button>
+          <button onclick="deleteExistingQuestion(${id}, this)">🗑️ Delete</button>
         </div>
       `;
-      details.innerHTML = newHTML;
+      details.dataset.difficulty = difficulty;
   
       document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = false);
       document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = false);
@@ -294,7 +310,7 @@ let shouldReloadQuestions = false;
         MathJax.typesetPromise?.();
       }
     } else {
-      alert("❌ Güncelleme başarısız.");
+      alert("❌ Update failed.");
     }
   }
   
@@ -359,7 +375,7 @@ let shouldReloadQuestions = false;
         }
       });
   
-      collapseAllDetails();
+     
       showToast("✅ Soru geri alındı");
       lastDeletedQuestion = null;
       box.remove();
@@ -417,27 +433,17 @@ let shouldReloadQuestions = false;
       }
     }
   });
-  function filterByDifficulty(level) {
-    const questions = document.querySelectorAll("#modalQuestionList details");
   
-    questions.forEach(q => {
-      const badge = q.querySelector("summary .difficulty-badge");
-      const isMatch = !level || (badge && badge.classList.contains(level));
-      q.style.display = isMatch ? "" : "none";
-    });
-  
-    if (typeof updateStats === "function") updateStats();
-  
-    // 🔽 Soru listesine kaydır
-    document.getElementById("modalQuestionList")?.scrollIntoView({ behavior: "smooth" });
-  }
   
   
 
 // === Fonksiyonları global scope'a aç ===
 
-window.collapseAllDetails = collapseAllDetails;
+
 window.filterQuestions = filterQuestions;
-window.filterByDifficulty = filterByDifficulty;
-window.editExistingQuestion = editExistingQuestion;
+
+
 window.deleteExistingQuestion = deleteExistingQuestion;
+function expandAllModalDetails(open = true) {
+  document.querySelectorAll("#modalQuestionList details").forEach(d => d.open = open);
+}

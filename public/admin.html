@@ -229,7 +229,7 @@
   </div>
 
   <script src="admin.js"></script>
-  <script src="questionEditor.js"></script>
+  
   <script>
     function renderUserBox() {
   const name = localStorage.getItem("userName");
@@ -269,6 +269,227 @@
     window.history.replaceState({}, document.title, window.location.pathname);
     location.reload();
   } 
+
+
+  function filterByDifficulty(level) {
+    const questions = document.querySelectorAll("#modalQuestionList details");
+  
+    questions.forEach(q => {
+      const badge = q.querySelector("summary .difficulty-badge");
+      const isMatch = !level || (badge && badge.classList.contains(level));
+      q.style.display = isMatch ? "" : "none";
+    });
+  
+    if (typeof updateStats === "function") updateStats();
+  
+    // 🔽 Soru listesine kaydır
+    document.getElementById("modalQuestionList")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function createAutoResizingTextarea(value) {
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.width = "100%";
+  textarea.style.fontSize = "14px";
+  textarea.style.padding = "4px 6px";
+  textarea.style.lineHeight = "1.3";
+  textarea.style.border = "1px solid #ccc";
+  textarea.style.borderRadius = "6px";
+  textarea.style.resize = "none";
+  textarea.style.overflow = "hidden";
+  textarea.style.minHeight = "1px";
+
+  const adjustHeight = () => {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+  };
+
+  textarea.addEventListener("input", adjustHeight);
+
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+      if (document.body.contains(textarea)) adjustHeight();
+    });
+  }, 10);
+
+  return textarea;
+}
+
+function adminEditQuestion(id) {
+  const btn = document.querySelector(`button[onclick="adminEditQuestion(${id})"]`);
+  const details = btn?.closest("details");
+  if (!details) return;
+
+  // Tüm açık düzenleme modlarını iptal et
+  document.querySelectorAll("details").forEach(d => {
+    const original = d.dataset.originalHTML;
+    if (original) {
+      d.innerHTML = original;
+      delete d.dataset.originalHTML;
+    }
+  });
+
+  document.querySelectorAll('button[onclick^="adminEditQuestion"]').forEach(b => b.disabled = true);
+  document.querySelectorAll('button[onclick^="adminDeleteQuestion"]').forEach(b => b.disabled = true);
+
+  const summary = details.querySelector("summary");
+  const listItems = details.querySelectorAll("ul li");
+
+  // ✅ Explanation'ı doğru biçimde al
+  let explanation = "";
+const explanationP = Array.from(details.querySelectorAll("p")).find(p =>
+  p.innerText.trim().startsWith("💡 Explanation:")
+);
+if (explanationP) {
+  const strong = explanationP.querySelector("strong");
+  if (strong && explanationP.childNodes.length >= 2) {
+    explanation = explanationP.childNodes[1].textContent.trim();
+  } else {
+    explanation = explanationP.innerText.replace(/^💡 Explanation:\s*/i, "").trim();
+  }
+}
+
+  const question = summary?.innerText.replace(/^Q\d+\.\s*/, "").replace(/🟢.*|🟡.*|🔴.*/, "").trim();
+  const options = Array.from(listItems).map(li => li.innerText);
+
+  details.dataset.originalHTML = details.innerHTML;
+
+  const label = document.createElement("div");
+  label.innerHTML = `<span style="display:inline-block; background:#fcd34d; color:#78350f; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:500; margin-bottom:10px;">📝 Editing mode</span>`;
+
+  const qTextarea = createAutoResizingTextarea(question);
+  const summaryText = document.createElement("div");
+  summaryText.innerHTML = "<strong>Question:</strong>";
+  summaryText.appendChild(qTextarea);
+
+  const optionTextareas = options.map(opt => createAutoResizingTextarea(opt));
+
+  const explanationDiv = document.createElement("div");
+  explanationDiv.innerHTML = "<p><strong>💡 Explanation:</strong></p>";
+  const explanationTextarea = createAutoResizingTextarea(explanation);
+  explanationDiv.appendChild(explanationTextarea);
+
+  const difficultySelectWrapper = document.createElement("div");
+  difficultySelectWrapper.style.margin = "10px 0";
+  difficultySelectWrapper.innerHTML = `
+    <label><strong>Difficulty:</strong>
+      <select id="difficulty-${id}" style="margin-left:8px; padding:6px; border-radius:6px;">
+        <option value="">(None)</option>
+        <option value="easy">🟢 Easy</option>
+        <option value="medium">🟡 Medium</option>
+        <option value="hard">🔴 Hard</option>
+      </select>
+    </label>
+  `;
+
+  const currentDifficulty = details.dataset.difficulty || "";
+  difficultySelectWrapper.querySelector("select").value = currentDifficulty;
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "💾 Save";
+  saveBtn.style = "padding:8px 16px; margin-right:10px; background-color:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;";
+  saveBtn.onclick = () => saveExistingQuestion(id, saveBtn);
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "❌ Cancel";
+  cancelBtn.style = "padding:8px 16px; background-color:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer;";
+  cancelBtn.onclick = () => {
+    details.innerHTML = details.dataset.originalHTML || "";
+    delete details.dataset.originalHTML;
+    document.querySelectorAll('button[onclick^="adminEditQuestion"]').forEach(b => b.disabled = false);
+    document.querySelectorAll('button[onclick^="adminDeleteQuestion"]').forEach(b => b.disabled = false);
+  };
+
+  details.innerHTML = "";
+  details.appendChild(label);
+  details.appendChild(summaryText);
+  optionTextareas.forEach(t => details.appendChild(t));
+  details.appendChild(explanationDiv);
+  details.appendChild(difficultySelectWrapper);
+
+  const btnWrapper = document.createElement("div");
+  btnWrapper.style.marginTop = "10px";
+  btnWrapper.appendChild(saveBtn);
+  btnWrapper.appendChild(cancelBtn);
+  details.appendChild(btnWrapper);
+}
+async function saveExistingQuestion(id, btn) {
+  const details = btn.closest("details");
+  const textareas = details.querySelectorAll("textarea");
+
+  const question = textareas[0]?.value.trim();
+  const options = Array.from(textareas).slice(1, 5).map(t => t.value.trim());
+  const explanation = textareas[5]?.value.trim();
+  const difficulty = document.getElementById(`difficulty-${id}`)?.value || "";
+
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+
+  const res = await fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      question,
+      options,
+      explanation,
+      difficulty,
+      answer: options[0] || "A" // veya gerçek cevabın ne olduğunu biliyorsan onu kullan
+    })
+  });
+
+  if (res.ok) {
+  const badge = {
+    easy: "🟢 Easy",
+    medium: "🟡 Medium",
+    hard: "🔴 Hard"
+  }[difficulty] || "";
+
+  details.dataset.difficulty = difficulty;
+
+  const index = Array.from(document.querySelectorAll("#modalQuestionList details")).indexOf(details);
+
+  details.innerHTML = `
+    <summary>Q${index + 1}. ${question} <span class="difficulty-badge ${difficulty}">${badge}</span></summary>
+    <ul>
+      ${options.map(opt => `<li>${opt}</li>`).join("")}
+    </ul>
+    <p><strong>✅ Answer:</strong> ${options[0]}</p>
+    <p><strong>💡 Explanation:</strong> ${explanation}</p>
+    <div style="margin-top: 8px;">
+      <button onclick="adminEditQuestion(${id})">✏️ Edit</button>
+      <button onclick="adminDeleteQuestion(${id}, this)">🗑️ Delete</button>
+    </div>
+  `;
+
+  document.querySelectorAll('button[onclick^="adminEditQuestion"]').forEach(b => b.disabled = false);
+  document.querySelectorAll('button[onclick^="adminDeleteQuestion"]').forEach(b => b.disabled = false);
+
+  alert("✅ Question updated.");
+  renumberQuestions();
+}
+}
+
+  
+
+function collapseAllDetails() {
+    document.querySelectorAll("#modalQuestionList details").forEach(d => d.open = false);
+    document.getElementById("modalQuestionList")?.scrollIntoView({ behavior: "smooth" });
+  }
+  
+
+  function renumberQuestions() {
+  const questions = document.querySelectorAll("#modalQuestionList details");
+  questions.forEach((q, i) => {
+    const summary = q.querySelector("summary");
+    if (summary) {
+      summary.innerHTML = summary.innerHTML.replace(/^Q\d+\./, `Q${i + 1}.`);
+    }
+  });
+}
+  
   </script>
   <div id="modalContainer" style="display:none; position:fixed; top:30%; left:50%; transform:translate(-50%, -30%); background:white; padding:20px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000;">
     <label id="modalLabel" for="modalSelect">Select an item:</label>

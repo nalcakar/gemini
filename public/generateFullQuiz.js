@@ -34,13 +34,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-
+function expandAllDetails(open = true) {
+  document.querySelectorAll(".quiz-preview").forEach(d => d.open = open);
+}
 
 async function generateFullQuiz() {
+  // 🎯 Önceki görünüm temizlenir
+  const output = document.getElementById("quizOutput");
+  if (output) output.innerHTML = "";
+
+  const saveBox = document.getElementById("saveQuizSection");
+  if (saveBox) {
+    saveBox.style.display = "none";
+    saveBox.style.opacity = "0";
+    saveBox.dataset.loaded = "";
+  }
+
   let extractedText = getCurrentSectionText();
   const lastSection = localStorage.getItem("lastSection");
 
-  // Kısa metin (örneğin "Hamlet") sadece "topic" modunda kabul edilir
   if (!extractedText || (lastSection !== "topic" && extractedText.trim().length < 10)) {
     alert("⚠️ Please paste or upload some text first.");
     return;
@@ -55,18 +67,17 @@ async function generateFullQuiz() {
     const userEmail = localStorage.getItem("userEmail") || "";
     const isLoggedIn = !!accessToken;
 
-    // 🌍 Kullanıcının seçtiği dil (yoksa boş)
     const selectedLang = document.getElementById("languageSelect")?.value || "";
     const topicFocus = document.getElementById("topicFocus")?.value.trim() || "";
     const difficulty = document.getElementById("difficultySelect")?.value || "";
 
-    localStorage.setItem("questionLangPref", selectedLang); // Hatırla
+    localStorage.setItem("questionLangPref", selectedLang);
 
     const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`
+        Authorization: `Bearer ${accessToken}`
       },
       body: JSON.stringify({
         mycontent: extractedText,
@@ -74,7 +85,6 @@ async function generateFullQuiz() {
         userFocus: topicFocus,
         difficulty
       }),
-      
     });
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -111,38 +121,59 @@ async function generateFullQuiz() {
           question,
           options,
           answer: answerMatch ? answerMatch[1].trim() : "",
-          explanation: explanationMatch ? explanationMatch[1].trim() : ""
+          explanation: explanationMatch ? explanationMatch[1].trim() : "",
+          difficulty: difficulty || "medium"
         };
       });
 
-    const output = document.getElementById("quizOutput");
     output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
 
-    parsedQuestions.forEach((q, i) => {
-      const div = document.createElement("div");
-      const difficultyIcon = q.difficulty === "easy" ? "🟢 Easy"
-                    : q.difficulty === "hard" ? "🔴 Hard"
-                    : "🟡 Medium";
-      div.className = "quiz-preview";
-      div.dataset.index = i;
+    const createControls = () => {
+      const box = document.createElement("div");
+      box.style = "margin: 10px 0; text-align: center;";
+      box.innerHTML = `
+        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Tümünü Seç</button>
+        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Seçimleri Temizle</button>
+        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Hepsini Göster</button>
+        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Tümünü Kapat</button>
+      `;
+      return box;
+    };
 
-      div.innerHTML = `
-        <b>Q${i + 1}.</b> <span class="q" data-key="question">${q.question}</span>
-        <p><strong>Difficulty:</strong> ${difficultyIcon}</p>
+    output.appendChild(createControls());
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise();
+    }
+    parsedQuestions.forEach((q, i) => {
+      const details = document.createElement("details");
+      details.className = "quiz-preview";
+      details.style.maxWidth = "700px";
+      details.style.margin = "15px auto";
+      details.dataset.index = i;
+      details.dataset.difficulty = q.difficulty;
+
+      const badge = q.difficulty === "easy" ? "🟢 Easy"
+                  : q.difficulty === "hard" ? "🔴 Hard"
+                  : "🟡 Medium";
+
+      details.innerHTML = `
+        <summary><b>Q${i + 1}.</b> ${q.question}</summary>
         <ul>${q.options.map((opt, j) =>
           `<li class="q" data-key="option${j + 1}">${opt}</li>`).join("")}</ul>
         <p><strong>✅ Answer:</strong> <span class="q" data-key="answer">${q.answer}</span></p>
         <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation">${q.explanation}</span></p>
+        <p><strong>Difficulty:</strong> ${badge}</p>
         ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : ""}
         <div style="margin-top: 8px;">
           <button onclick="editQuestion(this)">✏️ Düzenle</button>
           <button onclick="deleteQuestion(this)">🗑️ Sil</button>
         </div>
       `;
-      output.appendChild(div);
+      output.appendChild(details);
     });
 
-    const saveBox = document.getElementById("saveQuizSection");
+    output.appendChild(createControls());
+
     if (saveBox && isLoggedIn) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
@@ -173,13 +204,47 @@ async function generateFullQuiz() {
   }
 }
 
-
   
   // Düzenle: soruları input haline getir
   window.editQuestion = function (btn) {
-    const block = btn.closest(".quiz-preview");
+    const block = btn.closest("details");
     const elements = block.querySelectorAll(".q");
   
+    // 🔍 Difficulty çözümle
+    let difficulty = "medium";
+    const diffText = block.querySelector("p strong")?.nextSibling?.textContent?.toLowerCase() || "";
+    if (diffText.includes("easy")) difficulty = "easy";
+    else if (diffText.includes("hard")) difficulty = "hard";
+  
+    // 📝 Qx. Soru metnini yakala
+    const summary = block.querySelector("summary");
+    const summaryMatch = summary?.innerText.match(/^Q\d+\.\s*(.+)/);
+    const questionText = summaryMatch ? summaryMatch[1] : "";
+    const textareaQ = document.createElement("textarea");
+    textareaQ.value = questionText;
+    textareaQ.className = "q-edit";
+    textareaQ.dataset.key = "question";
+    textareaQ.style = `
+      width: 100%;
+      min-height: 28px;
+      font-size: 15px;
+      margin-bottom: 6px;
+      padding: 2px 4px;
+      resize: none;
+      overflow: hidden;
+      line-height: 1.4;
+    `;
+    summary.innerHTML = `Q${block.dataset.index * 1 + 1}. `;
+    summary.appendChild(textareaQ);
+  
+    const autoResize = () => {
+      textareaQ.style.height = "auto";
+      textareaQ.style.height = textareaQ.scrollHeight + "px";
+    };
+    textareaQ.addEventListener("input", autoResize);
+    autoResize();
+  
+    // Diğer alanları textarea'ya çevir
     elements.forEach(el => {
       const val = el.innerText;
       const input = document.createElement("textarea");
@@ -197,52 +262,114 @@ async function generateFullQuiz() {
         line-height: 1.4;
       `;
   
-      const autoResize = () => {
+      input.addEventListener("input", () => {
         input.style.height = "auto";
         input.style.height = input.scrollHeight + "px";
-      };
+      });
+      input.dispatchEvent(new Event("input"));
   
-      input.addEventListener("input", autoResize);
-      autoResize();
       el.replaceWith(input);
     });
+  
+    // 🎯 Dropdown olarak difficulty seçimi
+    const select = document.createElement("select");
+    select.className = "q-difficulty";
+    select.style = "margin: 6px 0; padding: 4px 8px; border-radius: 6px; font-size: 14px;";
+    ["easy", "medium", "hard"].forEach(level => {
+      const opt = document.createElement("option");
+      opt.value = level;
+      opt.textContent = {
+        easy: "🟢 Easy",
+        medium: "🟡 Medium",
+        hard: "🔴 Hard"
+      }[level];
+      if (level === difficulty) opt.selected = true;
+      select.appendChild(opt);
+    });
+  
+    // 🔻 Açıklamanın altına yerleştir
+    const explanationInput = block.querySelector("textarea[data-key='explanation']");
+    if (explanationInput) {
+      explanationInput.insertAdjacentElement("afterend", select);
+    } else {
+      block.appendChild(select);
+    }
   
     btn.textContent = "✅ Güncelle";
     btn.onclick = () => saveQuestionEdits(block);
   };
   
-  // Güncelle: textarea'yı geri yaz
+  
+  
   function saveQuestionEdits(block) {
     const edits = block.querySelectorAll(".q-edit");
-    block.innerHTML = "";
-    let html = `<b>Q${block.dataset.index * 1 + 1}.</b> `;
+    const selectedDiff = block.querySelector(".q-difficulty")?.value || "medium";
   
-    edits.forEach((input, i) => {
+    // 🟢 Yeni <details> yapısı oluştur
+    const details = document.createElement("details");
+    details.className = "quiz-preview";
+    details.style.maxWidth = "700px";
+    details.style.margin = "15px auto";
+    details.dataset.index = block.dataset.index;
+    details.dataset.difficulty = selectedDiff;
+  
+    const difficultyIcon = selectedDiff === "easy" ? "🟢 Easy"
+                         : selectedDiff === "hard" ? "🔴 Hard"
+                         : "🟡 Medium";
+  
+    let questionText = "";
+    let answerHTML = "";
+    let explanationHTML = "";
+    let optionsHTML = "";
+  
+    edits.forEach(input => {
       const key = input.dataset.key;
-      const span = `<span class="q" data-key="${key}">${input.value.trim()}</span>`;
-      if (key.startsWith("option")) {
-        if (i === 1) html += `<ul>`;
-        html += `<li class="q" data-key="${key}">${input.value.trim()}</li>`;
-        if (i === 4) html += `</ul>`;
-      } else if (key === "question") {
-        html += span;
+      const val = input.value.trim();
+  
+      if (key === "question") {
+        questionText = val;
       } else if (key === "answer") {
-        html += `<p><strong>✅ Answer:</strong> ${span}</p>`;
+        answerHTML = `<p><strong>✅ Answer:</strong> <span class="q" data-key="answer">${val}</span></p>`;
       } else if (key === "explanation") {
-        html += `<p><strong>💡 Explanation:</strong> ${span}</p>`;
+        explanationHTML = `<p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation">${val}</span></p>`;
+      } else if (key.startsWith("option")) {
+        if (!optionsHTML) optionsHTML += "<ul>";
+        optionsHTML += `<li class="q" data-key="${key}">${val}</li>`;
       }
     });
+    if (optionsHTML) optionsHTML += "</ul>";
   
-    const userEmail = localStorage.getItem("userEmail");
-    if (userEmail) html += `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>`;
+    const summaryHTML = `<summary><b>Q${parseInt(details.dataset.index) + 1}.</b> ${questionText}</summary>`;
   
-    html += `
+    const difficultyHTML = `<p><strong>Difficulty:</strong> ${difficultyIcon}</p>`;
+    const checkboxHTML = localStorage.getItem("userEmail")
+      ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : "";
+  
+    const buttonsHTML = `
       <div style="margin-top: 8px;">
         <button onclick="editQuestion(this)">✏️ Düzenle</button>
         <button onclick="deleteQuestion(this)">🗑️ Sil</button>
-      </div>`;
-    block.innerHTML = html;
+      </div>
+    `;
+  
+    details.innerHTML = `
+      ${summaryHTML}
+      ${optionsHTML}
+      ${answerHTML}
+      ${explanationHTML}
+      ${difficultyHTML}
+      ${checkboxHTML}
+      ${buttonsHTML}
+    `;
+  
+    // Eski bloğun yerine yenisini koy
+    block.replaceWith(details);
+    // ✅ MathJax ile yeniden render et
+if (window.MathJax && window.MathJax.typesetPromise) {
+  window.MathJax.typesetPromise();
   }
+}
+  
   
   window.deleteQuestion = function (btn) {
     const block = btn.closest(".quiz-preview");
@@ -259,7 +386,6 @@ async function generateFullQuiz() {
     const email = localStorage.getItem("userEmail");
     if (!token || !email) return alert("❌ Lütfen giriş yapın.");
   
-    // Yeni sistem: dropdown + optional yeni input
     let title = "";
     const dropdown = document.getElementById("titleDropdown");
     const input = document.getElementById("newTitleInput");
@@ -296,11 +422,19 @@ async function generateFullQuiz() {
           }
         });
   
-        // Varsayılanları ekle
+        // ✅ Difficulty değerini DOM'dan doğru al
+        const diffText = block.querySelector("p")?.innerText?.toLowerCase() || "";
+        if (diffText.includes("easy")) {
+          q.difficulty = "easy";
+        } else if (diffText.includes("hard")) {
+          q.difficulty = "hard";
+        } else {
+          q.difficulty = "medium";
+        }
+  
         q.options = q.options || [];
         q.answer = q.answer || "placeholder";
         q.explanation = q.explanation || "";
-        q.difficulty = q.difficulty || "medium";
   
         questions.push(q);
       }
@@ -338,6 +472,7 @@ async function generateFullQuiz() {
       alert("❌ Sunucuya bağlanılamadı.");
     }
   }
+  
   
   
   
@@ -615,46 +750,50 @@ async function generateFullQuiz() {
   
         data.questions.forEach((q, i) => {
           const block = document.createElement("details");
+block.open = false; // ✅ Açık gelmesin
+block.dataset.difficulty = (q.difficulty || "medium").toLowerCase();
+
   
-          // 🎨 Zorluk rozeti
           let badge = "";
           if (q.difficulty === "easy") {
-            badge = `<span style="background:#d1fae5;color:#065f46;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟢 Kolay</span>`;
-          }
-          if (q.difficulty === "medium") {
-            badge = `<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🟡 Orta</span>`;
-          }
-          if (q.difficulty === "hard") {
-            badge = `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px;">🔴 Zor</span>`;
+            badge = `🟢 Easy`;
+          } else if (q.difficulty === "medium") {
+            badge = `🟡 Medium`;
+          } else if (q.difficulty === "hard") {
+            badge = `🔴 Hard`;
           }
   
           block.innerHTML = `
-            <summary>Q${i + 1}. ${q.question} ${badge}</summary>
-            <ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>
-            <p><strong>💡 Açıklama:</strong> ${q.explanation}</p>
-            <div style="margin-top: 8px;">
-              <button onclick="editExistingQuestion(${q.id})">✏️ Düzenle</button>
-              <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Sil</button>
-            </div>
-          `;
+          <summary>Q${i + 1}. ${q.question}</summary>
+          <ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>
+          <p><strong>💡 Açıklama:</strong> ${q.explanation}</p>
+          <p class="difficulty-line" data-level="${q.difficulty}">
+            <strong>Difficulty:</strong> ${badge}
+          </p>
+          <div style="margin-top: 8px;">
+            <button onclick="editExistingQuestion(${q.id})">✏️ Edit</button>
+            <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Delete</button>
+          </div>
+        `;
+        
           container.appendChild(block);
         });
   
         currentTitle = titleName;
         shouldReloadQuestions = false;
   
-        if (window.MathJax) {
-          MathJax.typesetPromise?.();
-        }
-  
+        if (window.MathJax) MathJax.typesetPromise?.();
         updateStats?.();
+        filterByDifficulty('');
       })
       .catch(err => {
         container.innerHTML = "<p style='color:red;'>❌ Sorular alınamadı.</p>";
         console.error("get-questions error:", err);
       });
   }
-    
+  
+  
+  
 
   let suggestTimeout;
 
@@ -725,3 +864,21 @@ document.addEventListener("click", function (e) {
   }
 });
 
+function filterByDifficulty(level) {
+  const questions = document.querySelectorAll("#modalQuestionList details");
+
+  questions.forEach(item => {
+    const difficulty = (item.dataset.difficulty || "").toLowerCase();
+    const match = !level || difficulty === level;
+    item.style.display = match ? "block" : "none";
+    item.open = match;
+  });
+
+  if (typeof updateStats === "function") updateStats();
+  document.getElementById("modalQuestionList")?.scrollIntoView({ behavior: "smooth" });
+}
+
+
+function selectAllQuestions(state = true) {
+  document.querySelectorAll(".qcheck").forEach(cb => cb.checked = state);
+}
