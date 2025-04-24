@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Quiz Generator</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9fafb;
+      padding: 40px 20px;
+    }
+    h1 { text-align: center; margin-bottom: 30px; color: #111827; }
+
+    .section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  max-width: 1000px;
+  margin: auto;
+}
+.card {
+  background: white;
+  padding: 24px 10px;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100px;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+.card span {
+  font-size: 30px;
+  margin-bottom: 6px;
+}
+@media (max-width: 600px) {
+  .card {
+    font-size: 14px;
+    padding: 18px 8px;
+  }
+  .card span {
+    font-size: 24px;
+  }
+}
+
+    #section-content {
+      max-width: 900px;
+      margin: 40px auto 0;
+      background: #fff;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      font-size: 16px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+      resize: vertical;
+      margin-top: 10px;
+    }
+
+    button.generate-btn {
+      margin-top: 20px;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #06b6d4, #0ea5e9);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.4);
+      transition: transform 0.2s ease, box-shadow 0.3s ease;
+    }
+
+    button.generate-btn:hover {
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.6);
+      transform: translateY(-2px);
+    }
+
+    button.generate-btn:active {
+      transform: scale(0.97);
+      box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+    }
+
+    .quiz-preview {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f3f4f6;
+      border-radius: 8px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #user-box {
+      display: flex;
+      justify-content: flex-end;
+      margin: 10px 0;
+      padding-right: 10px;
+    }
+
+    .user-box-inner {
+      background: #f3f4f6;
+      padding: 6px 10px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .user-name { font-weight: 500; color: #111827; }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge.free {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .badge.pro {
+      background: #dbeafe;
+      color: #1e3a8a;
+    }
+
+    .logout-btn, .login-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .login-btn {
+      background: linear-gradient(to right, #06b6d4, #0ea5e9);
+    }
+
+    .logout-btn:hover, .login-btn:hover { opacity: 0.9; }
+
+    @keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.quiz-preview {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .quiz-preview ul {
+    padding-left: 20px;
+  }
+
+
+
+.modal {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  max-width: 95vw;
+  height: 100%;
+  background: #fff;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #e5e7eb;
+}
+
+.modal.show {
+  transform: translateX(0);
+}
+
+.modal-header {
+  padding: 12px 16px;
+  background: #f3f4f6;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 16px;
+  flex: 1;
+}
+
+details {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #f9fafb;
+}
+
+details summary {
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .modal {
+    width: 100%;
+  }
+
+  #openModalBtn {
+    bottom: 10px;
+    right: 10px;
+    font-size: 14px;
+  }
+}
+
+
+
+
+#fixedQuestionsToggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: #3b82f6;
+  color: white;
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  cursor: pointer;
+  z-index: 9998;
+  transition: background 0.3s ease;
+}
+
+#fixedQuestionsToggle:hover {
+  background: #2563eb;
+}
+
+#fixedQuestionsToggle.show {
+  display: flex !important;
+}
+
+.modal-body textarea {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeout {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(10px); }
+}
+.focus-suggestion {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+.focus-suggestion:hover {
+  background: #bae6fd;
+}
+
+.focus-suggestion.selected {
+  background: #0284c7;
+  color: white;
+}
+
+.quiz-preview {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin: 15px auto;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  max-width: 700px;  /* 💡 Eklendi */
+}
+@media (max-width: 768px) {
+  .quiz-preview {
+    max-width: 95%;
+    margin: 12px auto;
+  }
+}
+
+  </style>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+</head>
+<body>
+
+<h1>AI Quiz Generator1704-1036</h1>
+<div id="user-box"></div>
+
+
+<div class="section-grid">
+  <div class="card" onclick="showSection('document')"><span>📑</span>PDF</div>
+  <div class="card" onclick="showSection('text')"><span>✏️</span>Text</div>
+  <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
+  <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Audio</div>
+  <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
+</div>
+
+<!-- 🟩 Sekme içeriği -->
+<div id="section-content" style="margin-top: 20px;"></div>
+
+<!-- 🟨 Generate button sabit olarak alt tarafta -->
+<div style="text-align: center; margin-top: 20px;">
+  <div style="text-align:center; margin-top: 20px;">
+    <label><strong>🌍 Question Language:</strong></label>
+    <select id="languageSelect" style="padding: 8px; margin-left: 8px; border-radius: 6px;">
+      <option value="">🌐 Auto Detect</option>
+      <option value="İngilizce">English</option>
+      <option value="Türkçe">Türkçe</option>
+      <option value="İspanyolca">Español</option>
+      <option value="Fransızca">Français</option>
+      <option value="Almanca">Deutsch</option>
+      <option value="İtalyanca">Italiano</option>
+      <option value="Portekizce">Português</option>
+      <option value="Rusça">Русский</option>
+      <option value="Arapça">العربية</option>
+      <option value="Çince">中文</option>
+      <option value="Japonca">日本語</option>
+      <option value="Korece">한국어</option>
+      <option value="Flemenkçe">Nederlands</option>
+      <option value="Lehçe">Polski</option>
+      <option value="Hintçe">हिंदी</option>
+      <option value="Bengalce">বাংলা</option>
+      <option value="Vietnamca">Tiếng Việt</option>
+      <option value="Tayca">ภาษาไทย</option>
+      <option value="Romence">Română</option>
+      <option value="Ukraynaca">Українська</option>
+    </select>
+  </div>
+  <div style="margin-top: 14px;">
+    <label><strong>🧩 Difficulty:</strong></label>
+    <select id="difficultySelect" style="padding: 8px; margin-left: 8px; border-radius: 6px;">
+      <option value="">🤖 Let AI decide</option>
+      <option value="easy">🟢 Easy</option>
+      <option value="medium" selected>🟡 Medium</option>
+      <option value="hard">🔴 Hard</option>
+    </select>
+  </div>
+  
+  <button id="generateQuizButton" onclick="generateFullQuiz()" class="generate-btn">
+    Generate Multiple Choice Questions
+  </button>
+</div>
+
+<!-- Soruların çıktısı -->
+<div id="quizOutput" style="margin-top: 20px;"></div>
+
+<div id="saveQuizSection" style="text-align:center; margin-top: 30px; display:none;">
+  <!-- Title and Category Selection -->
+  <select id="mainTopicSelect" style="padding:8px; margin:5px;"></select>
+  <select id="categorySelect" style="padding:8px; margin:5px;"></select>
+  <br/>
+
+  <!-- Title Input -->
+  <div style="margin:10px 0;">
+    <label><strong>📘 Title:</strong></label>
+    <select id="titleDropdown" list="titleSuggestions" style="padding:8px; margin-left:8px; border-radius:6px;">
+      <option value="">-- Select Title --</option>
+      <option value="__new__">➕ Add New Title</option>
+    </select>
+    <datalist id="titleSuggestions"></datalist>
+  </div>
+  
+  <!-- Yeni başlık girilmesi gereken input -->
+  <input id="newTitleInput" type="text" placeholder="Enter new title..." 
+         style="display:none; padding: 10px; width: 300px; border-radius:8px; margin: 10px 0;" />
+  <br/>
+
+  <!-- Save Button -->
+  <button onclick="saveSelectedQuestions()" 
+          style="padding:10px 20px; font-size:16px; border-radius:8px;">
+    💾 Save Selected Questions
+  </button>
+
+  <!-- View Existing Questions Button -->
+  <div id="viewQuestionsWrapper" style="display:none; margin-top: 10px;">
+    <button onclick="openModal()" 
+            style="padding:8px 16px; border-radius:8px; background:#f3f4f6; border:1px solid #ccc;">
+      📂 View Existing Questions
+    </button>
+  </div>
+</div>
+<!-- Floating Mobile Icon - Kayıtlı Sorular -->
+
+
+</div>
+<script src="audioUploader.js"></script>
+<script src="fileReader.js"></script>       <!-- for PDF, DOCX, TXT -->
+<script src="textListener.js"></script>     <!-- for manual input -->
+<script src="imageReader.js"></script>
+<script src="generateFullQuiz.js"></script>
+<script src="questionEditor.js"></script>
+
+<script>
+
+
+function renderUserBox() {
+  const name = localStorage.getItem("userName");
+  const membership = localStorage.getItem("membershipType") || "Free";
+  const accessToken = localStorage.getItem("accessToken");
+
+  const container = document.getElementById("user-box");
+
+  const currentPage = encodeURIComponent(window.location.href);
+  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  container.innerHTML = accessToken && name
+    ? `<div class="user-box-inner">
+        <span class="user-name">${name}</span>
+        <span class="badge ${membership.toLowerCase()}">${membership}</span>
+        <button class="logout-btn">Logout</button>
+      </div>`
+    : `<div class="user-box-inner">
+        <a class="login-btn" href="${loginUrl}">Login with Patreon</a>
+       
+      </div>`;
+
+  const logoutBtn = document.querySelector(".logout-btn");
+  if (logoutBtn) logoutBtn.onclick = () => {
+    localStorage.clear();
+    location.reload();
+  };
+}
+
+
+window.showSection = function(type) {
+  localStorage.setItem("lastSection", type);
+  const content = document.getElementById('section-content');
+  const isProUser = localStorage.getItem("membershipType") === "Pro";
+  let html = "";
+
+  const lockedOverlay = (msg = "Pro only") => `
+    <div style="
+      position:absolute;
+      top:0; left:0; right:0; bottom:0;
+      background:rgba(255,255,255,0.85);
+      backdrop-filter: blur(2px);
+      display:flex;
+      flex-direction: column;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      font-weight:500;
+      color:#b91c1c;
+      text-align:center;
+      border-radius:8px;
+      padding: 10px;
+    ">
+      🔒 ${msg}<br>
+      <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
+         style="margin-top:8px; background:#1e40af; color:white; padding:6px 14px; border-radius:8px;
+                text-decoration:none; font-size:13px;">
+        🌟 Upgrade to Pro
+      </a>
+    </div>`;
+
+  switch(type) {
+    case 'document':
+      html = `
+        <h2><i class="fas fa-file-alt" style="color:#3b82f6;"></i> Upload File (.pdf, .docx, .txt)</h2>
+        <p>You can upload a document below. Extracted content will appear below.</p>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.txt" />
+        <div style="position:relative;">
+          <input type="file" id="fileInput" accept=".pdf,.docx,.txt" ${!isProUser ? "disabled" : ""} />
+          <textarea id="textOutput" placeholder="Extracted text will appear here..." style="margin-top:12px; height:160px;"></textarea>
+          ${!isProUser ? lockedOverlay("Pro required to upload") : ""}
+        </div>
+      `;
+      break;
+
+    case 'text':
+      html = `
+        <h2>✏️ Paste Your Text</h2>
+        <p>Paste your notes and click Generate Quiz.</p>
+        <textarea id="textManualInput" placeholder="Your content here..."></textarea>
+        <div id="quizOutput" class="quiz-preview"></div>
+      `;
+      break;
+
+    case 'image':
+      html = `
+        <h2>🖼️ Upload Image</h2>
+        <p>We'll extract content from the image and create a quiz.</p>
+        <input type="file" id="imageInput" accept="image/*" />
+        <textarea id="imageTextOutput" placeholder="Text from image will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+      `;
+      break;
+
+    case 'topic':
+      html = `
+        <h2>🧠 Enter a Topic</h2>
+        <input id="topicInput" type="text" placeholder="e.g. Hamlet, Photosynthesis, World War II"
+               style="padding: 12px; width: 100%; border-radius: 10px; font-size: 16px; border: 1px solid #ddd;" />
+
+        <div style="margin-top: 10px;">
+          <label for="topicFocus"><strong>🔍 Want to focus on something specific?</strong> (optional)</label><br />
+          <input id="topicFocus" type="text" placeholder="e.g. main characters, key impacts, experiments"
+                 style="padding: 10px; width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid #ccc;" />
+        </div>
+
+        <div id="focusSuggestions" style="margin-top: 12px;">
+          <button id="clearFocusButton"
+  style="margin-top: 10px; background: #f87171; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+  🧹 Clear All
+</button>
+
+          <strong>🧭 Suggestions:</strong>
+          <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+
+        <div style="font-size: 14px; color: #555; margin-top: 10px;">
+          💡 Tip: Try short topics like “Electricity”, “Photosynthesis”, “Shakespeare”<br/>
+          You can narrow it down: “Photosynthesis — role in ecosystems”
+        </div>
+      `;
+      break;
+  }
+
+  content.innerHTML = html;
+  content.style.display = "block";
+  window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
+
+  // ✅ 🌍 Dil tercihini localStorage'dan tekrar dropdown'a uygula
+  const savedLang = localStorage.getItem("questionLangPref");
+  const langSelect = document.getElementById("languageSelect");
+  if (savedLang && langSelect) {
+    langSelect.value = savedLang;
+  }
+};
+
+
+  function generateQuiz() {
+    const input = document.getElementById("textInput")?.value || "";
+    const output = document.getElementById("quizOutput");
+    if (!input.trim()) {
+      output.innerHTML = "<p style='color:red;'>Please enter some text.</p>";
+      return;
+    }
+    output.innerHTML = "<b>✅ Quiz Preview:</b><br>⏳ AI is processing your text...";
+  }
+
+  // === AUTH + AUTO TAB RENDER ===
+  document.addEventListener("DOMContentLoaded", () => {
+    
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("accessToken")) {
+      localStorage.setItem("accessToken", params.get("accessToken"));
+      localStorage.setItem("userEmail", params.get("userEmail"));
+      localStorage.setItem("userName", params.get("userName"));
+      localStorage.setItem("membershipType", params.get("membershipType") || "Free");
+
+      const last = localStorage.getItem("lastSection");
+      if (last && typeof window.showSection === "function") {
+        setTimeout(() => window.showSection(last), 100);
+      }
+
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    renderUserBox();
+  });
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("accessToken")) {
+    localStorage.setItem("accessToken", params.get("accessToken"));
+    localStorage.setItem("userEmail", params.get("userEmail"));
+    localStorage.setItem("userName", params.get("userName"));
+    localStorage.setItem("membershipType", params.get("membershipType"));
+    window.history.replaceState({}, document.title, window.location.pathname);
+    location.reload();
+  }
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+</script>
+<!-- Modal Açma Butonu -->
+<!-- Modal Açma Butonu -->
+<button id="openModalBtn" onclick="openModal()" 
+  style="display: none; position:fixed; bottom:20px; right:20px; z-index:10000; padding:12px 16px; border-radius:8px; background:#4f46e5; color:white;">
+  📂 Mevcut Soruları Göster
+</button>
+
+<!-- Scrollable Modal -->
+<div id="questionModal" class="modal">
+  <div class="modal-header">
+    <h3>📚 Mevcut Sorular</h3>
+    <button onclick="closeModal()">✖</button>
+  </div>
+  <div style="padding: 8px 16px; border-bottom: 1px solid #eee;">
+    <input id="searchInput" oninput="filterQuestions()" 
+           placeholder="🔍 Soru içinde ara..." 
+           style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc;" />
+  </div>
+
+<div id="difficultyFilter" style="margin-bottom: 10px; text-align:center;">
+  <button onclick="filterByDifficulty('easy')" style="margin:4px; padding:6px 10px;">🟢 Easy</button>
+<button onclick="filterByDifficulty('medium')" style="margin:4px; padding:6px 10px;">🟡 Medium</button>
+<button onclick="filterByDifficulty('hard')" style="margin:4px; padding:6px 10px;">🔴 Hard</button>
+<button onclick="filterByDifficulty('')" style="margin:4px; padding:6px 10px;">🔁 Show All</button>
+</div>
+<div style="text-align:center; margin: 8px 0;">
+  <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Hepsini Göster</button>
+  <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Tümünü Kapat</button>
+</div>
+  <div class="modal-body" id="modalQuestionList">
+    <p style="text-align:center;">Yükleniyor...</p>
+  </div>
+  <div style="text-align:center; margin: 8px 0;">
+    <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Hepsini Göster</button>
+    <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Tümünü Kapat</button>
+  </div>
+</div>
+
+<div id="fixedQuestionsToggle" onclick="openModal()" title="Show saved questions">
+  🧾
+</div>
+
+</body>
+</html>

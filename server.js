@@ -365,7 +365,7 @@ app.post("/suggest-topic-focus", async (req, res) => {
   const prompt = `
 "${topic}" başlıklı bir konu için, ${questionLanguage} dilinde soru üretmek istiyoruz.
 
-Bu konuda odaklanılabilecek 10 kısa yön öner:
+Bu konuda eğitim öğretim alanında soru oluşturmak için odaklanılabilecek 15 kısa yön öner:
 - Her biri en fazla 4 kelime olsun.
 - ${questionLanguage} dilinde yaz.
 - Liste formatı kullan: - ...

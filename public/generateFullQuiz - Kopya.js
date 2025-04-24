@@ -39,6 +39,7 @@ function expandAllDetails(open = true) {
 }
 
 async function generateFullQuiz() {
+  // 🎯 Önceki görünüm temizlenir
   const output = document.getElementById("quizOutput");
   if (output) output.innerHTML = "";
 
@@ -125,7 +126,8 @@ async function generateFullQuiz() {
         };
       });
 
-    // 🎛️ Kontrol butonları
+    output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
+
     const createControls = () => {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
@@ -138,13 +140,8 @@ async function generateFullQuiz() {
       return box;
     };
 
-    // 🧩 Başlık + üst kontroller
-    output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
-    const topControls = createControls();
-    const bottomControls = createControls();
-    output.appendChild(topControls);
-
-    // 📝 Soruları sırayla ekle
+    
+    
     parsedQuestions.forEach((q, i) => {
       const details = document.createElement("details");
       details.className = "quiz-preview";
@@ -152,18 +149,18 @@ async function generateFullQuiz() {
       details.style.margin = "15px auto";
       details.dataset.index = i;
       details.dataset.difficulty = q.difficulty;
-
+    
       const badge = q.difficulty === "easy" ? "🟢 Easy"
                   : q.difficulty === "hard" ? "🔴 Hard"
                   : "🟡 Medium";
-
+    
       const questionHTML = `<span class="q" data-key="question" data-latex="${q.question.replace(/"/g, '&quot;')}">${q.question}</span>`;
       const optionsHTML = q.options.map((opt, j) =>
         `<li class="q" data-key="option${j + 1}" data-latex="${opt.replace(/"/g, '&quot;')}">${opt}</li>`
       ).join("");
       const answerHTML = `<span class="q" data-key="answer" data-latex="${q.answer.replace(/"/g, '&quot;')}">${q.answer}</span>`;
       const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
-
+    
       details.innerHTML = `
         <summary><b>Q${i + 1}.</b> ${questionHTML}</summary>
         <ul>${optionsHTML}</ul>
@@ -176,19 +173,20 @@ async function generateFullQuiz() {
           <button onclick="deleteQuestion(this)">🗑️ Sil</button>
         </div>
       `;
-
+    
       output.appendChild(details);
     });
-
-    // ⬇️ Alt kontroller
-    output.appendChild(bottomControls);
-
-    // 🔢 MathJax tekrar render
+    
+    output.appendChild(createControls());
+    
     if (window.MathJax && window.MathJax.typesetPromise) {
       window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
     }
 
-    // 💾 Kaydetme alanı
+    output.appendChild(createControls());
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise();
+    }
     if (saveBox && isLoggedIn) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
@@ -219,8 +217,6 @@ async function generateFullQuiz() {
   }
 }
 
-
-
   
   // Düzenle: soruları input haline getir
   // Eklenmiş MathJax güncellemesi ile tam editQuestion ve saveQuestionEdits fonksiyonları
@@ -234,53 +230,85 @@ window.editQuestion = function (btn) {
   const summary = block.querySelector("summary");
   const questionSpan = summary.querySelector(".q[data-key='question']");
   const questionText = questionSpan?.dataset.latex || summary.textContent.replace(/^Q\d+\.\s*/, "").trim();
+
+  // Soru metni görünür kalsın
   questionSpan.style.fontWeight = "bold";
 
-  // ✅ Auto-resize helper
-  const enableAutoResize = (textarea) => {
+  // 🎯 Auto-resize + MathJax + canlı yansıtma helper
+  const enableAutoUpdate = (textarea, targetEl) => {
     const resize = () => {
       textarea.style.height = "auto";
       textarea.style.height = textarea.scrollHeight + "px";
     };
-    textarea.addEventListener("input", resize);
-    requestAnimationFrame(() => resize());
+
+    const applyResize = () => {
+      if (document.body.contains(textarea)) {
+        resize();
+      }
+    };
+
+    textarea.addEventListener("input", () => {
+      const val = textarea.value.trim();
+      if (targetEl) {
+        targetEl.textContent = val;
+        targetEl.dataset.latex = val;
+
+        if (window.MathJax && window.MathJax.typesetPromise) {
+          MathJax.typesetPromise([targetEl]).then(applyResize).catch(console.error);
+        } else {
+          applyResize();
+        }
+      } else {
+        applyResize();
+      }
+    });
+
+    // ✨ İlk açılışta MathJax render sonrası yüksekliği ayarla
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([targetEl])
+        .then(applyResize)
+        .catch(console.error);
+    } else {
+      requestAnimationFrame(() => {
+        setTimeout(applyResize, 20);
+        setTimeout(applyResize, 100);
+      });
+    }
   };
 
-  // ✅ Soru textarea (tek satır başlar, içerik artınca büyür)
+  // ✅ Soru textarea
   const qTextarea = document.createElement("textarea");
   qTextarea.value = questionText;
   qTextarea.className = "q-edit";
   qTextarea.dataset.key = "question";
   qTextarea.style.cssText = `
     width: 100%; margin-top: 8px; padding: 8px; font-size: 15px;
-    border-radius: 6px; overflow: hidden; resize: none; line-height: 1.1;
-    height: 1.1em; min-height: 1.1em;
+    border-radius: 6px; overflow: hidden; resize: none; line-height: 1.4;
   `;
   summary.insertAdjacentElement("afterend", qTextarea);
-  enableAutoResize(qTextarea);
+  enableAutoUpdate(qTextarea, questionSpan);
 
-  // ✅ Şıklar, cevap, açıklama alanları
+  // ✅ Diğer alanlar (şıklar, cevap, açıklama)
   const elements = block.querySelectorAll(".q, li[data-key]");
   elements.forEach(el => {
     const key = el.dataset.key;
     if (key === "question") return;
-    const val = el.dataset.latex || el.textContent.trim();
 
+    const value = el.dataset.latex || el.textContent.trim();
     const textarea = document.createElement("textarea");
-    textarea.value = val;
+    textarea.value = value;
     textarea.className = "q-edit";
     textarea.dataset.key = key;
     textarea.style.cssText = `
       width: 100%; margin-top: 6px; padding: 6px;
       font-size: 14px; border-radius: 6px; overflow: hidden;
-      resize: none; line-height: 1.1;
-      height: 1.1em; min-height: 1.1em;
+      resize: none; line-height: 1.4;
     `;
     el.insertAdjacentElement("afterend", textarea);
-    enableAutoResize(textarea);
+    enableAutoUpdate(textarea, el);
   });
 
-  // ✅ Zorluk seviyesi dropdown
+  // ✅ Zorluk seviyesi seçici
   let difficulty = "medium";
   const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
   if (diffText.includes("easy")) difficulty = "easy";
@@ -305,15 +333,15 @@ window.editQuestion = function (btn) {
   if (diffLine) diffLine.insertAdjacentElement("afterend", select);
   else block.appendChild(select);
 
-  // ✅ Butonu güncelle
+  // ✅ Buton güncelle
   btn.textContent = "✅ Güncelle";
   btn.onclick = () => saveQuestionEdits(block);
 
+  // MathJax genel tekrar (gerekirse)
   if (window.MathJax && window.MathJax.typesetPromise) {
     window.MathJax.typesetPromise().catch(console.error);
   }
 };
-
 
 
 

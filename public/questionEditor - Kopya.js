@@ -191,7 +191,7 @@ let shouldReloadQuestions = false;
     qTextarea.dataset.key = "question";
     qTextarea.style.cssText = `
       width: 100%; margin-top: 8px; padding: 8px; font-size: 15px;
-      border-radius: 6px; overflow: hidden; resize: none; line-height: 1.1; height: 1.1em; min-height: 1.1em;
+      border-radius: 6px; overflow: hidden; resize: none; line-height: 1.4;
     `;
     summary.insertAdjacentElement("afterend", qTextarea);
     enableAutoUpdate(qTextarea, questionSpan);
@@ -207,7 +207,7 @@ let shouldReloadQuestions = false;
         textarea.value = val;
         textarea.style.cssText = `
           width: 100%; margin-top: 6px; padding: 6px;
-          font-size: 14px; border-radius: 6px; resize: none; line-height: 1.1; height: 1.1em; min-height: 1.1em;
+          font-size: 14px; border-radius: 6px; resize: none; line-height: 1.4;
         `;
         li.insertAdjacentElement("afterend", textarea);
         enableAutoUpdate(textarea, li);
@@ -224,7 +224,7 @@ let shouldReloadQuestions = false;
       textarea.value = val;
       textarea.style.cssText = `
         width: 100%; margin-top: 6px; padding: 6px;
-        font-size: 14px; border-radius: 6px; resize: none; line-height: 1.4; height: 1.1em; min-height: 1.1em;
+        font-size: 14px; border-radius: 6px; resize: none; line-height: 1.4;
       `;
       expSpan.insertAdjacentElement("afterend", textarea);
       enableAutoUpdate(textarea, expSpan);
