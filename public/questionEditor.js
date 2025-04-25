@@ -143,12 +143,8 @@ let shouldReloadQuestions = false;
   window.editExistingQuestion = function (id) {
     const btn = document.querySelector(`button[onclick="editExistingQuestion(${id})"]`);
     const block = btn?.closest("details");
-    if (!block || block.querySelector("textarea")) return;
-  
-    // 🧠 Save original state
-    if (!block.dataset.originalHTML) {
-      block.dataset.originalHTML = block.innerHTML;
-    }
+    if (!block) return;
+    if (block.querySelector("textarea")) return;
   
     const summary = block.querySelector("summary");
     let questionSpan = summary.querySelector(".q[data-key='question']");
@@ -169,55 +165,72 @@ let shouldReloadQuestions = false;
       summary.appendChild(questionSpan);
     }
   
-    const createTextarea = (val, key) => {
-      const textarea = document.createElement("textarea");
-      textarea.value = val;
-      textarea.className = "q-edit";
-      textarea.dataset.key = key;
-      textarea.style.cssText = `
-        width: 100%; margin-top: 6px; padding: 6px;
-        font-size: 14px; border-radius: 6px; resize: none; line-height: 1.1;
-        height: 1.1em; min-height: 1.1em;
-      `;
-      return textarea;
-    };
-  
     const enableAutoUpdate = (textarea, targetEl) => {
-      textarea.addEventListener("input", () => {
-        const val = textarea.value.trim();
-        targetEl.textContent = val;
-        targetEl.dataset.latex = val;
-        if (window.MathJax?.typesetPromise) MathJax.typesetPromise([targetEl]);
-      });
-      setTimeout(() => {
+      const resize = () => {
         textarea.style.height = "auto";
         textarea.style.height = textarea.scrollHeight + "px";
-      }, 30);
+      };
+      const applyResize = () => {
+        if (document.body.contains(textarea)) resize();
+      };
+      textarea.addEventListener("input", () => {
+        const val = textarea.value.trim();
+        if (targetEl) {
+          targetEl.textContent = val;
+          targetEl.dataset.latex = val;
+          if (window.MathJax?.typesetPromise) MathJax.typesetPromise([targetEl]).then(resize);
+        }
+        resize();
+      });
+      setTimeout(resize, 30);
     };
   
-    const qTextarea = createTextarea(questionText, "question");
+    const qTextarea = document.createElement("textarea");
+    qTextarea.value = questionText;
+    qTextarea.className = "q-edit";
+    qTextarea.dataset.key = "question";
+    qTextarea.style.cssText = `
+      width: 100%; margin-top: 8px; padding: 8px; font-size: 15px;
+      border-radius: 6px; overflow: hidden; resize: none; line-height: 1.1; height: 1.1em; min-height: 1.1em;
+    `;
     summary.insertAdjacentElement("afterend", qTextarea);
     enableAutoUpdate(qTextarea, questionSpan);
   
-    // Options
+    // 📌 Şıklar (li elemanları varsa al, yoksa gösterme)
     const options = Array.from(block.querySelectorAll("ul li"));
-    options.forEach((li, i) => {
-      const val = li.dataset.latex || li.textContent.trim();
-      const textarea = createTextarea(val, `option${i}`);
-      li.insertAdjacentElement("afterend", textarea);
-      enableAutoUpdate(textarea, li);
-    });
+    if (options.length > 0) {
+      options.forEach((li, i) => {
+        const val = li.dataset.latex || li.textContent.trim();
+        const textarea = document.createElement("textarea");
+        textarea.className = "q-edit";
+        textarea.dataset.key = `option${i}`;
+        textarea.value = val;
+        textarea.style.cssText = `
+          width: 100%; margin-top: 6px; padding: 6px;
+          font-size: 14px; border-radius: 6px; resize: none; line-height: 1.1; height: 1.1em; min-height: 1.1em;
+        `;
+        li.insertAdjacentElement("afterend", textarea);
+        enableAutoUpdate(textarea, li);
+      });
+    }
   
-    // Explanation
+    // 📌 Açıklama
     const expSpan = block.querySelector(".q[data-key='explanation']");
     if (expSpan) {
       const val = expSpan.dataset.latex || expSpan.textContent.trim();
-      const textarea = createTextarea(val, "explanation");
+      const textarea = document.createElement("textarea");
+      textarea.className = "q-edit";
+      textarea.dataset.key = "explanation";
+      textarea.value = val;
+      textarea.style.cssText = `
+        width: 100%; margin-top: 6px; padding: 6px;
+        font-size: 14px; border-radius: 6px; resize: none; line-height: 1.4; height: 1.1em; min-height: 1.1em;
+      `;
       expSpan.insertAdjacentElement("afterend", textarea);
       enableAutoUpdate(textarea, expSpan);
     }
   
-    // Difficulty dropdown
+    // 🎯 Zorluk seviyesi
     const difficultyText = block.querySelector(".difficulty-line")?.innerText.toLowerCase() || "";
     let difficulty = "medium";
     if (difficultyText.includes("easy")) difficulty = "easy";
@@ -241,19 +254,8 @@ let shouldReloadQuestions = false;
     if (diffLine) diffLine.insertAdjacentElement("afterend", select);
     else block.appendChild(select);
   
-    // Save and Cancel buttons
     btn.textContent = "✅ Save";
     btn.onclick = () => saveExistingQuestion(id, btn);
-  
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "❌ Cancel";
-    cancelBtn.style.marginLeft = "8px";
-    cancelBtn.onclick = () => {
-      block.innerHTML = block.dataset.originalHTML;
-      delete block.dataset.originalHTML;
-      if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
-    };
-    btn.insertAdjacentElement("afterend", cancelBtn);
   
     if (window.MathJax?.typesetPromise) {
       MathJax.typesetPromise();

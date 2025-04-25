@@ -125,25 +125,27 @@ async function generateFullQuiz() {
         };
       });
 
-    // 🎛️ Create control buttons
+    // 🎛️ Kontrol butonları
     const createControls = () => {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
       box.innerHTML = `
-        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
-        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
-        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
-        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+       <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+<button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+<button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+<button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+
       `;
       return box;
     };
 
-    // 📝 Show parsed questions
+    // 🧩 Başlık + üst kontroller
     output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
     const topControls = createControls();
     const bottomControls = createControls();
     output.appendChild(topControls);
 
+    // 📝 Soruları sırayla ekle
     parsedQuestions.forEach((q, i) => {
       const details = document.createElement("details");
       details.className = "quiz-preview";
@@ -169,24 +171,25 @@ async function generateFullQuiz() {
         <p><strong>✅ Answer:</strong> ${answerHTML}</p>
         <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
         <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
-        ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Save</label>` : ""}
+        ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : ""}
         <div style="margin-top: 8px;">
-          <button onclick="editQuestion(this)">✏️ Edit</button>
-          <button onclick="deleteQuestion(this)">🗑️ Delete</button>
+          <button onclick="editQuestion(this)">✏️ Düzenle</button>
+          <button onclick="deleteQuestion(this)">🗑️ Sil</button>
         </div>
       `;
 
       output.appendChild(details);
     });
 
+    // ⬇️ Alt kontroller
     output.appendChild(bottomControls);
 
-    // 🔢 Re-render MathJax
+    // 🔢 MathJax tekrar render
     if (window.MathJax && window.MathJax.typesetPromise) {
       window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
     }
 
-    // 💾 Show save box if logged in
+    // 💾 Kaydetme alanı
     if (saveBox && isLoggedIn) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
@@ -205,28 +208,6 @@ async function generateFullQuiz() {
       }
     }
 
-    // 💾 Save the extracted text to recent_texts table
-    try {
-      const dropdown = document.getElementById("titleDropdown");
-      const input = document.getElementById("newTitleInput");
-      const titleName = dropdown?.value === "__new__"
-        ? input?.value.trim()
-        : dropdown?.value;
-
-      if (titleName && extractedText && extractedText.length > 0 && isLoggedIn) {
-        await fetch("https://gemini-j8xd.onrender.com/add-recent-text", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({ titleName, extractedText })
-        });
-      }
-    } catch (error) {
-      console.error("Failed to save recent text:", error);
-    }
-
   } catch (err) {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate questions.\n${err.message}`);
@@ -234,7 +215,6 @@ async function generateFullQuiz() {
 
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
-
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
@@ -252,11 +232,6 @@ window.editQuestion = function (btn) {
   const block = btn.closest("details");
   if (block.querySelector("textarea")) return;
 
-  // 🧠 Store original for Cancel
-  if (!block.dataset.originalHTML) {
-    block.dataset.originalHTML = block.innerHTML;
-  }
-
   const summary = block.querySelector("summary");
   const questionSpan = summary.querySelector(".q[data-key='question']");
   const questionText = questionSpan?.dataset.latex || summary.textContent.replace(/^Q\d+\.\s*/, "").trim();
@@ -272,6 +247,7 @@ window.editQuestion = function (btn) {
     requestAnimationFrame(() => resize());
   };
 
+  // ✅ Soru textarea (tek satır başlar, içerik artınca büyür)
   const qTextarea = document.createElement("textarea");
   qTextarea.value = questionText;
   qTextarea.className = "q-edit";
@@ -284,7 +260,7 @@ window.editQuestion = function (btn) {
   summary.insertAdjacentElement("afterend", qTextarea);
   enableAutoResize(qTextarea);
 
-  // ✅ Other fields (options, explanation)
+  // ✅ Şıklar, cevap, açıklama alanları
   const elements = block.querySelectorAll(".q, li[data-key]");
   elements.forEach(el => {
     const key = el.dataset.key;
@@ -305,7 +281,7 @@ window.editQuestion = function (btn) {
     enableAutoResize(textarea);
   });
 
-  // ✅ Difficulty dropdown
+  // ✅ Zorluk seviyesi dropdown
   let difficulty = "medium";
   const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
   if (diffText.includes("easy")) difficulty = "easy";
@@ -330,27 +306,14 @@ window.editQuestion = function (btn) {
   if (diffLine) diffLine.insertAdjacentElement("afterend", select);
   else block.appendChild(select);
 
-  // ✅ Update Save + Add Cancel
-  btn.textContent = "✅ Update";
+  // ✅ Butonu güncelle
+  btn.textContent = "✅ Güncelle";
   btn.onclick = () => saveQuestionEdits(block);
 
-  const cancelBtn = document.createElement("button");
-  cancelBtn.textContent = "❌ Cancel";
-  cancelBtn.style.marginLeft = "8px";
-  cancelBtn.onclick = () => {
-    block.innerHTML = block.dataset.originalHTML;
-    delete block.dataset.originalHTML;
-    if (window.MathJax?.typesetPromise) {
-      MathJax.typesetPromise();
-    }
-  };
-  btn.insertAdjacentElement("afterend", cancelBtn);
-
-  if (window.MathJax?.typesetPromise) {
-    MathJax.typesetPromise().catch(console.error);
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    window.MathJax.typesetPromise().catch(console.error);
   }
 };
-
 
 
 
@@ -465,12 +428,12 @@ const buttonsHTML = `
       title = dropdown?.value;
       if (!title) return alert("⚠️ Please select a title.");
     }
-    
+  
     const categoryId = document.getElementById("categorySelect")?.value;
     if (!categoryId) {
       alert("⚠️ Please select a category.");
       return;
-    }    
+    }
   
     const questions = [];
   
@@ -481,7 +444,7 @@ const buttonsHTML = `
   
         block.querySelectorAll(".q").forEach(s => {
           const key = s.dataset.key;
-          const val = s.dataset.latex?.trim() || s.innerText.trim(); // ✅ MathJax için data-latex öncelikli
+          const val = s.dataset.latex?.trim() || s.innerText.trim();
   
           if (key?.startsWith("option")) {
             q.options = q.options || [];
@@ -491,7 +454,6 @@ const buttonsHTML = `
           }
         });
   
-        // ✅ Difficulty DOM'dan alınır
         const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
         if (diffText.includes("easy")) {
           q.difficulty = "easy";
@@ -533,15 +495,33 @@ const buttonsHTML = `
         alert("✅ Questions saved successfully.");
         shouldReloadQuestions = true;
         currentTitle = "";
+  
+        // ✅ Also save the recent input text
+        const recentText = getCurrentSectionText();
+        if (recentText.trim().length > 0) {
+          await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              email,
+              text: recentText,
+              title: title
+            })
+          });
+        }
+  
       } else {
         alert("❌ Could not save: " + (data?.error || "Server error"));
       }
-      } catch (err) {
-        console.error("❌ Save error:", err);
-        alert("❌ Could not connect to the server.");
-      }
-      
+    } catch (err) {
+      console.error("❌ Save error:", err);
+      alert("❌ Could not connect to the server.");
+    }
   }
+  
   
   
   
@@ -579,9 +559,6 @@ const buttonsHTML = `
   
   
   async function loadCategories(mainTopicId) {
-    const loading = document.getElementById("categoryLoading");
-    if (loading) loading.style.display = "block";
-  
     const token = localStorage.getItem("accessToken");
     const res = await fetch(`https://gemini-j8xd.onrender.com/list-categories?main_topic_id=${mainTopicId}`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -595,43 +572,23 @@ const buttonsHTML = `
       opt.textContent = c.name;
       select.appendChild(opt);
     });
-  
-    // 🧹 Clear title-related elements
-    const titleDropdown = document.getElementById("titleDropdown");
-    const newTitleInput = document.getElementById("newTitleInput");
-    const titleSuggestions = document.getElementById("titleSuggestions");
-  
-    if (titleDropdown) {
-      titleDropdown.innerHTML = `<option value="">-- Select Title --</option><option value="__new__">➕ Add New Title</option>`;
-    }
-    if (newTitleInput) {
-      newTitleInput.value = "";
-      newTitleInput.style.display = "none";
-    }
-    if (titleSuggestions) {
-      titleSuggestions.innerHTML = "";
-    }
-  
-    if (loading) loading.style.display = "none";
-  
     if (select.value) loadTitles(select.value);
     select.onchange = () => loadTitles(select.value);
   }
   
-  
-  
   async function loadTitles(categoryId) {
-    const loading = document.getElementById("categoryLoading");
-    if (loading) loading.style.display = "block";
-  
     const token = localStorage.getItem("accessToken");
     const email = localStorage.getItem("userEmail");
+  
     if (!token || !email || !categoryId) return;
   
     try {
       const res = await fetch(`https://gemini-j8xd.onrender.com/list-titles?category_id=${categoryId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+  
       const data = await res.json();
   
       const list = document.getElementById("titleSuggestions");
@@ -655,12 +612,12 @@ const buttonsHTML = `
         });
       }
   
+      // 🎯 Bu kısmı güncel sistemle uyumlu hale getiriyoruz:
       updateFloatingButtonVisibility();
+  
     } catch (err) {
       console.error("❌ Failed to load titles:", err);
     }
-  
-    if (loading) loading.style.display = "none";
   }
   
   
@@ -985,125 +942,4 @@ function filterByDifficulty(level) {
 
 function selectAllQuestions(state = true) {
   document.querySelectorAll(".qcheck").forEach(cb => cb.checked = state);
-}
-
-
-
-
-
-
-document.addEventListener("DOMContentLoaded", () => {
-  const titleDropdown = document.getElementById("titleDropdown");
-
-  if (titleDropdown) {
-    titleDropdown.addEventListener("change", (e) => {
-      const selectedTitle = e.target.value;
-      const isLoggedIn = !!localStorage.getItem("accessToken");
-
-      if (isLoggedIn && selectedTitle && selectedTitle !== "__new__") {
-        loadRecentTexts(selectedTitle);
-      } else {
-        clearRecentTextsDropdown();
-      }
-    });
-  }
-});
-
-function loadSelectedRecentText() {
-  const select = document.getElementById("recentTextsSelect");
-  const selectedText = select.value;
-  if (!selectedText) return alert("⚠️ Select a recent text first.");
-
-  const lastSection = localStorage.getItem("lastSection");
-  const textareaIds = {
-    "topic": "topicInput",
-    "text": "textManualInput",
-    "document": "textOutput",
-    "image": "imageTextOutput",
-    "audio": "audioTextOutput"
-  };
-
-  const textareaId = textareaIds[lastSection];
-  const textarea = document.getElementById(textareaId);
-
-  if (textarea) {
-    textarea.value = selectedText;
-    alert("✅ Recent text loaded successfully.");
-  } else {
-    alert("❌ Could not load recent text. No textarea found.");
-  }
-}
-
-
-function clearRecentTextsDropdown() {
-  const select = document.getElementById("recentTextsSelect");
-  if (select) {
-    select.innerHTML = `<option value="">🔄 Select a recent text...</option>`;
-  }
-}
-document.addEventListener("DOMContentLoaded", () => {
-  const titleDropdown = document.getElementById("titleDropdown");
-
-  if (titleDropdown) {
-    titleDropdown.addEventListener("change", (e) => {
-      const selectedTitle = e.target.value;
-      const isLoggedIn = !!localStorage.getItem("accessToken");
-
-      if (isLoggedIn && selectedTitle && selectedTitle !== "__new__") {
-        loadRecentTexts(selectedTitle);
-      } else {
-        clearRecentTextsDropdown();
-      }
-    });
-  }
-});
-
-
-async function loadRecentTexts(titleName) {
-  const token = localStorage.getItem("accessToken");
-  if (!token || !titleName) return;
-
-  try {
-    const res = await fetch(`https://gemini-j8xd.onrender.com/recent-texts?titleName=${encodeURIComponent(titleName)}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    const data = await res.json();
-    const select = document.getElementById("recentTextsSelect");
-    if (!select) return;
-
-    select.innerHTML = `<option value="">🔄 Select a recent text...</option>`;
-
-    data.recentTexts.forEach(item => {
-      const opt = document.createElement("option");
-      opt.value = item.extracted_text;
-      opt.textContent = new Date(item.created_at).toLocaleString(); // Nice readable date
-      select.appendChild(opt);
-    });
-
-  } catch (err) {
-    console.error("❌ Failed to load recent texts:", err);
-  }
-}
-
-
-async function saveRecentText(titleName, extractedText) {
-  const accessToken = localStorage.getItem("accessToken");
-  if (!accessToken || !titleName || !extractedText) return;
-
-  try {
-    const response = await fetch("https://gemini-j8xd.onrender.com/add-recent-text", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({ titleName, extractedText })
-    });
-
-    const data = await response.json();
-    console.log("✅ Recent text saved:", data);
-  } catch (error) {
-    console.error("❌ Failed to save recent text:", error);
-  }
 }

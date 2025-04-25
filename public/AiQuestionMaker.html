@@ -327,62 +327,6 @@ details summary {
     margin: 12px auto;
   }
 }
-.top-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  gap: 10px;
-  flex-wrap: nowrap;
-}
-
-#left-link-wrapper {
-  flex: 1;
-}
-
-#user-box {
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.nav-link {
-  display: inline-block;
-  padding: 8px 16px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 14px;
-  white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-#adminLink {
-  background: #1e3a8a;
-  color: white;
-}
-
-#generatorLink {
-  background: #0f766e;
-  color: white;
-}
-
-@media (max-width: 600px) {
-  .top-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .nav-link {
-    font-size: 13px;
-    padding: 6px 12px;
-  }
-
-  #user-box {
-    margin-left: 0;
-  }
-}
 
   </style>
   
@@ -396,27 +340,16 @@ details summary {
       },
       svg: { fontCache: 'global' }
     };
-
-    
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 
 </head>
 <body>
 
-
-
-<!-- 🔁 Sticky header row: left link + right user info -->
-<div class="top-nav">
-  <div id="left-link-wrapper">
-    <!-- 👇 Only one of these will be visible depending on the page -->
-    <a href="admin.html" id="adminLink" class="nav-link" style="display:none;">🔧 Admin Panel</a>
-  
-  </div>
-  <div id="user-box"></div>
-</div>
-
 <h1>AI Quiz Generator</h1>
+<div id="user-box"></div>
+
+
 <div class="section-grid">
   <div class="card" onclick="showSection('document')"><span>📑</span>PDF</div>
   <div class="card" onclick="showSection('text')"><span>✏️</span>Text</div>
@@ -427,10 +360,6 @@ details summary {
 
 <!-- 🟩 Sekme içeriği -->
 <div id="section-content" style="margin-top: 20px;"></div>
-<select id="recentTextsSelect" style="padding: 8px; border-radius: 8px; width:100%; margin-top:10px;">
-  <option value="">🔄 Select a recent text...</option>
-</select>
-<button onclick="loadSelectedRecentText()" style="padding:8px 16px; margin-top:8px; border-radius:8px;">⬇️ Load Selected Text</button>
 
 <!-- 🟨 Generate button sabit olarak alt tarafta -->
 <div style="text-align: center; margin-top: 20px;">
@@ -542,9 +471,7 @@ function renderUserBox() {
   const container = document.getElementById("user-box");
 
   const currentPage = encodeURIComponent(window.location.href);
-  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;
-
-  container.innerHTML = accessToken && name
+  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  container.innerHTML = accessToken && name
     ? `<div class="user-box-inner">
         <span class="user-name">${name}</span>
         <span class="badge ${membership.toLowerCase()}">${membership}</span>
@@ -552,27 +479,15 @@ function renderUserBox() {
       </div>`
     : `<div class="user-box-inner">
         <a class="login-btn" href="${loginUrl}">Login with Patreon</a>
+       
       </div>`;
 
-  // Logout logic
   const logoutBtn = document.querySelector(".logout-btn");
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      localStorage.clear();
-      location.reload();
-    };
-  }
-
-  // ✅ Conditionally show cross-page links
-  if (accessToken) {
-    const adminLink = document.getElementById("adminLink");
-    const generatorLink = document.getElementById("generatorLink");
-
-    if (adminLink) adminLink.style.display = "inline-block";
-    if (generatorLink) generatorLink.style.display = "inline-block";
-  }
+  if (logoutBtn) logoutBtn.onclick = () => {
+    localStorage.clear();
+    location.reload();
+  };
 }
-
 
 
 window.showSection = function(type) {
@@ -790,9 +705,6 @@ window.showSection = function(type) {
 
 <div id="fixedQuestionsToggle" onclick="openModal()" title="Show saved questions">
   🧾
-</div>
-<div id="categoryLoading" style="text-align:center; margin: 10px 0; display:none;">
-  <span style="font-size:14px; color:#6b7280;">⏳ Loading ...</span>
 </div>
 
 </body>

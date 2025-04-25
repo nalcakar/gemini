@@ -46,7 +46,7 @@ let currentCategoryId = null;
 // 📘 1. Load Main Topics
 async function loadMainTopics() {
   const container = document.getElementById("mainTopics");
-  container.innerHTML = "<h3>📂 Main Categories</h3><p>Loading...</p>";
+  container.innerHTML = "<h3>📂 Main Topics</h3><p>Loading...</p>";
 
   const res = await fetch(`${API}/list-main-topics?email=${email}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -181,18 +181,6 @@ async function renameMainTopic() {
   }
 }
 
-function toggleExpandCollapse() {
-  const allDetails = document.querySelectorAll("#modalQuestionList details");
-  const btn = document.getElementById("toggleExpandCollapseBtn");
-
-  if (!allDetails.length || !btn) return;
-
-  const isCollapsed = Array.from(allDetails).every(d => !d.open);
-
-  allDetails.forEach(d => d.open = isCollapsed);
-
-  btn.textContent = isCollapsed ? "🔽 Collapse All" : "🔼 Expand All";
-}
 
 async function loadQuestionsByTitleName(titleName) {
   const container = document.getElementById("modalQuestionList");
@@ -202,7 +190,7 @@ async function loadQuestionsByTitleName(titleName) {
       <input id="searchInput" oninput="filterQuestions()" placeholder="🔍 Search within questions..." 
              style="width:100%; max-width:600px; margin:0 auto; display:block; padding:10px 14px; border-radius:10px; border:1px solid #d1d5db; font-size:15px;" />
       <div style="margin-top:14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-        <button type="button" id="toggleExpandCollapseBtn" onclick="toggleExpandCollapse()">🔼 Expand All</button>
+        <button type="button" onclick="collapseAllDetails()">🔽 Collapse All</button>
         <button type="button" onclick="filterByDifficulty('easy')">🟢 Easy</button>
         <button type="button" onclick="filterByDifficulty('medium')">🟡 Medium</button>
         <button type="button" onclick="filterByDifficulty('hard')">🔴 Hard</button>

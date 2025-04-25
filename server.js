@@ -65,7 +65,56 @@ const authMiddleware = async (req, res, next) => {
   next();
 };
 
+app.use(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
 
+  const accessToken = authHeader.split(" ")[1];
+  if (!accessToken) return next();
+
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    const data = await response.json();
+
+    const email = data.data?.attributes?.email;
+    const name = data.data?.attributes?.full_name;
+
+    const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
+
+    // ID'lere göre eşleştirme
+    const TIER_MAP = {
+      "25539224": "Bronze",
+      "25296810": "Silver",
+      "25669215": "Gold"
+    };
+
+    let tier = "free"; // default
+
+    for (const t of tiers) {
+      if (TIER_MAP[t.id]) {
+        tier = t.id; // numeric ID olarak kullanıyoruz
+        break;
+      }
+    }
+
+    if (email) {
+      req.user = {
+        email,
+        name,
+        tier // örnek: "25539224"
+      };
+    }
+  } catch (err) {
+    console.error("❌ Kullanıcı doğrulama hatası:", err.message);
+  }
+
+  next();
+});
 
 app.use(cors({
   origin: "https://doitwithai.org",
@@ -77,7 +126,7 @@ app.use(cors({
 
 // ✅ JSON parse işlemi
 app.use(express.json());
-app.use(authMiddleware);
+
 // ✅ Patreon token'ı doğrulayan fonksiyon
 async function verifyPatreonToken(token) {
   try {
@@ -279,43 +328,6 @@ Rules:
   }
 });
 
-app.post("/add-recent-text", authMiddleware, async (req, res) => {
-  const { titleName, extractedText } = req.body;
-  const email = req.user?.email;
-
-  console.log("📥 add-recent-text received:", { email, titleName, extractedText: extractedText?.slice(0, 50) });
-
-  if (!email || !titleName || !extractedText) {
-    return res.status(400).json({ error: "Missing data" });
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      INSERT INTO recent_texts (user_email, title_name, extracted_text)
-      VALUES ($1, $2, $3)
-    `, [email, titleName, extractedText]);
-
-    // Delete old ones
-    await client.query(`
-      DELETE FROM recent_texts
-      WHERE id NOT IN (
-        SELECT id FROM recent_texts
-        WHERE user_email = $1 AND title_name = $2
-        ORDER BY created_at DESC
-        LIMIT 10
-      )
-      AND user_email = $1 AND title_name = $2
-    `, [email, titleName]);
-
-    res.json({ status: "success" });
-  } catch (error) {
-    console.error("❌ Error saving recent text:", error.message);
-    res.status(500).json({ error: "Database error" });
-  } finally {
-    client.release();
-  }
-});
 
 
 app.post("/suggest-topic-focus", async (req, res) => {
@@ -756,33 +768,39 @@ app.post("/save-questions", async (req, res) => {
   }
 });
 
-// Add recent text entry (Node.js Express route)
-// ✅ Add Recent Text
-
-
-
-// Retrieve recent texts
-app.get("/recent-texts", authMiddleware, async (req, res) => {
-  const { titleName } = req.query;
-  const email = req.user.email;
+app.post("/save-recent-text", authMiddleware, async (req, res) => {
+  const { email, text } = req.body;
+  if (!email || !text || text.trim().length < 10) {
+    return res.status(400).json({ error: "Invalid data" });
+  }
 
   const client = await pool.connect();
   try {
-    const result = await client.query(
-      `SELECT id, extracted_text, created_at FROM recent_texts
-       WHERE user_email = $1 AND title_name = $2
-       ORDER BY created_at DESC LIMIT 10`,
-      [email, titleName]);
+    // Insert the new text
+    await client.query(`
+      INSERT INTO recent_texts (user_email, content)
+      VALUES ($1, $2)
+    `, [email, text]);
 
-    res.json({ recentTexts: result.rows });
-  } catch (error) {
-    res.status(500).json({ error: "Database error" });
+    // Delete older ones if more than 10 remain
+    await client.query(`
+      DELETE FROM recent_texts
+      WHERE id IN (
+        SELECT id FROM recent_texts
+        WHERE user_email = $1
+        ORDER BY created_at ASC
+        OFFSET 10
+      )
+    `, [email]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ recent_texts insert error:", err);
+    res.status(500).json({ error: "Server error" });
   } finally {
     client.release();
   }
 });
-
-
 
 app.get("/list-main-topics", authMiddleware, async (req, res) => {
   const email = req.user?.email;
