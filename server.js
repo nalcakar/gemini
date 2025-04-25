@@ -709,10 +709,10 @@ res.redirect(302, redirectUrl.toString());
 
 /////////////Sql////////
 app.post("/save-questions", async (req, res) => {
-  const { titleName, categoryId, questions } = req.body;
+  const { titleName, categoryId, questions, promptText } = req.body;
   const email = req.user?.email;
 
-  if (!titleName || !categoryId || !questions || !email) {
+  if (!titleName || !categoryId || !questions || !email || !promptText) {
     return res.status(400).json({ error: "Eksik veri" });
   }
 
@@ -720,7 +720,7 @@ app.post("/save-questions", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Başlığı bul veya oluştur
+    // Başlığı bul veya oluştur, prompt_text ile birlikte
     const { rows: titleRows } = await client.query(
       "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
       [titleName, email]
@@ -729,10 +729,16 @@ app.post("/save-questions", async (req, res) => {
     let titleId = titleRows[0]?.id;
     if (!titleId) {
       const insert = await client.query(
-        "INSERT INTO titles (name, category_id, user_email) VALUES ($1, $2, $3) RETURNING id",
-        [titleName, categoryId, email]
+        "INSERT INTO titles (name, category_id, user_email, prompt_text) VALUES ($1, $2, $3, $4) RETURNING id",
+        [titleName, categoryId, email, promptText]
       );
       titleId = insert.rows[0].id;
+    } else {
+      // Mevcut başlığın prompt_text alanını güncelle
+      await client.query(
+        "UPDATE titles SET prompt_text = $1 WHERE id = $2",
+        [promptText, titleId]
+      );
     }
 
     // Soruları kaydet (güvenli şekilde)
@@ -765,6 +771,23 @@ app.post("/save-questions", async (req, res) => {
     res.status(500).json({ error: "Sunucu hatası" });
   } finally {
     client.release();
+  }
+});
+
+app.get("/list-prompts", authMiddleware, async (req, res) => {
+  const email = req.user?.email;
+  if (!email) return res.status(400).json({ error: "Unauthorized" });
+
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT prompt_text FROM titles WHERE user_email = $1 AND prompt_text IS NOT NULL`,
+      [email]
+    );
+
+    res.json({ prompts: result.rows.map(row => row.prompt_text) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 

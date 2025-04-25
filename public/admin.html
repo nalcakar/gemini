@@ -13,13 +13,6 @@
       color: #1f2937;
     }
 
-    #user-box {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 10px;
-      padding-right: 10px;
-    }
-
     .user-box-inner {
       background: #f3f4f6;
       padding: 6px 10px;
@@ -40,9 +33,15 @@
       font-weight: 600;
     }
 
-    .badge.free { background: #e5e7eb; color: #374151; }
-    .badge.bronze { background: #fcd34d; color: #92400e; }
-    .badge.pro { background: #dbeafe; color: #1e3a8a; }
+    .badge.free {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .badge.pro {
+      background: #dbeafe;
+      color: #1e3a8a;
+    }
 
     .logout-btn, .login-btn {
       background: #ef4444;
@@ -60,6 +59,14 @@
     }
 
     .logout-btn:hover, .login-btn:hover { opacity: 0.9; }
+
+    @keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
 
     h2 {
       text-align: center;
@@ -190,16 +197,81 @@
     font-size: 16px;
   }
 }
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+#left-link-wrapper {
+  flex: 1;
+}
+
+#user-box {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.nav-link {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+#adminLink {
+  background: #1e3a8a;
+  color: white;
+}
+
+#generatorLink {
+  background: #0f766e;
+  color: white;
+}
+
+@media (max-width: 600px) {
+  .top-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .nav-link {
+    font-size: 13px;
+    padding: 6px 12px;
+  }
+
+  #user-box {
+    margin-left: 0;
+  }
+}
 
   </style>
 </head>
+
 <body>
 
 
 
 
-  <!-- 👤 Kullanıcı kutusu -->
+ <!-- 🔁 Sticky header row: left link + right user info -->
+<div class="top-nav">
+  <div id="left-link-wrapper">
+    <!-- 👇 Only one of these will be visible depending on the page -->
+
+    <a href="AiQuestionMaker.html" id="generatorLink" class="nav-link" style="display:none;">🎓 Quiz Generator</a>
+  </div>
   <div id="user-box"></div>
+</div>
+
 
   <h2>📘 Title / Category / Main Topic Management</h2>
   <div style="text-align:right; margin-bottom:10px;">
@@ -538,7 +610,16 @@ function collapseAllDetails() {
     }
   });
 }
-  
+
+document.addEventListener("DOMContentLoaded", () => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (accessToken) {
+      const generatorLink = document.getElementById("generatorLink");
+if (accessToken && generatorLink) {
+  generatorLink.style.display = "inline-block";
+}
+    }
+  });
   </script>
   <div id="modalContainer" style="display:none; position:fixed; top:30%; left:50%; transform:translate(-50%, -30%); background:white; padding:20px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000;">
     <label id="modalLabel" for="modalSelect">Select an item:</label>

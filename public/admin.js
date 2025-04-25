@@ -46,7 +46,7 @@ let currentCategoryId = null;
 // 📘 1. Load Main Topics
 async function loadMainTopics() {
   const container = document.getElementById("mainTopics");
-  container.innerHTML = "<h3>📂 Main Topics</h3><p>Loading...</p>";
+  container.innerHTML = "<h3>📂 Main Categories</h3><p>Loading...</p>";
 
   const res = await fetch(`${API}/list-main-topics?email=${email}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -181,36 +181,46 @@ async function renameMainTopic() {
   }
 }
 
+function toggleExpandCollapse() {
+  const allDetails = document.querySelectorAll("#modalQuestionList details");
+  const btn = document.getElementById("toggleExpandCollapseBtn");
+
+  if (!allDetails.length || !btn) return;
+
+  const isCollapsed = Array.from(allDetails).every(d => !d.open);
+
+  allDetails.forEach(d => d.open = isCollapsed);
+
+  btn.textContent = isCollapsed ? "🔽 Collapse All" : "🔼 Expand All";
+}
 
 async function loadQuestionsByTitleName(titleName) {
   const container = document.getElementById("modalQuestionList");
   container.style.marginTop = "20px";
   container.innerHTML = `
-    <div id="questionControlPanel" style="margin-bottom:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f9fafb;">
+    <div id="questionControlPanel" style="margin-bottom:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f9fafb; text-align:center;">
       <input id="searchInput" oninput="filterQuestions()" placeholder="🔍 Search within questions..." 
-             style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid #d1d5db; font-size:14px;" />
-      <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;">
-        <button type="button" onclick="collapseAllDetails()">🔽 Collapse All</button>
+             style="width:100%; max-width:600px; margin:0 auto; display:block; padding:10px 14px; border-radius:10px; border:1px solid #d1d5db; font-size:15px;" />
+      <div style="margin-top:14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+        <button type="button" id="toggleExpandCollapseBtn" onclick="toggleExpandCollapse()">🔼 Expand All</button>
         <button type="button" onclick="filterByDifficulty('easy')">🟢 Easy</button>
         <button type="button" onclick="filterByDifficulty('medium')">🟡 Medium</button>
         <button type="button" onclick="filterByDifficulty('hard')">🔴 Hard</button>
         <button type="button" onclick="filterByDifficulty('')">🔁 Show All</button>
       </div>
     </div>
-    <div id="statsBox" style="margin-bottom:12px; font-weight:500;"></div>
+    <div id="statsBox" style="margin-bottom:12px; font-weight:500; text-align:center;"></div>
     <p style='text-align:center;'>⏳ Loading questions...</p>
   `;
 
   const token = localStorage.getItem("accessToken");
   const email = localStorage.getItem("userEmail");
 
-  // ✅ API ve kategori kontrolü yapılmazsa '<!DOCTYPE' hatası oluşabilir
   if (!API || !currentCategoryId || !email) {
     container.innerHTML = "<p style='color:red;'>❌ Internal error: Missing parameters.</p>";
     return;
   }
 
-  // 📥 Başlığa karşılık gelen title_id bulunur
   const titlesRes = await fetch(`${API}/list-titles?category_id=${currentCategoryId}&email=${email}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -231,56 +241,60 @@ async function loadQuestionsByTitleName(titleName) {
     return;
   }
 
-  // ⏬ UI yeniden oluşturulur
   const controlPanel = document.getElementById("questionControlPanel");
   const statsBox = document.getElementById("statsBox");
   container.innerHTML = "";
   container.appendChild(controlPanel);
   container.appendChild(statsBox);
 
+  // 📊 Soru sayısını göster
+  const count = data.questions.length;
+  statsBox.innerHTML = `📊 Total Questions: <strong>${count}</strong>`;
+
   data.questions.forEach((q, i) => {
     const block = document.createElement("details");
+    block.className = "question-card";
     block.setAttribute("data-id", q.id);
+
     const question = q.question || "";
     const options = q.options || [];
     const explanation = q.explanation || "";
     const answer = q.answer || "";
     const difficulty = q.difficulty || "medium";
-  
+
     const badge = {
       easy: "🟢 Easy",
       medium: "🟡 Medium",
       hard: "🔴 Hard"
     }[difficulty] || "";
-  
+
     block.innerHTML = `
-    <summary>
-      Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> ${badge}
-    </summary>
-    <ul>
-      ${options.map((opt, idx) => `
-        <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
-      `).join("")}
-    </ul>
-    <p><strong>✅ Answer:</strong> ${answer}</p>
-    <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${explanation}">${explanation}</span></p>
-    <div style="margin-top: 8px;">
-      <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
-      <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
-    </div>
-  `;
-  
-  
+      <summary>
+        Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> 
+        <span class="difficulty-badge ${difficulty}" style="margin-left:8px;">${badge}</span>
+      </summary>
+      <ul>
+        ${options.map((opt, idx) => `
+          <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
+        `).join("")}
+      </ul>
+      <p><strong>✅ Answer:</strong> ${answer}</p>
+      <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${explanation}">${explanation}</span></p>
+      <div style="margin-top: 8px;">
+        <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
+        <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
+      </div>
+    `;
+
     container.appendChild(block);
   });
-  
- 
 
   if (typeof updateStats === "function") updateStats();
   if (window.MathJax) MathJax.typesetPromise?.();
 
   container.scrollIntoView({ behavior: "smooth" });
 }
+
 
 
 function renderEditControls() {
@@ -910,4 +924,12 @@ function saveQuestionEdits(block) {
     if (window.MathJax?.typesetPromise) MathJax.typesetPromise([block]);
     flashMessage("✅ Question saved.");
   }).catch(() => alert("❌ Server error"));
+}
+
+function filterQuestions() {
+  const val = document.getElementById("searchInput").value.toLowerCase();
+  document.querySelectorAll("#modalQuestionList details").forEach(detail => {
+    const text = detail.innerText.toLowerCase();
+    detail.style.display = text.includes(val) ? "" : "none";
+  });
 }

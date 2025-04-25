@@ -130,10 +130,11 @@ async function generateFullQuiz() {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
       box.innerHTML = `
-        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Tümünü Seç</button>
-        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Seçimleri Temizle</button>
-        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Hepsini Göster</button>
-        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Tümünü Kapat</button>
+       <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+<button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+<button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+<button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+
       `;
       return box;
     };
@@ -231,6 +232,11 @@ window.editQuestion = function (btn) {
   const block = btn.closest("details");
   if (block.querySelector("textarea")) return;
 
+  // 🧠 Store original for Cancel
+  if (!block.dataset.originalHTML) {
+    block.dataset.originalHTML = block.innerHTML;
+  }
+
   const summary = block.querySelector("summary");
   const questionSpan = summary.querySelector(".q[data-key='question']");
   const questionText = questionSpan?.dataset.latex || summary.textContent.replace(/^Q\d+\.\s*/, "").trim();
@@ -246,7 +252,6 @@ window.editQuestion = function (btn) {
     requestAnimationFrame(() => resize());
   };
 
-  // ✅ Soru textarea (tek satır başlar, içerik artınca büyür)
   const qTextarea = document.createElement("textarea");
   qTextarea.value = questionText;
   qTextarea.className = "q-edit";
@@ -259,7 +264,7 @@ window.editQuestion = function (btn) {
   summary.insertAdjacentElement("afterend", qTextarea);
   enableAutoResize(qTextarea);
 
-  // ✅ Şıklar, cevap, açıklama alanları
+  // ✅ Other fields (options, explanation)
   const elements = block.querySelectorAll(".q, li[data-key]");
   elements.forEach(el => {
     const key = el.dataset.key;
@@ -280,7 +285,7 @@ window.editQuestion = function (btn) {
     enableAutoResize(textarea);
   });
 
-  // ✅ Zorluk seviyesi dropdown
+  // ✅ Difficulty dropdown
   let difficulty = "medium";
   const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
   if (diffText.includes("easy")) difficulty = "easy";
@@ -305,14 +310,27 @@ window.editQuestion = function (btn) {
   if (diffLine) diffLine.insertAdjacentElement("afterend", select);
   else block.appendChild(select);
 
-  // ✅ Butonu güncelle
-  btn.textContent = "✅ Güncelle";
+  // ✅ Update Save + Add Cancel
+  btn.textContent = "✅ Update";
   btn.onclick = () => saveQuestionEdits(block);
 
-  if (window.MathJax && window.MathJax.typesetPromise) {
-    window.MathJax.typesetPromise().catch(console.error);
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "❌ Cancel";
+  cancelBtn.style.marginLeft = "8px";
+  cancelBtn.onclick = () => {
+    block.innerHTML = block.dataset.originalHTML;
+    delete block.dataset.originalHTML;
+    if (window.MathJax?.typesetPromise) {
+      MathJax.typesetPromise();
+    }
+  };
+  btn.insertAdjacentElement("afterend", cancelBtn);
+
+  if (window.MathJax?.typesetPromise) {
+    MathJax.typesetPromise().catch(console.error);
   }
 };
+
 
 
 
@@ -367,14 +385,16 @@ function saveQuestionEdits(block) {
 
   const difficultyHTML = `<p><strong>Difficulty:</strong> ${difficultyIcon}</p>`;
   const checkboxHTML = localStorage.getItem("userEmail")
-    ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : "";
+  ? `<label><input type="checkbox" class="qcheck"> ✅ Save</label>` : "";
 
-  const buttonsHTML = `
-    <div style="margin-top: 8px;">
-      <button onclick="editQuestion(this)">✏️ Düzenle</button>
-      <button onclick="deleteQuestion(this)">🗑️ Sil</button>
-    </div>
-  `;
+const buttonsHTML = `
+  <div style="margin-top: 8px;">
+    <button onclick="editQuestion(this)">✏️ Edit</button>
+    <button onclick="deleteQuestion(this)">🗑️ Delete</button>
+  </div>
+`;
+
+
 
   newDetails.innerHTML = `
     ${summaryHTML}
@@ -412,7 +432,7 @@ function saveQuestionEdits(block) {
   async function saveSelectedQuestions() {
     const token = localStorage.getItem("accessToken");
     const email = localStorage.getItem("userEmail");
-    if (!token || !email) return alert("❌ Lütfen giriş yapın.");
+    if (!token || !email) return alert("❌ Please log in.");
   
     let title = "";
     const dropdown = document.getElementById("titleDropdown");
@@ -420,17 +440,17 @@ function saveQuestionEdits(block) {
   
     if (dropdown?.value === "__new__") {
       title = input?.value.trim();
-      if (!title) return alert("⚠️ Lütfen yeni bir başlık giriniz.");
+      if (!title) return alert("⚠️ Please enter a new title.");
     } else {
       title = dropdown?.value;
-      if (!title) return alert("⚠️ Lütfen bir başlık seçiniz.");
+      if (!title) return alert("⚠️ Please select a title.");
     }
-  
+    
     const categoryId = document.getElementById("categorySelect")?.value;
     if (!categoryId) {
-      alert("⚠️ Lütfen bir kategori seçiniz.");
+      alert("⚠️ Please select a category.");
       return;
-    }
+    }    
   
     const questions = [];
   
@@ -470,7 +490,7 @@ function saveQuestionEdits(block) {
     });
   
     if (questions.length === 0) {
-      alert("⚠️ Kaydetmek için en az bir soru seçmelisiniz.");
+      alert("⚠️ You must select at least one question to save.");
       return;
     }
   
@@ -484,22 +504,24 @@ function saveQuestionEdits(block) {
         body: JSON.stringify({
           titleName: title,
           categoryId,
-          questions
+          questions,
+          promptText: extractedText // Include this!
         })
       });
   
       const data = await res.json();
       if (res.ok) {
-        alert("✅ Sorular başarıyla kaydedildi.");
+        alert("✅ Questions saved successfully.");
         shouldReloadQuestions = true;
         currentTitle = "";
       } else {
-        alert("❌ Kaydedilemedi: " + (data?.error || "Sunucu hatası"));
+        alert("❌ Could not save: " + (data?.error || "Server error"));
       }
-    } catch (err) {
-      console.error("❌ Kayıt hatası:", err);
-      alert("❌ Sunucuya bağlanılamadı.");
-    }
+      } catch (err) {
+        console.error("❌ Save error:", err);
+        alert("❌ Could not connect to the server.");
+      }
+      
   }
   
   
@@ -538,6 +560,9 @@ function saveQuestionEdits(block) {
   
   
   async function loadCategories(mainTopicId) {
+    const loading = document.getElementById("categoryLoading");
+    if (loading) loading.style.display = "block";
+  
     const token = localStorage.getItem("accessToken");
     const res = await fetch(`https://gemini-j8xd.onrender.com/list-categories?main_topic_id=${mainTopicId}`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -551,23 +576,43 @@ function saveQuestionEdits(block) {
       opt.textContent = c.name;
       select.appendChild(opt);
     });
+  
+    // 🧹 Clear title-related elements
+    const titleDropdown = document.getElementById("titleDropdown");
+    const newTitleInput = document.getElementById("newTitleInput");
+    const titleSuggestions = document.getElementById("titleSuggestions");
+  
+    if (titleDropdown) {
+      titleDropdown.innerHTML = `<option value="">-- Select Title --</option><option value="__new__">➕ Add New Title</option>`;
+    }
+    if (newTitleInput) {
+      newTitleInput.value = "";
+      newTitleInput.style.display = "none";
+    }
+    if (titleSuggestions) {
+      titleSuggestions.innerHTML = "";
+    }
+  
+    if (loading) loading.style.display = "none";
+  
     if (select.value) loadTitles(select.value);
     select.onchange = () => loadTitles(select.value);
   }
   
+  
+  
   async function loadTitles(categoryId) {
+    const loading = document.getElementById("categoryLoading");
+    if (loading) loading.style.display = "block";
+  
     const token = localStorage.getItem("accessToken");
     const email = localStorage.getItem("userEmail");
-  
     if (!token || !email || !categoryId) return;
   
     try {
       const res = await fetch(`https://gemini-j8xd.onrender.com/list-titles?category_id=${categoryId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
-  
       const data = await res.json();
   
       const list = document.getElementById("titleSuggestions");
@@ -591,12 +636,12 @@ function saveQuestionEdits(block) {
         });
       }
   
-      // 🎯 Bu kısmı güncel sistemle uyumlu hale getiriyoruz:
       updateFloatingButtonVisibility();
-  
     } catch (err) {
-      console.error("❌ Başlıklar yüklenemedi:", err);
+      console.error("❌ Failed to load titles:", err);
     }
+  
+    if (loading) loading.style.display = "none";
   }
   
   
@@ -730,7 +775,7 @@ function saveQuestionEdits(block) {
       updateFloatingButtonVisibility();
   
     } catch (err) {
-      console.error("❌ Başlıklar yüklenemedi:", err);
+      console.error("❌ Failed to load titles:", err);
     }
   }
   function openModal() {
@@ -744,7 +789,7 @@ function saveQuestionEdits(block) {
     modal.classList.add("show");
   
     if (!token || !email) {
-      container.innerHTML = "<p style='color:red;'>❌ Giriş yapmadınız. Lütfen giriş yapın.</p>";
+      container.innerHTML = "<p style='color:red;'>❌ You are not logged in. Please log in.</p>";
       return;
     }
   
@@ -756,13 +801,13 @@ function saveQuestionEdits(block) {
     }
   
     if (!titleName) {
-      container.innerHTML = "<p style='color:red;'>❌ Lütfen bir başlık seçin veya yazın.</p>";
+      container.innerHTML = "<p style='color:red;'>❌ Please select or enter a title.</p>";
       return;
     }
   
     if (!shouldReloadQuestions && currentTitle === titleName) return;
   
-    container.innerHTML = "<p style='text-align:center;'>Yükleniyor...</p>";
+    container.innerHTML = "<p style='text-align:center;'>Loading...</p>";
   
     fetch(`https://gemini-j8xd.onrender.com/get-questions-by-name?title=${encodeURIComponent(titleName)}&email=${encodeURIComponent(email)}`, {
       headers: {
@@ -772,11 +817,13 @@ function saveQuestionEdits(block) {
       .then(res => res.json())
       .then(data => {
         if (!data.questions || data.questions.length === 0) {
-          container.innerHTML = "<p style='color:gray;'>Bu başlığa ait hiç soru bulunamadı.</p>";
+          container.innerHTML = "<p style='color:gray;'>⚠️ No questions found under this title.</p>";
+
           return;
         }
   
-        container.innerHTML = `<p>📌 Toplam Soru: <strong>${data.questions.length}</strong></p>`;
+        container.innerHTML = `<p>📌 Total Questions: <strong>${data.questions.length}</strong></p>`;
+
   
         data.questions.forEach((q, i) => {
           const block = document.createElement("details");
@@ -825,7 +872,7 @@ block.dataset.difficulty = (q.difficulty || "medium").toLowerCase();
         filterByDifficulty('');
       })
       .catch(err => {
-        container.innerHTML = "<p style='color:red;'>❌ Sorular alınamadı.</p>";
+        container.innerHTML = "<p style='color:red;'>❌ Failed to retrieve questions.</p>";
         console.error("get-questions error:", err);
       });
   }
@@ -920,3 +967,53 @@ function filterByDifficulty(level) {
 function selectAllQuestions(state = true) {
   document.querySelectorAll(".qcheck").forEach(cb => cb.checked = state);
 }
+
+
+async function loadPreviousPrompts() {
+  const token = localStorage.getItem("accessToken");
+  const dropdown = document.getElementById("previousPromptsDropdown");
+
+  if (!token || !dropdown) return;
+
+  const res = await fetch("https://gemini-j8xd.onrender.com/list-prompts", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (!res.ok) return;
+
+  const data = await res.json();
+  dropdown.innerHTML = '<option value="">-- Select Previous Text --</option>';
+
+  data.prompts.forEach(text => {
+    const option = document.createElement("option");
+    option.value = text;
+    option.textContent = text.substring(0, 50) + (text.length > 50 ? "..." : "");
+    dropdown.appendChild(option);
+  });
+
+  dropdown.onchange = () => {
+    const selectedText = dropdown.value;
+    if (!selectedText) return;
+
+    // Fill the appropriate textarea based on visible section
+    const lastSection = localStorage.getItem("lastSection");
+    const textareaIds = {
+      "text": "textManualInput",
+      "document": "textOutput",
+      "image": "imageTextOutput",
+      "audio": "audioTextOutput",
+      "topic": "topicInput"
+    };
+
+    const textareaId = textareaIds[lastSection] || "textManualInput";
+    const textarea = document.getElementById(textareaId);
+
+    if (textarea) {
+      textarea.value = selectedText;
+      textarea.focus();
+      textarea.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", loadPreviousPrompts);

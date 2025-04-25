@@ -327,6 +327,62 @@ details summary {
     margin: 12px auto;
   }
 }
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+#left-link-wrapper {
+  flex: 1;
+}
+
+#user-box {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.nav-link {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+#adminLink {
+  background: #1e3a8a;
+  color: white;
+}
+
+#generatorLink {
+  background: #0f766e;
+  color: white;
+}
+
+@media (max-width: 600px) {
+  .top-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .nav-link {
+    font-size: 13px;
+    padding: 6px 12px;
+  }
+
+  #user-box {
+    margin-left: 0;
+  }
+}
 
   </style>
   
@@ -340,16 +396,27 @@ details summary {
       },
       svg: { fontCache: 'global' }
     };
+
+    
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 
 </head>
 <body>
 
-<h1>AI Quiz Generator1704-1036</h1>
-<div id="user-box"></div>
 
 
+<!-- 🔁 Sticky header row: left link + right user info -->
+<div class="top-nav">
+  <div id="left-link-wrapper">
+    <!-- 👇 Only one of these will be visible depending on the page -->
+    <a href="admin.html" id="adminLink" class="nav-link" style="display:none;">🔧 Admin Panel</a>
+  
+  </div>
+  <div id="user-box"></div>
+</div>
+
+<h1>AI Quiz Generator</h1>
 <div class="section-grid">
   <div class="card" onclick="showSection('document')"><span>📑</span>PDF</div>
   <div class="card" onclick="showSection('text')"><span>✏️</span>Text</div>
@@ -357,7 +424,13 @@ details summary {
   <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Audio</div>
   <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
 </div>
-
+<!-- Add this to your existing HTML layout -->
+<div style="margin-bottom:16px; max-width:700px; margin:auto;">
+  <label style="font-weight:600;">📜 Choose from previous texts:</label>
+  <select id="previousPromptsDropdown" style="padding:10px; border-radius:8px; border:1px solid #ccc; width:100%;">
+    <option value="">-- Select Previous Text --</option>
+  </select>
+</div>
 <!-- 🟩 Sekme içeriği -->
 <div id="section-content" style="margin-top: 20px;"></div>
 
@@ -407,45 +480,52 @@ details summary {
 <!-- Soruların çıktısı -->
 <div id="quizOutput" style="margin-top: 20px;"></div>
 
-<div id="saveQuizSection" style="text-align:center; margin-top: 30px; display:none;">
-  <!-- Title and Category Selection -->
-  <select id="mainTopicSelect" style="padding:8px; margin:5px;"></select>
-  <select id="categorySelect" style="padding:8px; margin:5px;"></select>
-  <br/>
+<div id="saveQuizSection" style="display: none; margin-top: 40px; text-align: center;">
+  <div style="max-width: 700px; margin: auto; background: #f9fafb; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+    
+    <!-- Main and Sub Category -->
+    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-bottom: 20px;">
+      <div style="flex: 1 1 220px;">
+        <label style="font-weight: 600; display: block; margin-bottom: 6px;">📂 Main Category</label>
+        <select id="mainTopicSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db;"></select>
+      </div>
+      <div style="flex: 1 1 220px;">
+        <label style="font-weight: 600; display: block; margin-bottom: 6px;">🗂️ Sub Category</label>
+        <select id="categorySelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db;"></select>
+      </div>
+    </div>
 
-  <!-- Title Input -->
-  <div style="margin:10px 0;">
-    <label><strong>📘 Title:</strong></label>
-    <select id="titleDropdown" list="titleSuggestions" style="padding:8px; margin-left:8px; border-radius:6px;">
-      <option value="">-- Select Title --</option>
-      <option value="__new__">➕ Add New Title</option>
-    </select>
-    <datalist id="titleSuggestions"></datalist>
-  </div>
-  
-  <!-- Yeni başlık girilmesi gereken input -->
-  <input id="newTitleInput" type="text" placeholder="Enter new title..." 
-         style="display:none; padding: 10px; width: 300px; border-radius:8px; margin: 10px 0;" />
-  <br/>
+    <!-- Title Selector -->
+    <div style="margin-bottom: 16px;">
+      <label style="font-weight: 600;">📘 Title:</label>
+      <select id="titleDropdown" list="titleSuggestions"
+              style="padding: 10px; margin-left: 8px; border-radius: 8px; border: 1px solid #ccc;">
+        <option value="">-- Select Title --</option>
+        <option value="__new__">➕ Add New Title</option>
+      </select>
+      <datalist id="titleSuggestions"></datalist>
+    </div>
 
-  <!-- Save Button -->
-  <button onclick="saveSelectedQuestions()" 
-          style="padding:10px 20px; font-size:16px; border-radius:8px;">
-    💾 Save Selected Questions
-  </button>
+    <!-- New Title Input -->
+    <input id="newTitleInput" type="text" placeholder="Enter new title..."
+           style="display: none; padding: 10px; width: 100%; max-width: 400px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px;" />
 
-  <!-- View Existing Questions Button -->
-  <div id="viewQuestionsWrapper" style="display:none; margin-top: 10px;">
-    <button onclick="openModal()" 
-            style="padding:8px 16px; border-radius:8px; background:#f3f4f6; border:1px solid #ccc;">
-      📂 View Existing Questions
+    <!-- Save Button -->
+    <button onclick="saveSelectedQuestions()" 
+            style="padding: 12px 24px; font-size: 16px; border-radius: 10px; background: #10b981; color: white; border: none; box-shadow: 0 2px 6px rgba(16,185,129,0.3); cursor: pointer;">
+      💾 Save Selected Questions
     </button>
+
+    <!-- View Questions -->
+    <div id="viewQuestionsWrapper" style="display: none; margin-top: 16px;">
+      <button onclick="openModal()" 
+              style="padding: 10px 20px; border-radius: 10px; background: #e0e7ff; border: 1px solid #c7d2fe; color: #1e40af; font-weight: 500;">
+        📂 View Existing Questions
+      </button>
+    </div>
   </div>
 </div>
-<!-- Floating Mobile Icon - Kayıtlı Sorular -->
 
-
-</div>
 <script src="audioUploader.js"></script>
 <script src="fileReader.js"></script>       <!-- for PDF, DOCX, TXT -->
 <script src="textListener.js"></script>     <!-- for manual input -->
@@ -464,7 +544,9 @@ function renderUserBox() {
   const container = document.getElementById("user-box");
 
   const currentPage = encodeURIComponent(window.location.href);
-  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  container.innerHTML = accessToken && name
+  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;
+
+  container.innerHTML = accessToken && name
     ? `<div class="user-box-inner">
         <span class="user-name">${name}</span>
         <span class="badge ${membership.toLowerCase()}">${membership}</span>
@@ -472,15 +554,27 @@ function renderUserBox() {
       </div>`
     : `<div class="user-box-inner">
         <a class="login-btn" href="${loginUrl}">Login with Patreon</a>
-       
       </div>`;
 
+  // Logout logic
   const logoutBtn = document.querySelector(".logout-btn");
-  if (logoutBtn) logoutBtn.onclick = () => {
-    localStorage.clear();
-    location.reload();
-  };
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      localStorage.clear();
+      location.reload();
+    };
+  }
+
+  // ✅ Conditionally show cross-page links
+  if (accessToken) {
+    const adminLink = document.getElementById("adminLink");
+    const generatorLink = document.getElementById("generatorLink");
+
+    if (adminLink) adminLink.style.display = "inline-block";
+    if (generatorLink) generatorLink.style.display = "inline-block";
+  }
 }
+
 
 
 window.showSection = function(type) {
@@ -545,6 +639,29 @@ window.showSection = function(type) {
         <textarea id="imageTextOutput" placeholder="Text from image will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
       `;
       break;
+      case 'audio':
+  html = `
+    <h2>🎧 Upload Audio File</h2>
+<p>Upload your file in <b>MP3</b>, <b>MP4</b>, or <b>WAV</b> format. It will be transcribed automatically.</p>
+<input type="file" id="audioInput" accept=".mp3,.mp4,.wav" />
+
+    <progress id="uploadProgress" value="0" max="100" style="width: 100%; margin-top: 10px;"></progress>
+    <div id="loadingSpinner" style="display: none; text-align: center; margin-top: 10px;">
+      <div class="spinner" style="
+        width: 30px;
+        height: 30px;
+        border: 4px solid #ddd;
+        border-top-color: #4f46e5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: auto;">
+      </div>
+    </div>
+    <div id="audioStatus" style="margin-top:10px; color:#333;"></div>
+    <textarea id="audioTextOutput" placeholder="Text will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+  `;
+  break;
+
 
     case 'topic':
       html = `
@@ -637,15 +754,17 @@ window.showSection = function(type) {
 <!-- Modal Açma Butonu -->
 <button id="openModalBtn" onclick="openModal()" 
   style="display: none; position:fixed; bottom:20px; right:20px; z-index:10000; padding:12px 16px; border-radius:8px; background:#4f46e5; color:white;">
-  📂 Mevcut Soruları Göster
+  📂 View Existing Questions
 </button>
+
 
 <!-- Scrollable Modal -->
 <div id="questionModal" class="modal">
   <div class="modal-header">
-    <h3>📚 Mevcut Sorular</h3>
+    <h3>📚 Existing Questions</h3>
     <button onclick="closeModal()">✖</button>
   </div>
+
   <div style="padding: 8px 16px; border-bottom: 1px solid #eee;">
     <input id="searchInput" oninput="filterQuestions()" 
            placeholder="🔍 Soru içinde ara..." 
@@ -659,20 +778,23 @@ window.showSection = function(type) {
 <button onclick="filterByDifficulty('')" style="margin:4px; padding:6px 10px;">🔁 Show All</button>
 </div>
 <div style="text-align:center; margin: 8px 0;">
-  <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Hepsini Göster</button>
-  <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Tümünü Kapat</button>
+  <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Show All</button>
+  <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Hide All</button>
 </div>
   <div class="modal-body" id="modalQuestionList">
-    <p style="text-align:center;">Yükleniyor...</p>
+    <p style="text-align:center;">Loading...</p>
   </div>
   <div style="text-align:center; margin: 8px 0;">
-    <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Hepsini Göster</button>
-    <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Tümünü Kapat</button>
+    <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Show All</button>
+    <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Hide All</button>
   </div>
 </div>
 
 <div id="fixedQuestionsToggle" onclick="openModal()" title="Show saved questions">
   🧾
+</div>
+<div id="categoryLoading" style="text-align:center; margin: 10px 0; display:none;">
+  <span style="font-size:14px; color:#6b7280;">⏳ Loading ...</span>
 </div>
 
 </body>
