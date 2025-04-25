@@ -769,20 +769,18 @@ app.post("/save-questions", async (req, res) => {
 });
 
 app.post("/save-recent-text", authMiddleware, async (req, res) => {
-  const { email, text } = req.body;
-  if (!email || !text || text.trim().length < 10) {
+  const { email, text, title } = req.body;
+  if (!email || !text || !title || text.trim().length < 10) {
     return res.status(400).json({ error: "Invalid data" });
   }
 
   const client = await pool.connect();
   try {
-    // Insert the new text
     await client.query(`
-      INSERT INTO recent_texts (user_email, content)
-      VALUES ($1, $2)
-    `, [email, text]);
+      INSERT INTO recent_texts (user_email, title_name, extracted_text)
+      VALUES ($1, $2, $3)
+    `, [email, title, text]);
 
-    // Delete older ones if more than 10 remain
     await client.query(`
       DELETE FROM recent_texts
       WHERE id IN (
