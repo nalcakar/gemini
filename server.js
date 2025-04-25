@@ -800,6 +800,32 @@ app.post("/save-recent-text", authMiddleware, async (req, res) => {
   }
 });
 
+
+app.get("/list-recent-texts", authMiddleware, async (req, res) => {
+  const email = req.user?.email;
+  if (!email) return res.status(401).json({ error: "Unauthorized" });
+
+  const client = await pool.connect();
+  try {
+    const result = await client.query(`
+      SELECT id, title_name, extracted_text
+      FROM recent_texts
+      WHERE user_email = $1
+      ORDER BY created_at DESC
+      LIMIT 10
+    `, [email]);
+
+    res.json({ texts: result.rows });
+  } catch (err) {
+    console.error("❌ list-recent-texts error:", err);
+    res.status(500).json({ error: "Server error" });
+  } finally {
+    client.release();
+  }
+});
+
+
+
 app.get("/list-main-topics", authMiddleware, async (req, res) => {
   const email = req.user?.email;
   if (!email) return res.status(401).json({ error: "Unauthorized" });

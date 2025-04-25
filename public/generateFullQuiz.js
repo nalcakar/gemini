@@ -521,7 +521,64 @@ const buttonsHTML = `
       alert("❌ Could not connect to the server.");
     }
   }
+
   
+  async function loadRecentTextsDropdown() {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+  
+    const res = await fetch("https://gemini-j8xd.onrender.com/list-recent-texts", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  
+    if (!res.ok) {
+      console.error("❌ Failed to load recent texts");
+      return;
+    }
+  
+    const data = await res.json();
+    const dropdown = document.getElementById("recentTextsDropdown");
+    dropdown.innerHTML = `<option value="">🔽 Load a previous text...</option>`;
+  
+    data.texts.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.extracted_text;
+      opt.textContent = t.title_name.length > 50 ? t.title_name.slice(0, 50) + "..." : t.title_name;
+      dropdown.appendChild(opt);
+    });
+  }
+  
+  function restoreRecentText() {
+    const dropdown = document.getElementById("recentTextsDropdown");
+    const selectedText = dropdown.value;
+    if (!selectedText) {
+      alert("⚠️ Please select a text to restore.");
+      return;
+    }
+  
+    const lastSection = localStorage.getItem("lastSection");
+  
+    if (lastSection === "topic") {
+      const topicInput = document.getElementById("topicInput");
+      if (topicInput) topicInput.value = selectedText;
+    } else {
+      const ids = ["textManualInput", "textOutput", "imageTextOutput", "audioTextOutput"];
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el && el.offsetHeight > 0 && el.offsetWidth > 0) {
+          el.value = selectedText;
+          break;
+        }
+      }
+    }
+  
+    alert("✅ Text restored.");
+  }
+
+  
+  document.addEventListener("DOMContentLoaded", () => {
+    loadRecentTextsDropdown();
+  });
   
   
   
