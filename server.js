@@ -328,7 +328,42 @@ Rules:
   }
 });
 
+app.post("/add-recent-text", authMiddleware, async (req, res) => {
+  const { titleName, extractedText } = req.body;
+  const email = req.user?.email;
 
+  if (!email || !titleName || !extractedText) {
+    return res.status(400).json({ error: "Missing data" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      INSERT INTO recent_texts (user_email, title_name, extracted_text)
+      VALUES ($1, $2, $3)
+    `, [email, titleName, extractedText]);
+
+    // Keep only the last 10 per user and title
+    await client.query(`
+      DELETE FROM recent_texts
+      WHERE id NOT IN (
+        SELECT id FROM recent_texts
+        WHERE user_email = $1 AND title_name = $2
+        ORDER BY created_at DESC
+        LIMIT 10
+      )
+      AND user_email = $1
+      AND title_name = $2
+    `, [email, titleName]);
+
+    res.json({ status: "success" });
+  } catch (error) {
+    console.error("❌ Error saving recent text:", error.message);
+    res.status(500).json({ error: "Database error" });
+  } finally {
+    client.release();
+  }
+});
 
 app.post("/suggest-topic-focus", async (req, res) => {
   const { topic, language } = req.body;
@@ -769,36 +804,9 @@ app.post("/save-questions", async (req, res) => {
 });
 
 // Add recent text entry (Node.js Express route)
-app.post("/add-recent-text", authMiddleware, async (req, res) => {
-  const { titleName, extractedText } = req.body;
-  const email = req.user.email;
+// ✅ Add Recent Text
 
-  const client = await pool.connect();
-  try {
-    await client.query(
-      `INSERT INTO recent_texts (user_email, title_name, extracted_text)
-       VALUES ($1, $2, $3)`,
-      [email, titleName, extractedText]
-    );
 
-    // Keep only last 10 records per title
-    await client.query(`
-      DELETE FROM recent_texts
-      WHERE id NOT IN (
-        SELECT id FROM recent_texts
-        WHERE user_email = $1 AND title_name = $2
-        ORDER BY created_at DESC LIMIT 10
-      )
-      AND user_email = $1 AND title_name = $2`,
-      [email, titleName]);
-
-    res.json({ status: "success" });
-  } catch (error) {
-    res.status(500).json({ error: "Database error" });
-  } finally {
-    client.release();
-  }
-});
 
 // Retrieve recent texts
 app.get("/recent-texts", authMiddleware, async (req, res) => {

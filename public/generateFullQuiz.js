@@ -125,27 +125,25 @@ async function generateFullQuiz() {
         };
       });
 
-    // 🎛️ Kontrol butonları
+    // 🎛️ Create control buttons
     const createControls = () => {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
       box.innerHTML = `
-       <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
-<button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
-<button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
-<button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
-
+        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
       `;
       return box;
     };
 
-    // 🧩 Başlık + üst kontroller
+    // 📝 Show parsed questions
     output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
     const topControls = createControls();
     const bottomControls = createControls();
     output.appendChild(topControls);
 
-    // 📝 Soruları sırayla ekle
     parsedQuestions.forEach((q, i) => {
       const details = document.createElement("details");
       details.className = "quiz-preview";
@@ -171,25 +169,24 @@ async function generateFullQuiz() {
         <p><strong>✅ Answer:</strong> ${answerHTML}</p>
         <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
         <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
-        ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : ""}
+        ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Save</label>` : ""}
         <div style="margin-top: 8px;">
-          <button onclick="editQuestion(this)">✏️ Düzenle</button>
-          <button onclick="deleteQuestion(this)">🗑️ Sil</button>
+          <button onclick="editQuestion(this)">✏️ Edit</button>
+          <button onclick="deleteQuestion(this)">🗑️ Delete</button>
         </div>
       `;
 
       output.appendChild(details);
     });
 
-    // ⬇️ Alt kontroller
     output.appendChild(bottomControls);
 
-    // 🔢 MathJax tekrar render
+    // 🔢 Re-render MathJax
     if (window.MathJax && window.MathJax.typesetPromise) {
       window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
     }
 
-    // 💾 Kaydetme alanı
+    // 💾 Show save box if logged in
     if (saveBox && isLoggedIn) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
@@ -208,6 +205,28 @@ async function generateFullQuiz() {
       }
     }
 
+    // 💾 Save the extracted text to recent_texts table
+    try {
+      const dropdown = document.getElementById("titleDropdown");
+      const input = document.getElementById("newTitleInput");
+      const titleName = dropdown?.value === "__new__"
+        ? input?.value.trim()
+        : dropdown?.value;
+
+      if (titleName && extractedText && extractedText.length > 0 && isLoggedIn) {
+        await fetch("https://gemini-j8xd.onrender.com/add-recent-text", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({ titleName, extractedText })
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save recent text:", error);
+    }
+
   } catch (err) {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate questions.\n${err.message}`);
@@ -215,6 +234,7 @@ async function generateFullQuiz() {
 
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
+
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
@@ -969,14 +989,7 @@ function selectAllQuestions(state = true) {
 
 
 
-await fetch("https://gemini-j8xd.onrender.com/add-recent-text", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${accessToken}`
-  },
-  body: JSON.stringify({ titleName, extractedText })
-});
+
 
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -996,29 +1009,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-async function loadRecentTexts(titleName) {
-  const token = localStorage.getItem("accessToken");
-  if (!token) return;
+function loadSelectedRecentText() {
+  const select = document.getElementById("recentTextsSelect");
+  const selectedText = select.value;
+  if (!selectedText) return alert("⚠️ Select a recent text first.");
 
-  try {
-    const res = await fetch(`https://gemini-j8xd.onrender.com/recent-texts?titleName=${encodeURIComponent(titleName)}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
+  const lastSection = localStorage.getItem("lastSection");
+  const textareaIds = {
+    "topic": "topicInput",
+    "text": "textManualInput",
+    "document": "textOutput",
+    "image": "imageTextOutput",
+    "audio": "audioTextOutput"
+  };
 
-    const select = document.getElementById("recentTextsSelect");
-    select.innerHTML = `<option value="">🔄 Select a recent text...</option>`;
+  const textareaId = textareaIds[lastSection];
+  const textarea = document.getElementById(textareaId);
 
-    data.recentTexts.forEach(text => {
-      const opt = document.createElement("option");
-      opt.value = text.extracted_text;
-      opt.textContent = new Date(text.created_at).toLocaleString();
-      select.appendChild(opt);
-    });
-  } catch (err) {
-    console.error("❌ Failed to load recent texts:", err);
+  if (textarea) {
+    textarea.value = selectedText;
+    alert("✅ Recent text loaded successfully.");
+  } else {
+    alert("❌ Could not load recent text. No textarea found.");
   }
 }
+
 
 function clearRecentTextsDropdown() {
   const select = document.getElementById("recentTextsSelect");
@@ -1026,4 +1041,69 @@ function clearRecentTextsDropdown() {
     select.innerHTML = `<option value="">🔄 Select a recent text...</option>`;
   }
 }
+document.addEventListener("DOMContentLoaded", () => {
+  const titleDropdown = document.getElementById("titleDropdown");
 
+  if (titleDropdown) {
+    titleDropdown.addEventListener("change", (e) => {
+      const selectedTitle = e.target.value;
+      const isLoggedIn = !!localStorage.getItem("accessToken");
+
+      if (isLoggedIn && selectedTitle && selectedTitle !== "__new__") {
+        loadRecentTexts(selectedTitle);
+      } else {
+        clearRecentTextsDropdown();
+      }
+    });
+  }
+});
+
+
+async function loadRecentTexts(titleName) {
+  const token = localStorage.getItem("accessToken");
+  if (!token || !titleName) return;
+
+  try {
+    const res = await fetch(`https://gemini-j8xd.onrender.com/recent-texts?titleName=${encodeURIComponent(titleName)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    const select = document.getElementById("recentTextsSelect");
+    if (!select) return;
+
+    select.innerHTML = `<option value="">🔄 Select a recent text...</option>`;
+
+    data.recentTexts.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = item.extracted_text;
+      opt.textContent = new Date(item.created_at).toLocaleString(); // Nice readable date
+      select.appendChild(opt);
+    });
+
+  } catch (err) {
+    console.error("❌ Failed to load recent texts:", err);
+  }
+}
+
+
+async function saveRecentText(titleName, extractedText) {
+  const accessToken = localStorage.getItem("accessToken");
+  if (!accessToken || !titleName || !extractedText) return;
+
+  try {
+    const response = await fetch("https://gemini-j8xd.onrender.com/add-recent-text", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ titleName, extractedText })
+    });
+
+    const data = await response.json();
+    console.log("✅ Recent text saved:", data);
+  } catch (error) {
+    console.error("❌ Failed to save recent text:", error);
+  }
+}
