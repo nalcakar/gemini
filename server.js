@@ -768,6 +768,60 @@ app.post("/save-questions", async (req, res) => {
   }
 });
 
+// Add recent text entry (Node.js Express route)
+app.post("/add-recent-text", authMiddleware, async (req, res) => {
+  const { titleName, extractedText } = req.body;
+  const email = req.user.email;
+
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `INSERT INTO recent_texts (user_email, title_name, extracted_text)
+       VALUES ($1, $2, $3)`,
+      [email, titleName, extractedText]
+    );
+
+    // Keep only last 10 records per title
+    await client.query(`
+      DELETE FROM recent_texts
+      WHERE id NOT IN (
+        SELECT id FROM recent_texts
+        WHERE user_email = $1 AND title_name = $2
+        ORDER BY created_at DESC LIMIT 10
+      )
+      AND user_email = $1 AND title_name = $2`,
+      [email, titleName]);
+
+    res.json({ status: "success" });
+  } catch (error) {
+    res.status(500).json({ error: "Database error" });
+  } finally {
+    client.release();
+  }
+});
+
+// Retrieve recent texts
+app.get("/recent-texts", authMiddleware, async (req, res) => {
+  const { titleName } = req.query;
+  const email = req.user.email;
+
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `SELECT id, extracted_text, created_at FROM recent_texts
+       WHERE user_email = $1 AND title_name = $2
+       ORDER BY created_at DESC LIMIT 10`,
+      [email, titleName]);
+
+    res.json({ recentTexts: result.rows });
+  } catch (error) {
+    res.status(500).json({ error: "Database error" });
+  } finally {
+    client.release();
+  }
+});
+
+
 
 app.get("/list-main-topics", authMiddleware, async (req, res) => {
   const email = req.user?.email;

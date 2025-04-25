@@ -966,3 +966,64 @@ function filterByDifficulty(level) {
 function selectAllQuestions(state = true) {
   document.querySelectorAll(".qcheck").forEach(cb => cb.checked = state);
 }
+
+
+
+await fetch("https://gemini-j8xd.onrender.com/add-recent-text", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`
+  },
+  body: JSON.stringify({ titleName, extractedText })
+});
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const titleDropdown = document.getElementById("titleDropdown");
+
+  if (titleDropdown) {
+    titleDropdown.addEventListener("change", (e) => {
+      const selectedTitle = e.target.value;
+      const isLoggedIn = !!localStorage.getItem("accessToken");
+
+      if (isLoggedIn && selectedTitle && selectedTitle !== "__new__") {
+        loadRecentTexts(selectedTitle);
+      } else {
+        clearRecentTextsDropdown();
+      }
+    });
+  }
+});
+
+async function loadRecentTexts(titleName) {
+  const token = localStorage.getItem("accessToken");
+  if (!token) return;
+
+  try {
+    const res = await fetch(`https://gemini-j8xd.onrender.com/recent-texts?titleName=${encodeURIComponent(titleName)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    const select = document.getElementById("recentTextsSelect");
+    select.innerHTML = `<option value="">🔄 Select a recent text...</option>`;
+
+    data.recentTexts.forEach(text => {
+      const opt = document.createElement("option");
+      opt.value = text.extracted_text;
+      opt.textContent = new Date(text.created_at).toLocaleString();
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("❌ Failed to load recent texts:", err);
+  }
+}
+
+function clearRecentTextsDropdown() {
+  const select = document.getElementById("recentTextsSelect");
+  if (select) {
+    select.innerHTML = `<option value="">🔄 Select a recent text...</option>`;
+  }
+}
+
