@@ -504,8 +504,7 @@ const buttonsHTML = `
         body: JSON.stringify({
           titleName: title,
           categoryId,
-          questions,
-          promptText: extractedText // Include this!
+          questions
         })
       });
   
@@ -967,53 +966,3 @@ function filterByDifficulty(level) {
 function selectAllQuestions(state = true) {
   document.querySelectorAll(".qcheck").forEach(cb => cb.checked = state);
 }
-
-
-async function loadPreviousPrompts() {
-  const token = localStorage.getItem("accessToken");
-  const dropdown = document.getElementById("previousPromptsDropdown");
-
-  if (!token || !dropdown) return;
-
-  const res = await fetch("https://gemini-j8xd.onrender.com/list-prompts", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-
-  if (!res.ok) return;
-
-  const data = await res.json();
-  dropdown.innerHTML = '<option value="">-- Select Previous Text --</option>';
-
-  data.prompts.forEach(text => {
-    const option = document.createElement("option");
-    option.value = text;
-    option.textContent = text.substring(0, 50) + (text.length > 50 ? "..." : "");
-    dropdown.appendChild(option);
-  });
-
-  dropdown.onchange = () => {
-    const selectedText = dropdown.value;
-    if (!selectedText) return;
-
-    // Fill the appropriate textarea based on visible section
-    const lastSection = localStorage.getItem("lastSection");
-    const textareaIds = {
-      "text": "textManualInput",
-      "document": "textOutput",
-      "image": "imageTextOutput",
-      "audio": "audioTextOutput",
-      "topic": "topicInput"
-    };
-
-    const textareaId = textareaIds[lastSection] || "textManualInput";
-    const textarea = document.getElementById(textareaId);
-
-    if (textarea) {
-      textarea.value = selectedText;
-      textarea.focus();
-      textarea.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-}
-
-document.addEventListener("DOMContentLoaded", loadPreviousPrompts);
