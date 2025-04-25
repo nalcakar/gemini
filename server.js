@@ -332,6 +332,8 @@ app.post("/add-recent-text", authMiddleware, async (req, res) => {
   const { titleName, extractedText } = req.body;
   const email = req.user?.email;
 
+  console.log("📥 add-recent-text received:", { email, titleName, extractedText: extractedText?.slice(0, 50) });
+
   if (!email || !titleName || !extractedText) {
     return res.status(400).json({ error: "Missing data" });
   }
@@ -343,7 +345,7 @@ app.post("/add-recent-text", authMiddleware, async (req, res) => {
       VALUES ($1, $2, $3)
     `, [email, titleName, extractedText]);
 
-    // Keep only the last 10 per user and title
+    // Delete old ones
     await client.query(`
       DELETE FROM recent_texts
       WHERE id NOT IN (
@@ -352,8 +354,7 @@ app.post("/add-recent-text", authMiddleware, async (req, res) => {
         ORDER BY created_at DESC
         LIMIT 10
       )
-      AND user_email = $1
-      AND title_name = $2
+      AND user_email = $1 AND title_name = $2
     `, [email, titleName]);
 
     res.json({ status: "success" });
@@ -364,6 +365,7 @@ app.post("/add-recent-text", authMiddleware, async (req, res) => {
     client.release();
   }
 });
+
 
 app.post("/suggest-topic-focus", async (req, res) => {
   const { topic, language } = req.body;
