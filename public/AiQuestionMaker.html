@@ -544,12 +544,11 @@ window.showSection = function(type) {
       break;
 
     case 'text':
-      html = `
-        <h2>✏️ Paste Your Text</h2>
-        <p>Paste your notes and click Generate Quiz.</p>
-        <textarea id="textManualInput" placeholder="Your content here..."></textarea>
-        <div id="quizOutput" class="quiz-preview"></div>
-      `;
+    html = `
+  <h2>✏️ Paste Your Text</h2>
+  <p>Paste your notes and click Generate Quiz.</p>
+  <textarea id="textManualInput" placeholder="Your content here..."></textarea>
+`;
       break;
 
     case 'image':
@@ -711,15 +710,15 @@ window.showSection = function(type) {
 <button onclick="filterByDifficulty('')" style="margin:4px; padding:6px 10px;">🔁 Show All</button>
 </div>
 <div style="text-align:center; margin: 8px 0;">
-  <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Show All</button>
-  <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Hide All</button>
+  <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Expand All</button>
+  <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Collapse All</button>
 </div>
   <div class="modal-body" id="modalQuestionList">
     <p style="text-align:center;">Loading...</p>
   </div>
   <div style="text-align:center; margin: 8px 0;">
-    <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Show All</button>
-    <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Hide All</button>
+    <button onclick="expandAllModalDetails(true)" style="margin:4px; padding:6px 10px;">📖 Expand All</button>
+    <button onclick="expandAllModalDetails(false)" style="margin:4px; padding:6px 10px;">🔽 Collapse All</button>
   </div>
 </div>
 

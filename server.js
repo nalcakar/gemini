@@ -208,7 +208,6 @@ app.use(express.static(path.join(__dirname, "public")));
 // === SORU ÜRETME ===
 app.post("/generate-questions", async (req, res) => {
   const { mycontent, userLanguage, userFocus, difficulty } = req.body;
-
   const user = req.user || {};
 
   const tierQuestionCounts = {
@@ -220,6 +219,7 @@ app.post("/generate-questions", async (req, res) => {
   const userTier = user.tier;
   const questionCount = tierQuestionCounts[userTier] || 5;
 
+  // Dil algılama
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
@@ -229,14 +229,6 @@ app.post("/generate-questions", async (req, res) => {
     "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
 
-  let questionLanguage = "İngilizce";
-  if (userLanguage && userLanguage.trim()) {
-    questionLanguage = userLanguage.trim();
-  } else if (languageMap[langCode]) {
-    questionLanguage = languageMap[langCode];
-  }
-  
-  // AI'ın anlayacağı şekilde ISO'ya çevir
   const isoMap = {
     "İngilizce": "English",
     "Türkçe": "Turkish",
@@ -259,63 +251,73 @@ app.post("/generate-questions", async (req, res) => {
     "Romence": "Romanian",
     "Ukraynaca": "Ukrainian"
   };
+
+  let questionLanguage = "İngilizce";
+  if (userLanguage?.trim()) {
+    questionLanguage = userLanguage.trim();
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
+
   const promptLanguage = isoMap[questionLanguage] || "English";
   const isShortTopic = mycontent.length < 80;
 
-  const prompt = isShortTopic
-  ? `
+  // ✅ Temiz tekli prompt yapısı
+  let prompt = "";
+
+  if (isShortTopic) {
+    prompt = `
 You are an expert question generator.
 
-Your task is to generate ${questionCount} multiple choice questions based on the topic: "${mycontent}"
-${userFocus ? `The user wants to focus on: "${userFocus}"\n` : ""}
-${difficulty ? `Target difficulty: ${difficulty}` : ""}
-All output must be written in: ${promptLanguage}
+Your task is to generate exactly ${questionCount} multiple-choice questions based on the topic: "${mycontent}".
 
-Each question must follow **exactly** this structure:
+${userFocus?.trim() ? `Focus specifically on: "${userFocus.trim()}".` : ""}
+${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}.` : ""}
 
-***
-[Question text]
-
-/// A) Option 1  
-/// B) Option 2  
-/// C) Option 3  
-/// D) Option 4  
-~~Cevap: [Correct option]  
-&&Açıklama: [Explanation of why this answer is correct. At least 2 full sentences.]
-
-Rules:
-- Use only the specified format above.
-- Do NOT number the questions (no 1., 2., etc.)
-- Do NOT include any extra commentary or explanation.
-+ Write in: ${promptLanguage} only.
-+ - If the question contains a mathematical formula or expression, format it in LaTeX using $...$ for inline math.
-`
-  : `
-You are an expert quiz assistant.
-
-Here is some content to work with in ${promptLanguage}:
-"${mycontent}"
-
-Generate exactly ${questionCount} multiple choice questions based on this content.
+All output must be written in ${promptLanguage}.
 
 Format:
-***
-[Question text]
+***[Question text]
 
-/// A) ...
-/// B) ...
-/// C) ...
-/// D) ...
-~~Cevap: ...
-&&Açıklama: ...
+/// A) Option 1
+/// B) Option 2
+/// C) Option 3
+/// D) Option 4
+~~Cevap: [Correct Option]
+&&Açıklama: [Short Explanation about why this answer is correct.]
 
 Rules:
-- All output must be in ${questionLanguage}.
-- Use ONLY this format, no extra notes or headers.
-+ Don't number the questions.
-+ - If the question contains a mathematical formula or expression, format it in LaTeX using $...$ for inline math.
+- Use exactly this structure, no extra numbering (no 1., 2., etc.)
+- No additional comments outside the requested format.
+- Each explanation must be at least 2 complete sentences.
+- If the question involves math, format expressions using LaTeX ($...$).
 `;
+  } else {
+    prompt = `
+You are an expert quiz generator.
 
+Based on the following content (in ${promptLanguage}), generate exactly ${questionCount} multiple-choice questions:
+
+"${mycontent}"
+
+Format:
+***[Question text]
+
+/// A) Option 1
+/// B) Option 2
+/// C) Option 3
+/// D) Option 4
+~~Cevap: [Correct Option]
+&&Açıklama: [Short Explanation about why this answer is correct.]
+
+Rules:
+- Use exactly the specified structure, no numbering.
+- No additional notes or commentary outside.
+- All content must be in ${promptLanguage}.
+- Each explanation should be at least 2 full sentences.
+- If math appears, format formulas properly using LaTeX ($...$).
+`;
+  }
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
@@ -323,10 +325,14 @@ Rules:
     const raw = await result.response.text();
     res.json({ questions: raw });
   } catch (err) {
-    console.error("Gemini hata:", err.message);
-    res.status(500).json({ error: "Soru üretilemedi" });
+    console.error("Gemini Error:", err.message);
+    res.status(500).json({
+      error: "Failed to generate questions",
+      message: err.message
+    });
   }
 });
+
 
 
 

@@ -50,7 +50,9 @@ function expandAllDetails(open = true) {
 
 async function generateFullQuiz() {
   const output = document.getElementById("quizOutput");
-  if (output) output.innerHTML = "";
+  if (output) {
+    output.innerHTML = "";
+  }
 
   const saveBox = document.getElementById("saveQuizSection");
   if (saveBox) {
@@ -135,27 +137,23 @@ async function generateFullQuiz() {
         };
       });
 
-    // 🎛️ Kontrol butonları
     const createControls = () => {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
       box.innerHTML = `
-       <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
-<button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
-<button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
-<button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
-
+        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
       `;
       return box;
     };
 
-    // 🧩 Başlık + üst kontroller
     output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
     const topControls = createControls();
     const bottomControls = createControls();
     output.appendChild(topControls);
 
-    // 📝 Soruları sırayla ekle
     parsedQuestions.forEach((q, i) => {
       const details = document.createElement("details");
       details.className = "quiz-preview";
@@ -176,30 +174,36 @@ async function generateFullQuiz() {
       const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
 
       details.innerHTML = `
-        <summary><b>Q${i + 1}.</b> ${questionHTML}</summary>
-        <ul>${optionsHTML}</ul>
-        <p><strong>✅ Answer:</strong> ${answerHTML}</p>
-        <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
-        <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
-        ${isLoggedIn ? `<label><input type="checkbox" class="qcheck"> ✅ Kaydet</label>` : ""}
-        <div style="margin-top: 8px;">
-          <button onclick="editQuestion(this)">✏️ Düzenle</button>
-          <button onclick="deleteQuestion(this)">🗑️ Sil</button>
+        <summary style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
+          ${isLoggedIn ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
+        </summary>
+        <div style="margin-top: 8px; padding: 8px;">
+          <ul>${optionsHTML}</ul>
+          <p><strong>✅ Answer:</strong> ${answerHTML}</p>
+          <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
+          <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
+          <div style="margin-top: 8px;">
+            <button onclick="editQuestion(this)">✏️ Edit</button>
+            <button onclick="deleteQuestion(this)">🗑️ Delete</button>
+          </div>
         </div>
       `;
 
       output.appendChild(details);
     });
 
-    // ⬇️ Alt kontroller
+    const newTitleInput = document.getElementById("newTitleInput");
+    if (newTitleInput) {
+      newTitleInput.style.display = "none"; // ✅ Hide after generation
+    }
+
     output.appendChild(bottomControls);
 
-    // 🔢 MathJax tekrar render
     if (window.MathJax && window.MathJax.typesetPromise) {
       window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
     }
 
-    // 💾 Kaydetme alanı
     if (saveBox && isLoggedIn) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
@@ -232,6 +236,19 @@ async function generateFullQuiz() {
 
 
 
+function toggleHighlight(checkbox) {
+  const details = checkbox.closest("details");
+  if (!details) return;
+
+  if (checkbox.checked) {
+    details.style.backgroundColor = "#dbeafe"; // light blue
+  } else {
+    details.style.backgroundColor = ""; // remove highlight
+  }
+}
+
+
+
   
   // Düzenle: soruları input haline getir
   // Eklenmiş MathJax güncellemesi ile tam editQuestion ve saveQuestionEdits fonksiyonları
@@ -242,12 +259,16 @@ window.editQuestion = function (btn) {
   const block = btn.closest("details");
   if (block.querySelector("textarea")) return;
 
+  // 🆕 Eski halini sakla
+  if (!block.dataset.originalHTML) {
+    block.dataset.originalHTML = block.innerHTML;
+  }
+
   const summary = block.querySelector("summary");
   const questionSpan = summary.querySelector(".q[data-key='question']");
   const questionText = questionSpan?.dataset.latex || summary.textContent.replace(/^Q\d+\.\s*/, "").trim();
   questionSpan.style.fontWeight = "bold";
 
-  // ✅ Auto-resize helper
   const enableAutoResize = (textarea) => {
     const resize = () => {
       textarea.style.height = "auto";
@@ -257,7 +278,7 @@ window.editQuestion = function (btn) {
     requestAnimationFrame(() => resize());
   };
 
-  // ✅ Soru textarea (tek satır başlar, içerik artınca büyür)
+  // ✅ Soru textarea
   const qTextarea = document.createElement("textarea");
   qTextarea.value = questionText;
   qTextarea.className = "q-edit";
@@ -270,7 +291,17 @@ window.editQuestion = function (btn) {
   summary.insertAdjacentElement("afterend", qTextarea);
   enableAutoResize(qTextarea);
 
-  // ✅ Şıklar, cevap, açıklama alanları
+  // ✅ Yazdıkça üst soru değişsin
+  qTextarea.addEventListener("input", () => {
+    if (questionSpan) {
+      const newText = qTextarea.value.trim();
+      questionSpan.textContent = newText;
+      questionSpan.dataset.latex = newText;
+      if (window.MathJax?.typesetPromise) MathJax.typesetPromise([questionSpan]);
+    }
+  });
+
+  // ✅ Şıklar, cevap, açıklama
   const elements = block.querySelectorAll(".q, li[data-key]");
   elements.forEach(el => {
     const key = el.dataset.key;
@@ -291,7 +322,7 @@ window.editQuestion = function (btn) {
     enableAutoResize(textarea);
   });
 
-  // ✅ Zorluk seviyesi dropdown
+  // ✅ Difficulty seçimi
   let difficulty = "medium";
   const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
   if (diffText.includes("easy")) difficulty = "easy";
@@ -316,14 +347,38 @@ window.editQuestion = function (btn) {
   if (diffLine) diffLine.insertAdjacentElement("afterend", select);
   else block.appendChild(select);
 
-  // ✅ Butonu güncelle
-  btn.textContent = "✅ Güncelle";
-  btn.onclick = () => saveQuestionEdits(block);
+  // ✅ Save ve Cancel butonları
+  const btnRow = document.createElement("div");
+  btnRow.style.marginTop = "10px";
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "✅ Save";
+  saveBtn.onclick = () => saveQuestionEdits(block);
+  saveBtn.style.marginRight = "8px";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "❌ Cancel";
+  cancelBtn.onclick = () => cancelEdit(block);
+
+  btnRow.appendChild(saveBtn);
+  btnRow.appendChild(cancelBtn);
+  block.appendChild(btnRow);
 
   if (window.MathJax && window.MathJax.typesetPromise) {
     window.MathJax.typesetPromise().catch(console.error);
   }
 };
+window.cancelEdit = function (block) {
+  if (block?.dataset?.originalHTML) {
+    block.innerHTML = block.dataset.originalHTML;
+    delete block.dataset.originalHTML;
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([block]);
+    }
+  }
+};
+
+
 
 
 
@@ -370,11 +425,14 @@ function saveQuestionEdits(block) {
 
   // 🔁 summary tek satır ve temiz şekilde yapılsın
   const summaryHTML = `
-    <summary>
-      <b>Q${parseInt(newDetails.dataset.index) + 1}.</b>
+  <summary style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="flex-grow:1;">
+      <b>Q${parseInt(newDetails.dataset.index) + 1}.</b> 
       <span class="q" data-key="question" data-latex="${questionText}">${questionText}</span>
-    </summary>
-  `;
+    </div>
+    ${localStorage.getItem("userEmail") ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
+  </summary>
+`;
 
   const difficultyHTML = `<p><strong>Difficulty:</strong> ${difficultyIcon}</p>`;
   const checkboxHTML = localStorage.getItem("userEmail")
@@ -848,7 +906,7 @@ const buttonsHTML = `
   
     if (!shouldReloadQuestions && currentTitle === titleName) return;
   
-    container.innerHTML = "<p style='text-align:center;'>Loading...</p>";
+    container.innerHTML = "<p style='text-align:center;'>⏳ Loading...</p>";
   
     fetch(`https://gemini-j8xd.onrender.com/get-questions-by-name?title=${encodeURIComponent(titleName)}&email=${encodeURIComponent(email)}`, {
       headers: {
@@ -859,49 +917,46 @@ const buttonsHTML = `
       .then(data => {
         if (!data.questions || data.questions.length === 0) {
           container.innerHTML = "<p style='color:gray;'>⚠️ No questions found under this title.</p>";
-
           return;
         }
   
         container.innerHTML = `<p>📌 Total Questions: <strong>${data.questions.length}</strong></p>`;
-
   
         data.questions.forEach((q, i) => {
           const block = document.createElement("details");
-block.open = false; // ✅ Açık gelmesin
-block.dataset.difficulty = (q.difficulty || "medium").toLowerCase();
-
+          block.dataset.difficulty = (q.difficulty || "medium").toLowerCase();
+          // Başlangıçta kapalı kalsın diye open vermiyoruz (append sonrası da ayrıca kapatacağız)
   
           let badge = "";
           if (q.difficulty === "easy") {
-            badge = `🟢 Easy`;
+            badge = "🟢 Easy";
           } else if (q.difficulty === "medium") {
-            badge = `🟡 Medium`;
+            badge = "🟡 Medium";
           } else if (q.difficulty === "hard") {
-            badge = `🔴 Hard`;
+            badge = "🔴 Hard";
           }
   
           block.innerHTML = `
-          <summary>
-            Q${i + 1}. <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span>
-          </summary>
-          <ul>
-            ${q.options.map((opt, idx) => `
-              <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
-            `).join("")}
-          </ul>
-          <p><strong>💡 Açıklama:</strong>
-            <span class="q" data-key="explanation" data-latex="${q.explanation}">${q.explanation}</span>
-          </p>
-          <p class="difficulty-line" data-level="${q.difficulty}">
-            <strong>Difficulty:</strong> ${badge}
-          </p>
-          <div style="margin-top: 8px;">
-            <button onclick="editExistingQuestion(${q.id})">✏️ Edit</button>
-            <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Delete</button>
-          </div>
-        `;
-        
+            <summary>
+              <b>Q${i + 1}.</b> <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span>
+            </summary>
+            <ul>
+              ${q.options.map((opt, idx) => `
+                <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
+              `).join("")}
+            </ul>
+            <p><strong>💡 Explanation:</strong>
+              <span class="q" data-key="explanation" data-latex="${q.explanation}">${q.explanation}</span>
+            </p>
+            <p class="difficulty-line" data-level="${q.difficulty}">
+              <strong>Difficulty:</strong> ${badge}
+            </p>
+            <div style="margin-top: 8px;">
+              <button onclick="editExistingQuestion(${q.id})">✏️ Edit</button>
+              <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Delete</button>
+            </div>
+          `;
+  
           container.appendChild(block);
         });
   
@@ -909,8 +964,14 @@ block.dataset.difficulty = (q.difficulty || "medium").toLowerCase();
         shouldReloadQuestions = false;
   
         if (window.MathJax) MathJax.typesetPromise?.();
+  
         updateStats?.();
         filterByDifficulty('');
+  
+        // 🛠️ Tüm sorular eklenip MathJax bitince detayları collapse yap (tam garanti!)
+        setTimeout(() => {
+          document.querySelectorAll("#modalQuestionList details").forEach(d => d.open = false);
+        }, 100);
       })
       .catch(err => {
         container.innerHTML = "<p style='color:red;'>❌ Failed to retrieve questions.</p>";
@@ -1005,10 +1066,12 @@ function filterByDifficulty(level) {
 }
 
 
-function selectAllQuestions(state = true) {
-  document.querySelectorAll(".qcheck").forEach(cb => cb.checked = state);
+function selectAllQuestions(selectAll) {
+  document.querySelectorAll(".qcheck").forEach(checkbox => {
+    checkbox.checked = selectAll;
+    toggleHighlight(checkbox); // ✅ highlight'ı da güncelle
+  });
 }
-
 async function loadRecentTextsList() {
   const token = localStorage.getItem("accessToken");
   if (!token) return;
