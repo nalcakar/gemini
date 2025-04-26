@@ -2,18 +2,27 @@
 function getCurrentSectionText() {
   const lastSection = localStorage.getItem("lastSection");
 
+  // 🧠 Priority 1: If the active section has valid text, prefer it
   if (lastSection === "topic") {
     const topicInput = document.getElementById("topicInput");
     if (topicInput && topicInput.value.trim().length > 0) {
       return topicInput.value.trim();
     }
+  } else if (lastSection === "recent") {
+    const recentInput = document.getElementById("recentTextInput");
+    if (recentInput && recentInput.value.trim().length > 0) {
+      return recentInput.value.trim();
+    }
   }
 
+  // 🧠 Priority 2: If no valid text in active section, check all other inputs
   const ids = [
     "textManualInput",
     "textOutput",
     "imageTextOutput",
-    "audioTextOutput"
+    "audioTextOutput",
+    "topicInput",
+    "recentTextInput"
   ];
 
   for (const id of ids) {
@@ -23,8 +32,9 @@ function getCurrentSectionText() {
     }
   }
 
-  return "";
+  return ""; // nothing found
 }
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const savedLang = localStorage.getItem("questionLangPref");
@@ -576,9 +586,7 @@ const buttonsHTML = `
   }
 
   
-  document.addEventListener("DOMContentLoaded", () => {
-    loadRecentTextsDropdown();
-  });
+
   
   
   
@@ -1000,3 +1008,68 @@ function filterByDifficulty(level) {
 function selectAllQuestions(state = true) {
   document.querySelectorAll(".qcheck").forEach(cb => cb.checked = state);
 }
+
+async function loadRecentTextsList() {
+  const token = localStorage.getItem("accessToken");
+  if (!token) return;
+
+  const container = document.getElementById("recentTextsList");
+  if (!container) return;
+
+  container.innerHTML = "⏳ Loading...";
+
+  try {
+    const res = await fetch("https://gemini-j8xd.onrender.com/list-recent-texts", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch");
+
+    const data = await res.json();
+    container.innerHTML = "";
+
+    if (data.texts.length === 0) {
+      container.innerHTML = "<p>⚠️ No recent texts found.</p>";
+      return;
+    }
+
+    data.texts.forEach(item => {
+      const div = document.createElement("div");
+      div.style.cssText = "padding:12px; margin-bottom:10px; background:#f9fafb; border-radius:10px; border:1px solid #ddd;";
+
+      div.innerHTML = `
+        <div style="font-weight:bold; margin-bottom:6px;">📘 ${item.title_name}</div>
+        <div style="font-size:14px; color:#555; margin-bottom:8px; max-height:80px; overflow:auto;">${item.extracted_text.slice(0, 200)}...</div>
+        <button onclick="restoreRecentTextFromList(\`${encodeURIComponent(item.extracted_text)}\`)" 
+                style="padding:6px 12px; background:#3b82f6; color:white; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+          ♻️ Restore this text
+        </button>
+      `;
+      container.appendChild(div);
+    });
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = "<p>❌ Could not load recent texts.</p>";
+  }
+}
+
+function restoreRecentTextFromList(encodedText) {
+  const text = decodeURIComponent(encodedText);
+
+  const input = document.getElementById("recentTextInput");
+  if (input) {
+    input.value = text;
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // ✨ Add glow animation
+    input.classList.remove("highlight-glow"); // remove if already exists
+    void input.offsetWidth; // trigger reflow
+    input.classList.add("highlight-glow");
+
+    alert("✅ Text restored!");
+  } else {
+    alert("❌ Could not find input field.");
+  }
+}
+
+

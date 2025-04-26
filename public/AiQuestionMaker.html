@@ -327,7 +327,14 @@ details summary {
     margin: 12px auto;
   }
 }
-
+@keyframes glowHighlight {
+  0% { background-color: #d1fae5; }
+  50% { background-color: #bbf7d0; }
+  100% { background-color: white; }
+}
+.highlight-glow {
+  animation: glowHighlight 1.2s ease-out forwards;
+}
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -356,16 +363,12 @@ details summary {
   <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
   <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Audio</div>
   <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
+  <div class="card" onclick="showSection('recent')"><span>🕒</span>Recent</div>
 </div>
 
 <!-- 🟩 Sekme içeriği -->
 <div id="section-content" style="margin-top: 20px;"></div>
-<div id="recentTextsSection" style="margin: 10px 0;">
-  <select id="recentTextsDropdown" style="padding: 6px 10px; border-radius: 6px;">
-    <option value="">🔽 Load a previous text...</option>
-  </select>
-  <button onclick="restoreRecentText()" style="margin-left: 8px; padding:6px 12px;">♻️ Restore</button>
-</div>
+
 <!-- 🟨 Generate button sabit olarak alt tarafta -->
 <div style="text-align: center; margin-top: 20px;">
   <div style="text-align:center; margin-top: 20px;">
@@ -609,11 +612,23 @@ window.showSection = function(type) {
         </div>
       `;
       break;
+      case 'recent':
+  html = `
+    <h2>🕒 Recent Texts</h2>
+    <textarea id="recentTextInput" placeholder="📝 Your restored or new text here..." 
+              style="width:100%; min-height:140px; margin-top:10px; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc;"></textarea>
+    <div id="recentTextsList" style="margin-top: 20px;"></div>
+  `;
+  break;
+
   }
 
   content.innerHTML = html;
   content.style.display = "block";
   window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
+  if (type === 'recent') {
+  loadRecentTextsList(); // load when Recent tab opened
+}
 
   // ✅ 🌍 Dil tercihini localStorage'dan tekrar dropdown'a uygula
   const savedLang = localStorage.getItem("questionLangPref");

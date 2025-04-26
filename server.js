@@ -776,29 +776,39 @@ app.post("/save-recent-text", authMiddleware, async (req, res) => {
 
   const client = await pool.connect();
   try {
+    await client.query("BEGIN");
+
+    // 🧹 First, delete the oldest if already 10 entries
+    const { rows: existing } = await client.query(`
+      SELECT id FROM recent_texts
+      WHERE user_email = $1
+      ORDER BY created_at ASC
+    `, [email]);
+
+    if (existing.length >= 10) {
+      const oldestId = existing[0].id;
+      await client.query(`
+        DELETE FROM recent_texts WHERE id = $1
+      `, [oldestId]);
+    }
+
+    // ➡️ Then insert the new one
     await client.query(`
       INSERT INTO recent_texts (user_email, title_name, extracted_text)
       VALUES ($1, $2, $3)
     `, [email, title, text]);
 
-    await client.query(`
-      DELETE FROM recent_texts
-      WHERE id IN (
-        SELECT id FROM recent_texts
-        WHERE user_email = $1
-        ORDER BY created_at ASC
-        OFFSET 10
-      )
-    `, [email]);
-
+    await client.query("COMMIT");
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ recent_texts insert error:", err);
+    await client.query("ROLLBACK");
+    console.error("❌ Save recent text error:", err);
     res.status(500).json({ error: "Server error" });
   } finally {
     client.release();
   }
 });
+
 
 
 app.get("/list-recent-texts", authMiddleware, async (req, res) => {
