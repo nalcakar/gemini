@@ -1195,77 +1195,73 @@ function restoreRecentTextFromList(encodedText) {
 
 
 async function loadLatestRecentTexts() {
-  const token = localStorage.getItem("accessToken");
-  if (!token) return;
+  const output = document.getElementById("section-content");
+  if (!output) return;
 
-  const container = document.getElementById("recentTextsList");
-  if (!container) return;
+  output.innerHTML = `
+    <h2 style="text-align:center;">🕒 Your 10 Most Recent Texts</h2>
+    <div id="recentTextsList" style="margin-top:20px;"></div>
+  `;
 
-  container.innerHTML = "Loading...";
+  const list = document.getElementById("recentTextsList");
 
   try {
-    // 🔥 Correct API: list-latest-recent-texts
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      list.innerHTML = "<p style='color:red;'>❌ You must log in to view recent texts.</p>";
+      return;
+    }
+
     const res = await fetch("https://gemini-j8xd.onrender.com/list-latest-recent-texts", {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
     });
 
     const data = await res.json();
-
-    // 🔥 Correct field: recent_texts not texts
-    if (!Array.isArray(data.recent_texts)) {
-      container.innerHTML = "❌ Failed to load recent texts.";
+    if (!res.ok || !data.recent_texts) {
+      list.innerHTML = "<p style='color:red;'>❌ Failed to load recent texts.</p>";
       return;
     }
-
-    container.innerHTML = ""; // Clear previous
 
     if (data.recent_texts.length === 0) {
-      container.innerHTML = "⚡ No recent texts found.";
+      list.innerHTML = "<p style='color:gray;'>⚠️ No recent texts found.</p>";
       return;
     }
 
-    data.recent_texts.forEach((text, idx) => {
-      const wrapper = document.createElement("div");
-      wrapper.style = `
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-        padding: 10px;
-        background: #f9fafb;
-        border-radius: 8px;
-        border: 1px solid #d1d5db;
-        transition: background 0.2s;
-        cursor: pointer;
+    list.innerHTML = "";
+
+    data.recent_texts.forEach(text => {
+      const card = document.createElement("div");
+      card.className = "recent-text-card";
+      card.id = `recentCard-${text.id}`;
+      card.style = `
+        padding:14px; 
+        margin:16px auto; 
+        max-width:800px; 
+        background:#f9fafb; 
+        border-radius:12px; 
+        border:1px solid #ddd; 
+        box-shadow:0 2px 6px rgba(0,0,0,0.05);
       `;
 
-      const input = document.createElement("input");
-      input.type = "radio";
-      input.name = "recentTextChoice";
-      input.id = `recent-${idx}`;
-      input.value = encodeURIComponent(text.extracted_text);
-      input.style.marginRight = "10px";
+      card.innerHTML = `
+      <div style="font-weight:bold; margin-bottom:6px; color:#374151;">📘 ${text.title_name || "(Untitled)"}</div>
+      <div style="font-size:12px; color:#666;">Saved on ${new Date(text.created_at).toLocaleString()}</div>
+      <textarea id="recentText-${text.id}" readonly style="width:100%; min-height:120px; padding:10px; border-radius:8px; border:1px solid #ccc; resize:vertical;">${text.extracted_text}</textarea>
+      <div style="margin-top:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button onclick="openRecentTextModal(${text.id})">👁️ View / Edit</button>
+      </div>
+    `;
 
-      const label = document.createElement("label");
-      label.htmlFor = `recent-${idx}`;
-      label.textContent = text.title_name.length > 80 ? text.title_name.slice(0, 80) + "..." : text.title_name;
-      label.style = "flex-grow: 1; cursor: pointer;";
-
-      // 📦 Make entire wrapper clickable
-      wrapper.onclick = () => input.checked = true;
-
-      wrapper.appendChild(input);
-      wrapper.appendChild(label);
-
-      container.appendChild(wrapper);
+      list.appendChild(card);
     });
 
-  } catch (error) {
-    console.error("Error loading recent texts:", error);
-    container.innerHTML = "❌ Error loading.";
+  } catch (err) {
+    console.error("loadLatestRecentTexts error:", err);
+    list.innerHTML = "<p style='color:red;'>❌ Server error</p>";
   }
 }
-
-
 
 
 
@@ -1450,5 +1446,4 @@ async function saveModalRecentText() {
     showUserToast("❌ Server error.");
   }
 }
-
 
