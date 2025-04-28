@@ -775,43 +775,23 @@ app.post("/save-questions", async (req, res) => {
 });
 
 app.post("/save-recent-text", authMiddleware, async (req, res) => {
-  const { email, text, title } = req.body;
-  if (!email || !text || !title || text.trim().length < 10) {
-    return res.status(400).json({ error: "Invalid data" });
+  const { extracted_text, title_id, title_name } = req.body;
+  const email = req.user?.email;
+
+  if (!email || !extracted_text || !title_id || !title_name) {
+    return res.status(400).json({ error: "Missing parameters" });
   }
 
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-
-    // 🧹 First, delete the oldest if already 10 entries
-    const { rows: existing } = await client.query(`
-      SELECT id FROM recent_texts
-      WHERE user_email = $1
-      ORDER BY created_at ASC
-    `, [email]);
-
-    if (existing.length >= 10) {
-      const oldestId = existing[0].id;
-      await client.query(`
-        DELETE FROM recent_texts WHERE id = $1
-      `, [oldestId]);
-    }
-
-    // ➡️ Then insert the new one
     await pool.query(`
       INSERT INTO recent_texts (user_email, title_name, title_id, extracted_text)
       VALUES ($1, $2, $3, $4)
-    `, [email, titleName, titleId, extractedText]);
+    `, [email, title_name, title_id, extracted_text]);
 
-    await client.query("COMMIT");
     res.json({ success: true });
   } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("❌ Save recent text error:", err);
-    res.status(500).json({ error: "Server error" });
-  } finally {
-    client.release();
+    console.error("❌ Save recent text error:", err.message);
+    res.status(500).json({ error: "Database error" });
   }
 });
 

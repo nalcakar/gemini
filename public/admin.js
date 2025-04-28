@@ -39,6 +39,7 @@ function toggleEditMode() {
 
 // Main → Category → Title
 let currentTitleId = null;
+let currentTitleName = ""; 
 let currentMainTopicId = null;
 let currentCategoryId = null;
 
@@ -156,6 +157,7 @@ async function loadTitles(categoryId) {
     div.textContent = title.name;
     div.onclick = () => {
       currentTitleId = title.id;
+      currentTitleName = title.name; // ✅ add this!
       highlightSelected(div, "titles");
       loadQuestionsByTitleName(title.name);
     };

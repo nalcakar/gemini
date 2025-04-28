@@ -485,16 +485,16 @@ const buttonsHTML = `
     const email = localStorage.getItem("userEmail");
     if (!token || !email) return alert("❌ Please log in.");
   
-    let title = "";
+    let titleName = "";
     const dropdown = document.getElementById("titleDropdown");
     const input = document.getElementById("newTitleInput");
   
     if (dropdown?.value === "__new__") {
-      title = input?.value.trim();
-      if (!title) return alert("⚠️ Please enter a new title.");
+      titleName = input?.value.trim();
+      if (!titleName) return alert("⚠️ Please enter a new title.");
     } else {
-      title = dropdown?.value;
-      if (!title) return alert("⚠️ Please select a title.");
+      titleName = dropdown?.value;
+      if (!titleName) return alert("⚠️ Please select a title.");
     }
   
     const categoryId = document.getElementById("categorySelect")?.value;
@@ -552,7 +552,7 @@ const buttonsHTML = `
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          titleName: title,
+          titleName: titleName,
           categoryId,
           questions
         })
@@ -565,8 +565,8 @@ const buttonsHTML = `
         currentTitle = "";
   
         // ✅ Also save the recent input text
-        const recentText = getCurrentSectionText();
-        if (recentText.trim().length > 0) {
+        const extractedText = getCurrentSectionText();
+        if (extractedText.trim().length > 0) {
           await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
             method: "POST",
             headers: {
@@ -574,9 +574,9 @@ const buttonsHTML = `
               Authorization: `Bearer ${token}`
             },
             body: JSON.stringify({
-              email,
-              text: recentText,
-              title: title
+              extracted_text: extractedText,
+              title_id: currentTitleId,
+              title_name: currentTitleName || titleName // fallback to selected title
             })
           });
         }
@@ -589,6 +589,7 @@ const buttonsHTML = `
       alert("❌ Could not connect to the server.");
     }
   }
+  
 
   
   async function loadRecentTextsDropdown() {
