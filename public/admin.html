@@ -68,17 +68,45 @@
     }
 
     .panel {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.sidebar {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  max-height: 90vh; /* ✅ Sidebar can scroll */
+  overflow-y: auto;
+}
+
+.content {
+  flex: 1;
+  background: white;
+  padding: 20px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  overflow: visible;
+}
+
+
 
     .column {
-      background: white;
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    }
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.4s ease; /* 🎯 Smooth transition */
+  opacity: 1;
+  transform: scale(1);
+}
+
 
     .column h3 {
       font-size: 18px;
@@ -127,17 +155,6 @@
       color: #6b7280;
     }
 
-    @media (min-width: 768px) {
-      .panel {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    @media (min-width: 1024px) {
-      .panel {
-        grid-template-columns: 1fr 1fr 1fr;
-      }
-    }
 
     .question-card {
   background: white;
@@ -190,6 +207,33 @@
     font-size: 16px;
   }
 }
+#modalQuestionList {
+  overflow-y: visible; /* allow full page scroll */
+  max-height: none;    /* remove limit */
+}
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+@media (max-width: 768px) {
+  .panel {
+    flex-direction: column; /* 🔥 Stack sidebar and content vertically */
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    width: 100%;        /* 🔥 Sidebar full width on mobile */
+    max-height: none;   /* 🔥 Allow full growth */
+    overflow-y: visible; 
+    margin-bottom: 20px;
+  }
+
+  .content {
+    width: 100%;
+    overflow: visible;
+  }
+}
 
   </style>
 </head>
@@ -202,27 +246,34 @@
   <div id="user-box"></div>
 
   <h2>📘 Title / Category / Main Topic Management</h2>
-  <div style="text-align:right; margin-bottom:10px;">
-    <button id="toggleEditMode" onclick="toggleEditMode()">🛠️ Toggle Edit Mode</button>
-  </div>
+  <button id="toggleEditMode" onclick="toggleEditMode()">🛠️ Toggle Edit Mode</button>
+
   <div class="panel">
-    <div class="column" id="mainTopics">
-      <h3>📂 Main Topics</h3>
+    <div class="sidebar">
+      <div class="column" id="mainTopics">
+        <h3>📂 Main Topics</h3>
+      </div>
+  
+      <div class="column" id="categories">
+        <h3>📁 Categories</h3>
+      </div>
+  
+      <div class="column" id="titles">
+        <h3>📝 Titles</h3>
+      </div>
     </div>
-
-    <div class="column" id="categories">
-      <h3>📁 Categories</h3>
-    </div>
-
-    <div class="column" id="titles">
-      <h3>📝 Titles</h3>
+  
+    <div class="content" id="modalQuestionList">
+      <h3>📋 Questions</h3>
+      <p>⬅️ Select a title to view questions</p>
     </div>
   </div>
-
+  
+  
   
 
 
-<div id="modalQuestionList" style="margin-top: 16px;"></div>
+
 
   <div class="fixed-footer">
     Admin Panel &copy; 2025 | <a href="/" style="color:#3b82f6;">Quiz App</a>

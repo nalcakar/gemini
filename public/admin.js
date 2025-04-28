@@ -106,6 +106,11 @@ async function loadCategories(mainTopicId) {
 
   container.innerHTML = "<h3>📁 Categories</h3>";
 
+  // 🔥 Hide Main Topics, Show Categories
+ 
+
+
+
   categories.forEach(cat => {
     const div = document.createElement("div");
     div.className = "item";
@@ -114,21 +119,16 @@ async function loadCategories(mainTopicId) {
       currentCategoryId = cat.id;
       currentTitleId = null;
       highlightSelected(div, "categories");
-      updatePanelWithFade("modalQuestionList", "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>");
 
-      // ❌ Soruları da temizle
-      const questionPanel = document.getElementById("modalQuestionList");
-      if (questionPanel) {
-        questionPanel.innerHTML = "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>";
-      }
-    
+      updatePanelWithFade("modalQuestionList", "<h3>📋 Questions</h3><p>⬅️ Select a title to view questions</p>");
       loadTitles(cat.id);
     };
     container.appendChild(div);
   });
 
-  if (editMode) renderEditControls(); // 👈 Bunu EKLE
+  if (editMode) renderEditControls();
 }
+
 
 
 // 📝 3. Load Titles
@@ -145,6 +145,11 @@ async function loadTitles(categoryId) {
 
   container.innerHTML = "<h3>📝 Titles</h3>";
 
+  // 🔥 Hide Categories, Show Titles
+
+
+
+
   titles.forEach(title => {
     const div = document.createElement("div");
     div.className = "item";
@@ -153,13 +158,15 @@ async function loadTitles(categoryId) {
       currentTitleId = title.id;
       highlightSelected(div, "titles");
       loadQuestionsByTitleName(title.name);
+      // 🆕 Load recent texts also
+  loadRecentTextsByTitleId(title.id);
     };
     container.appendChild(div);
   });
 
-  // ✅ editMode aktifse, edit butonlarını geri ekle
   if (editMode) renderEditControls();
 }
+
 async function renameMainTopic() {
   if (!currentMainTopicId) return alert("⚠️ Select a main topic first.");
   const newName = prompt("Enter new name for the Main Topic:");
@@ -190,7 +197,7 @@ async function loadQuestionsByTitleName(titleName) {
       <input id="searchInput" oninput="filterQuestions()" placeholder="🔍 Search within questions..." 
              style="width:100%; max-width:600px; margin:0 auto; display:block; padding:10px 14px; border-radius:10px; border:1px solid #d1d5db; font-size:15px;" />
       <div style="margin-top:14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-        <button type="button" onclick="collapseAllDetails()">🔽 Collapse All</button>
+        <button id="expandCollapseBtn" type="button" onclick="toggleExpandCollapse()">🔽 Expand All</button>
         <button type="button" onclick="filterByDifficulty('easy')">🟢 Easy</button>
         <button type="button" onclick="filterByDifficulty('medium')">🟡 Medium</button>
         <button type="button" onclick="filterByDifficulty('hard')">🔴 Hard</button>
@@ -487,18 +494,34 @@ async function moveTitleToCategory() {
 
 
 async function renameTitle() {
-  if (!currentTitleId) return alert("⚠️ Select a title first.");
-  const newName = prompt("Enter new title name:");
-  if (!newName) return;
-  const res = await fetch(`${API}/rename-title`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title_id: currentTitleId, new_name: newName, email })
-  });
-  const data = await res.json();
-  if (data.success) loadTitles(currentCategoryId);
-  else alert("❌ Failed to rename title");
+  if (!currentTitleId) {
+    alert("⚠️ Select a title first.");
+    return;
+  }
+
+  const newName = prompt("Enter the new title name:");
+  if (!newName || !newName.trim()) return;
+
+  try {
+    const res = await fetch(`${API}/update-title-name`, {
+      method: "PUT", // ✅ must be PUT, not POST
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: currentTitleId, newName: newName.trim(), email })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ Title renamed successfully!");
+      loadTitles(currentCategoryId); // ✅ Reload titles after renaming
+    } else {
+      alert("❌ Failed to rename the title.");
+    }
+  } catch (err) {
+    console.error("Rename title error:", err);
+    alert("❌ Server error while renaming title.");
+  }
 }
+
 
 async function deleteTitle() {
   if (!currentTitleId) return alert("⚠️ Select a title first.");
@@ -919,5 +942,56 @@ function filterQuestions() {
   document.querySelectorAll("#modalQuestionList details").forEach(detail => {
     const text = detail.innerText.toLowerCase();
     detail.style.display = text.includes(val) ? "" : "none";
+  });
+}
+let allExpanded = false; // 🔥 track expand/collapse state
+
+function toggleExpandCollapse() {
+  const detailsList = document.querySelectorAll("#modalQuestionList details");
+  const btn = document.getElementById("expandCollapseBtn");
+
+  if (!btn) return;
+
+  if (allExpanded) {
+    // 🔽 Collapse all
+    detailsList.forEach(d => d.open = false);
+    btn.textContent = "🔽 Expand All";
+    allExpanded = false;
+  } else {
+    // 🔼 Expand all
+    detailsList.forEach(d => d.open = true);
+    btn.textContent = "🔼 Collapse All";
+    allExpanded = true;
+  }
+}
+
+
+async function loadRecentTextsByTitleId(titleId) {
+  const container = document.getElementById("modalQuestionList");
+  container.innerHTML = "<p>⏳ Loading recent texts...</p>";
+
+  const res = await fetch(`${API}/list-recent-texts?title_id=${titleId}&email=${email}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  
+  const data = await res.json();
+  
+  if (!data.texts || data.texts.length === 0) {
+    container.innerHTML = "<p style='text-align:center; color:gray;'>⚠️ No recent texts found for this title.</p>";
+    return;
+  }
+
+  container.innerHTML = "<h3>📝 Recent Texts</h3>";
+
+  data.texts.forEach((textItem, index) => {
+    const block = document.createElement("details");
+    block.className = "question-card";
+
+    block.innerHTML = `
+      <summary>Text ${index + 1} - ${new Date(textItem.created_at).toLocaleString()}</summary>
+      <p style="white-space: pre-wrap; margin-top: 10px;">${textItem.extracted_text}</p>
+    `;
+
+    container.appendChild(block);
   });
 }

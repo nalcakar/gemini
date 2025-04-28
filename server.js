@@ -800,9 +800,10 @@ app.post("/save-recent-text", authMiddleware, async (req, res) => {
 
     // ➡️ Then insert the new one
     await client.query(`
-      INSERT INTO recent_texts (user_email, title_name, extracted_text)
-      VALUES ($1, $2, $3)
-    `, [email, title, text]);
+      INSERT INTO recent_texts (user_email, title_id, title_name, extracted_text)
+      VALUES ($1, $2, $3, $4)
+    `, [userEmail, titleId, titleName, extractedText]);
+    
 
     await client.query("COMMIT");
     res.json({ success: true });
@@ -818,27 +819,28 @@ app.post("/save-recent-text", authMiddleware, async (req, res) => {
 
 
 app.get("/list-recent-texts", authMiddleware, async (req, res) => {
-  const email = req.user?.email;
-  if (!email) return res.status(401).json({ error: "Unauthorized" });
+  const email = req.query.email;
+  const titleId = req.query.title_id;
 
-  const client = await pool.connect();
+  if (!email || !titleId) return res.status(400).json({ error: "Missing parameters" });
+
   try {
+    const client = await pool.connect();
     const result = await client.query(`
-      SELECT id, title_name, extracted_text
+      SELECT id, title_name, extracted_text, created_at
       FROM recent_texts
-      WHERE user_email = $1
+      WHERE user_email = $1 AND title_id = $2
       ORDER BY created_at DESC
-      LIMIT 10
-    `, [email]);
+    `, [email, titleId]);
 
+    client.release();
     res.json({ texts: result.rows });
   } catch (err) {
-    console.error("❌ list-recent-texts error:", err);
-    res.status(500).json({ error: "Server error" });
-  } finally {
-    client.release();
+    console.error("Failed to load recent texts", err);
+    res.status(500).json({ error: "Database error" });
   }
 });
+
 
 
 
