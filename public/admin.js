@@ -158,8 +158,6 @@ async function loadTitles(categoryId) {
       currentTitleId = title.id;
       highlightSelected(div, "titles");
       loadQuestionsByTitleName(title.name);
-      // 🆕 Load recent texts also
-  loadRecentTextsByTitleId(title.id);
     };
     container.appendChild(div);
   });
@@ -966,32 +964,3 @@ function toggleExpandCollapse() {
 }
 
 
-async function loadRecentTextsByTitleId(titleId) {
-  const container = document.getElementById("modalQuestionList");
-  container.innerHTML = "<p>⏳ Loading recent texts...</p>";
-
-  const res = await fetch(`${API}/list-recent-texts?title_id=${titleId}&email=${email}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  
-  const data = await res.json();
-  
-  if (!data.texts || data.texts.length === 0) {
-    container.innerHTML = "<p style='text-align:center; color:gray;'>⚠️ No recent texts found for this title.</p>";
-    return;
-  }
-
-  container.innerHTML = "<h3>📝 Recent Texts</h3>";
-
-  data.texts.forEach((textItem, index) => {
-    const block = document.createElement("details");
-    block.className = "question-card";
-
-    block.innerHTML = `
-      <summary>Text ${index + 1} - ${new Date(textItem.created_at).toLocaleString()}</summary>
-      <p style="white-space: pre-wrap; margin-top: 10px;">${textItem.extracted_text}</p>
-    `;
-
-    container.appendChild(block);
-  });
-}
