@@ -778,7 +778,7 @@ app.post("/save-recent-text", authMiddleware, async (req, res) => {
   const { extracted_text, title_id, title_name } = req.body;
   const email = req.user?.email;
 
-  if (!email || !extracted_text || !title_id || !title_name) {
+  if (!email || !extracted_text || !title_name) {
     return res.status(400).json({ error: "Missing parameters" });
   }
 
@@ -786,7 +786,7 @@ app.post("/save-recent-text", authMiddleware, async (req, res) => {
     await pool.query(`
       INSERT INTO recent_texts (user_email, title_name, title_id, extracted_text)
       VALUES ($1, $2, $3, $4)
-    `, [email, title_name, title_id, extracted_text]);
+    `, [email, title_name, title_id || null, extracted_text]);
 
     res.json({ success: true });
   } catch (err) {
@@ -794,6 +794,7 @@ app.post("/save-recent-text", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Database error" });
   }
 });
+
 
 
 
