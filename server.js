@@ -741,7 +741,7 @@ app.post("/save-questions", async (req, res) => {
       titleId = insert.rows[0].id;
     }
 
-    // Soruları kaydet (güvenli şekilde)
+    // Soruları kaydet
     for (const q of questions) {
       const safeOptions = Array.isArray(q.options) ? q.options : [];
       const safeAnswer = q.answer || "placeholder";
@@ -764,7 +764,10 @@ app.post("/save-questions", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    res.json({ success: true });
+
+    // 🆕 Return titleId
+    res.json({ success: true, titleId });
+
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("❌ Soru kayıt hatası:", err);
@@ -773,6 +776,7 @@ app.post("/save-questions", async (req, res) => {
     client.release();
   }
 });
+
 
 app.post("/save-recent-text", authMiddleware, async (req, res) => {
   const { extracted_text, title_id, title_name } = req.body;

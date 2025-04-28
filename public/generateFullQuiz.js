@@ -518,7 +518,6 @@ async function saveSelectedQuestions() {
     titleName = input?.value.trim();
     if (!titleName) return alert("⚠️ Please enter a new title.");
 
-    // 🆕 New title (no ID yet)
     currentTitleId = null;
     currentTitleName = titleName;
 
@@ -526,7 +525,6 @@ async function saveSelectedQuestions() {
     titleName = dropdown?.value;
     if (!titleName) return alert("⚠️ Please select a title.");
 
-    // 🆕 Existing title → try to get ID
     const selectedOption = dropdown.selectedOptions[0];
     currentTitleId = selectedOption?.dataset?.id ? parseInt(selectedOption.dataset.id) : null;
     currentTitleName = titleName;
@@ -592,13 +590,15 @@ async function saveSelectedQuestions() {
     if (res.ok) {
       alert("✅ Questions saved successfully.");
 
-      // ✅ Also save the recent input text
+      const realTitleId = data.titleId || currentTitleId || null;  // 🆕 Get the real titleId!
+
+      // ✅ Save the recent input text
       const extractedText = getCurrentSectionText();
       if (extractedText.trim().length > 0) {
         const recentSavePayload = {
           extracted_text: extractedText,
-          title_id: currentTitleId || 0,          // 🆕 fallback to 0 if missing
-          title_name: currentTitleName || titleName // 🆕 fallback to dropdown title
+          title_id: realTitleId,
+          title_name: currentTitleName || titleName
         };
 
         const recentRes = await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
@@ -613,6 +613,8 @@ async function saveSelectedQuestions() {
         const recentData = await recentRes.json();
         if (!recentRes.ok) {
           console.error("❌ Failed to save recent text:", recentData);
+        } else {
+          console.log("✅ Recent text saved successfully.");
         }
       }
 
@@ -624,6 +626,7 @@ async function saveSelectedQuestions() {
     alert("❌ Could not connect to the server.");
   }
 }
+
 
 // ==== Load Titles with data-id ====
 async function loadTitles(categoryId) {
