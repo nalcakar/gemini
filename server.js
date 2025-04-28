@@ -778,6 +778,62 @@ app.post("/save-questions", async (req, res) => {
 });
 
 
+// ✅ Update recent text (edit & save)
+app.patch("/update-recent-text/:id", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { extracted_text } = req.body;
+  const email = req.user?.email;
+
+  if (!id || !extracted_text || !email) {
+    return res.status(400).json({ error: "Missing parameters" });
+  }
+
+  try {
+    const result = await pool.query(`
+      UPDATE recent_texts
+      SET extracted_text = $1
+      WHERE id = $2 AND user_email = $3
+    `, [extracted_text, id, email]);
+
+    if (result.rowCount === 0) {
+      return res.status(403).json({ error: "Unauthorized or not found" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Update recent text error:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ✅ Delete recent text
+app.delete("/delete-recent-text/:id", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const email = req.user?.email;
+
+  if (!id || !email) {
+    return res.status(400).json({ error: "Missing parameters" });
+  }
+
+  try {
+    const result = await pool.query(`
+      DELETE FROM recent_texts
+      WHERE id = $1 AND user_email = $2
+    `, [id, email]);
+
+    if (result.rowCount === 0) {
+      return res.status(403).json({ error: "Unauthorized or not found" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Delete recent text error:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+
 app.post("/save-recent-text", authMiddleware, async (req, res) => {
   const { extracted_text, title_id, title_name } = req.body;
   const email = req.user?.email;

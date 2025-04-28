@@ -188,7 +188,6 @@ async function renameMainTopic() {
   }
 }
 
-
 async function loadQuestionsByTitleName(titleName) {
   const container = document.getElementById("modalQuestionList");
   container.style.marginTop = "20px";
@@ -231,72 +230,88 @@ async function loadQuestionsByTitleName(titleName) {
   });
   const data = await res.json();
 
-  if (!data.questions || data.questions.length === 0) {
-    container.innerHTML += "<p style='text-align:center; color:gray;'>⚠️ No questions under this title.</p>";
-    return;
-  }
-
   const controlPanel = document.getElementById("questionControlPanel");
   const statsBox = document.getElementById("statsBox");
+
   container.innerHTML = "";
   container.appendChild(controlPanel);
   container.appendChild(statsBox);
 
-  // 📊 Soru sayısını göster
-  const count = data.questions.length;
-  statsBox.innerHTML = `📊 Total Questions: <strong>${count}</strong>`;
+  if (!data.questions || data.questions.length === 0) {
+    const noQuestionsMsg = document.createElement("p");
+    noQuestionsMsg.style = "text-align:center; color:gray;";
+    noQuestionsMsg.innerText = "⚠️ No questions under this title.";
+    container.appendChild(noQuestionsMsg);
+  } else {
+    const count = data.questions.length;
+    statsBox.innerHTML = `📊 Total Questions: <strong>${count}</strong>`;
 
-  data.questions.forEach((q, i) => {
-    const block = document.createElement("details");
-    block.className = "question-card";
-    block.setAttribute("data-id", q.id);
+    data.questions.forEach((q, i) => {
+      const block = document.createElement("details");
+      block.className = "question-card";
+      block.setAttribute("data-id", q.id);
 
-    const question = q.question || "";
-    const options = q.options || [];
-    const explanation = q.explanation || "";
-    const answer = q.answer || "";
-    const difficulty = q.difficulty || "medium";
+      const question = q.question || "";
+      const options = q.options || [];
+      const explanation = q.explanation || "";
+      const answer = q.answer || "";
+      const difficulty = q.difficulty || "medium";
 
-    const badge = {
-      easy: "🟢 Easy",
-      medium: "🟡 Medium",
-      hard: "🔴 Hard"
-    }[difficulty] || "";
+      const badge = {
+        easy: "🟢 Easy",
+        medium: "🟡 Medium",
+        hard: "🔴 Hard"
+      }[difficulty] || "";
 
-    block.innerHTML = `
-      <summary>
-        Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> 
-        <span class="difficulty-badge ${difficulty}" style="margin-left:8px;">${badge}</span>
-      </summary>
-      <ul>
-        ${options.map((opt, idx) => `
-          <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
-        `).join("")}
-      </ul>
-      <p><strong>✅ Answer:</strong> ${answer}</p>
-      <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${explanation}">${explanation}</span></p>
-      <div style="margin-top: 8px;">
-        <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
-        <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
-      </div>
-    `;
+      block.innerHTML = `
+        <summary>
+          Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> 
+          <span class="difficulty-badge ${difficulty}" style="margin-left:8px;">${badge}</span>
+        </summary>
+        <ul>
+          ${options.map((opt, idx) => `
+            <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
+          `).join("")}
+        </ul>
+        <p><strong>✅ Answer:</strong> ${answer}</p>
+        <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${explanation}">${explanation}</span></p>
+        <div style="margin-top: 8px;">
+          <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
+          <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
+        </div>
+      `;
+      container.appendChild(block);
+    });
+  }
 
-    container.appendChild(block);
-  });
+  // ✅ AFTER questions, create Recent Texts container
+  const recentTextsContainer = document.createElement("div");
+  recentTextsContainer.id = "recentTextsContainer";
+  recentTextsContainer.style = "margin-top:40px;";
+  recentTextsContainer.innerHTML = `
+    <h3>🕒 Recent Texts</h3>
+    <p style="text-align:center; color:gray;">⏳ Loading recent texts...</p>
+  `;
+  container.appendChild(recentTextsContainer);
 
+  // 🧠 Update stats if available
   if (typeof updateStats === "function") updateStats();
   if (window.MathJax) MathJax.typesetPromise?.();
 
   container.scrollIntoView({ behavior: "smooth" });
+
+  // ✅ Finally load recent texts for this title
   loadRecentTexts(currentTitleId);
 }
+
+
 
 
 async function loadRecentTexts(titleId) {
   const container = document.getElementById("recentTextsContainer");
   if (!container) return;
 
-  container.innerHTML = "<h4>🕒 Recent Texts</h4><p>Loading...</p>";
+  container.innerHTML = "<h3>🕒 Recent Texts</h3><p>Loading...</p>";
 
   const res = await fetch(`${API}/list-recent-texts?email=${email}&title_id=${titleId}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -304,22 +319,105 @@ async function loadRecentTexts(titleId) {
 
   const data = await res.json();
   if (!data.recent_texts || data.recent_texts.length === 0) {
-    container.innerHTML = "<h4>🕒 Recent Texts</h4><p>No recent texts available.</p>";
+    container.innerHTML = "<h3>🕒 Recent Texts</h3><p>No recent texts available.</p>";
     return;
   }
 
-  container.innerHTML = "<h4>🕒 Recent Texts</h4>";
+  container.innerHTML = "<h3>🕒 Recent Texts</h3>";
 
   data.recent_texts.forEach(text => {
     const div = document.createElement("div");
-    div.style = "border:1px solid #ddd; margin-bottom:8px; padding:8px; border-radius:8px; background:#f9fafb;";
+    div.className = "recent-text-card";
+    div.id = `recentCard-${text.id}`;
+
     div.innerHTML = `
       <div style="font-size:12px; color:#666;">${new Date(text.created_at).toLocaleString()}</div>
-      <div style="margin-top:4px;">${text.extracted_text.slice(0, 300)}...</div>
+      <textarea id="recentText-${text.id}" readonly>${text.extracted_text}</textarea>
+      <div class="recent-text-buttons">
+        <button onclick="viewRecentText(${text.id})">👁️ View</button>
+        <button onclick="editRecentText(${text.id})">✏️ Edit</button>
+        <button onclick="saveRecentText(${text.id})" style="display:none;" id="saveButton-${text.id}">💾 Save</button>
+        <button onclick="deleteRecentText(${text.id})" class="delete-btn">🗑️ Delete</button>
+      </div>
     `;
     container.appendChild(div);
   });
 }
+
+
+function viewRecentText(id) {
+  const textarea = document.getElementById(`recentText-${id}`);
+  if (!textarea) return;
+  alert(textarea.value);
+}
+
+function editRecentText(id) {
+  const textarea = document.getElementById(`recentText-${id}`);
+  const saveButton = document.getElementById(`saveButton-${id}`);
+  if (!textarea || !saveButton) return;
+  textarea.removeAttribute("readonly");
+  textarea.focus();
+  saveButton.style.display = "inline-block";
+}
+
+async function saveRecentText(id) {
+  const textarea = document.getElementById(`recentText-${id}`);
+  const saveButton = document.getElementById(`saveButton-${id}`);
+  if (!textarea || !saveButton) return;
+
+  const newText = textarea.value.trim();
+  if (!newText) return alert("⚠️ Text cannot be empty.");
+
+  try {
+    const res = await fetch(`${API}/update-recent-text/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ extracted_text: newText })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert("✅ Recent text updated!");
+      textarea.setAttribute("readonly", true);
+      saveButton.style.display = "none";
+    } else {
+      alert("❌ Update failed: " + (data?.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Save error:", err);
+    alert("❌ Server error");
+  }
+}
+
+async function deleteRecentText(id) {
+  if (!confirm("🗑️ Are you sure you want to delete this recent text?")) return;
+
+  try {
+    const res = await fetch(`${API}/delete-recent-text/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const card = document.getElementById(`recentCard-${id}`);
+      if (card) {
+        card.classList.add("fade-out");
+        setTimeout(() => card.remove(), 500);
+      }
+      alert("✅ Deleted successfully!");
+    } else {
+      alert("❌ Failed to delete");
+    }
+  } catch (err) {
+    console.error("Delete error:", err);
+    alert("❌ Server error");
+  }
+}
+
+
 
 
 function renderEditControls() {

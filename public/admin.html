@@ -234,7 +234,71 @@
     overflow: visible;
   }
 }
+.recent-text-card {
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
 
+.recent-text-card:hover {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.recent-text-card textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  resize: vertical;
+  background: #fff;
+  transition: border-color 0.3s;
+}
+
+.recent-text-card textarea:focus {
+  border-color: #6366f1;
+  outline: none;
+  background: #eef2ff;
+}
+
+.recent-text-buttons {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.recent-text-buttons button {
+  padding: 6px 12px;
+  border: none;
+  background: #4f46e5;
+  color: white;
+  font-size: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.recent-text-buttons button:hover {
+  background: #4338ca;
+}
+
+.recent-text-buttons button.delete-btn {
+  background: #dc2626;
+}
+
+.recent-text-buttons button.delete-btn:hover {
+  background: #b91c1c;
+}
+
+.fade-out {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
   </style>
 </head>
 <body>
@@ -262,13 +326,14 @@
         <h3>📝 Titles</h3>
       </div>
     </div>
-    <div class="column" id="recentTextsContainer">
-      <h3>🕒 Recent Texts</h3>
-      <p>⬅️ Select a title to view its recent texts.</p>
-    </div>
+    
     <div class="content" id="modalQuestionList">
       <h3>📋 Questions</h3>
       <p>⬅️ Select a title to view questions</p>
+      <div class="column" id="recentTextsContainer">
+        <h3>🕒 Recent Texts</h3>
+        <p>⬅️ Select a title to view its recent texts.</p>
+      </div>
     </div>
   </div>
   
