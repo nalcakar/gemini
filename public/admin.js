@@ -2,7 +2,7 @@ const API = "https://gemini-j8xd.onrender.com";
 const token = localStorage.getItem("accessToken");
 const email = localStorage.getItem("userEmail");
 let editMode = false;
-
+let currentRecentTextId = null;
 document.addEventListener("DOMContentLoaded", () => {
   if (!token || !email) {
     document.getElementById("user-box").innerHTML = `
@@ -200,7 +200,7 @@ async function loadQuestionsByTitleName(titleName) {
         <button type="button" onclick="filterByDifficulty('easy')">🟢 Easy</button>
         <button type="button" onclick="filterByDifficulty('medium')">🟡 Medium</button>
         <button type="button" onclick="filterByDifficulty('hard')">🔴 Hard</button>
-        <button type="button" onclick="filterByDifficulty('')">🔁 Show All</button>
+        <button type="button" onclick="filterByDifficulty('')">🔁 All Levels</button>
       </div>
     </div>
     <div id="statsBox" style="margin-bottom:12px; font-weight:500; text-align:center;"></div>
@@ -335,8 +335,7 @@ async function loadRecentTexts(titleId) {
       <textarea id="recentText-${text.id}" readonly>${text.extracted_text}</textarea>
       <div class="recent-text-buttons">
         <button onclick="viewRecentText(${text.id})">👁️ View</button>
-        <button onclick="editRecentText(${text.id})">✏️ Edit</button>
-        <button onclick="saveRecentText(${text.id})" style="display:none;" id="saveButton-${text.id}">💾 Save</button>
+   
         <button onclick="deleteRecentText(${text.id})" class="delete-btn">🗑️ Delete</button>
       </div>
     `;
@@ -347,29 +346,54 @@ async function loadRecentTexts(titleId) {
 
 function viewRecentText(id) {
   const textarea = document.getElementById(`recentText-${id}`);
-  if (!textarea) return;
-  alert(textarea.value);
+  const modal = document.getElementById("viewModal");
+  const modalTextarea = document.getElementById("viewModalTextarea");
+  const editBtn = document.getElementById("modalEditButton");
+  const saveBtn = document.getElementById("modalSaveButton");
+
+  if (!textarea || !modal || !modalTextarea) return;
+
+  currentRecentTextId = id; // 🆕 Save which text we're viewing
+
+  modalTextarea.value = textarea.value;
+  modalTextarea.setAttribute("readonly", true);
+  editBtn.style.display = "inline-block";
+  saveBtn.style.display = "none";
+  modal.style.display = "flex";
+}
+function editModalText() {
+  const modalTextarea = document.getElementById("viewModalTextarea");
+  const editBtn = document.getElementById("modalEditButton");
+  const saveBtn = document.getElementById("modalSaveButton");
+
+  if (!modalTextarea) return;
+
+  modalTextarea.removeAttribute("readonly");
+  modalTextarea.focus();
+  editBtn.style.display = "none";
+  saveBtn.style.display = "inline-block";
 }
 
-function editRecentText(id) {
-  const textarea = document.getElementById(`recentText-${id}`);
-  const saveButton = document.getElementById(`saveButton-${id}`);
-  if (!textarea || !saveButton) return;
-  textarea.removeAttribute("readonly");
-  textarea.focus();
-  saveButton.style.display = "inline-block";
+function closeViewModal() {
+  const modal = document.getElementById("viewModal");
+  if (modal) {
+    modal.style.display = "none";
+  }
 }
 
-async function saveRecentText(id) {
-  const textarea = document.getElementById(`recentText-${id}`);
-  const saveButton = document.getElementById(`saveButton-${id}`);
-  if (!textarea || !saveButton) return;
 
-  const newText = textarea.value.trim();
-  if (!newText) return alert("⚠️ Text cannot be empty.");
+async function saveModalText() {
+  const modalTextarea = document.getElementById("viewModalTextarea");
+  const editBtn = document.getElementById("modalEditButton");
+  const saveBtn = document.getElementById("modalSaveButton");
+
+  if (!modalTextarea || !currentRecentTextId) return;
+
+  const newText = modalTextarea.value.trim();
+  if (!newText) return showToast("⚠️ Text cannot be empty!");
 
   try {
-    const res = await fetch(`${API}/update-recent-text/${id}`, {
+    const res = await fetch(`${API}/update-recent-text/${currentRecentTextId}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -380,17 +404,23 @@ async function saveRecentText(id) {
 
     const data = await res.json();
     if (res.ok) {
-      alert("✅ Recent text updated!");
-      textarea.setAttribute("readonly", true);
-      saveButton.style.display = "none";
+      showToast("✅ Recent text updated!");
+      modalTextarea.setAttribute("readonly", true);
+      editBtn.style.display = "inline-block";
+      saveBtn.style.display = "none";
+
+      // Also update the card textarea if it still exists
+      const cardTextarea = document.getElementById(`recentText-${currentRecentTextId}`);
+      if (cardTextarea) cardTextarea.value = newText;
     } else {
-      alert("❌ Update failed: " + (data?.error || "Unknown error"));
+      showToast("❌ Update failed: " + (data?.error || "Unknown error"));
     }
   } catch (err) {
     console.error("Save error:", err);
-    alert("❌ Server error");
+    showToast("❌ Server error");
   }
 }
+
 
 async function deleteRecentText(id) {
   if (!confirm("🗑️ Are you sure you want to delete this recent text?")) return;
@@ -1093,4 +1123,25 @@ function toggleExpandCollapse() {
   }
 }
 
+function copyViewModalText() {
+  const modalTextarea = document.getElementById("viewModalTextarea");
+  if (!modalTextarea) return;
+  
+  modalTextarea.select();
+  document.execCommand('copy');
 
+  showToast("📋 Text copied!");
+}
+
+
+function showToast(message = "✅ Action completed!") {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
+
+  toast.textContent = message;
+  toast.style.opacity = "1";
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+  }, 2000); // Hide after 2 seconds
+}

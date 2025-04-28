@@ -234,12 +234,15 @@
     overflow: visible;
   }
 }
+
 .recent-text-card {
   border: 1px solid #d1d5db;
   background: #f9fafb;
   border-radius: 12px;
   padding: 14px;
-  margin-bottom: 16px;
+  margin: 16px auto; /* 🆕 center it */
+  width: 100%;
+  max-width: 700px; /* 🆕 do not stretch too much */
   transition: all 0.3s ease;
 }
 
@@ -257,6 +260,7 @@
   resize: vertical;
   background: #fff;
   transition: border-color 0.3s;
+  box-sizing: border-box;
 }
 
 .recent-text-card textarea:focus {
@@ -269,6 +273,7 @@
   margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center; /* 🆕 center buttons */
   gap: 10px;
 }
 
@@ -299,6 +304,8 @@
   opacity: 0;
   transition: opacity 0.5s ease;
 }
+
+
   </style>
 </head>
 <body>
@@ -668,6 +675,21 @@ function collapseAllDetails() {
     </div>
   </div>
   <div id="flashMessage" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#16a34a; color:white; padding:10px 16px; border-radius:8px; display:none; z-index:2000;"></div>
-
+  <div id="viewModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+    <div id="viewModalContent" style="background:white; padding:20px; border-radius:12px; width:90%; max-width:800px; max-height:90%; overflow:auto; position:relative;">
+      <button onclick="closeViewModal()" style="position:absolute; top:10px; right:10px; background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:6px;">✖️ Close</button>
+      <h3 style="margin-bottom:12px;">👁️ View & Edit Text</h3>
+      <textarea id="viewModalTextarea" style="width:100%; min-height:300px; resize:both; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:14px;" readonly></textarea>
+      <div style="margin-top:12px; text-align:center; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+        <button onclick="editModalText()" id="modalEditButton" style="padding:8px 14px; background:#f59e0b; color:white; border:none; border-radius:8px; font-size:14px;">✏️ Edit</button>
+        <button onclick="saveModalText()" id="modalSaveButton" style="display:none; padding:8px 14px; background:#10b981; color:white; border:none; border-radius:8px; font-size:14px;">💾 Save</button>
+        <button onclick="copyViewModalText()" style="padding:8px 14px; background:#4f46e5; color:white; border:none; border-radius:8px; font-size:14px;">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="toast" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#4f46e5; color:white; padding:12px 20px; border-radius:8px; font-size:14px; opacity:0; transition:opacity 0.5s; z-index:10001;">
+    ✅ Copied to clipboard!
+  </div>
 </body>
 </html>

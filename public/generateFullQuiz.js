@@ -488,22 +488,7 @@ let currentTitleId = null;
 let currentTitleName = "";
 
 // ==== Utility ====
-function getCurrentSectionText() {
-  const lastSection = localStorage.getItem("lastSection");
 
-  const ids = [
-    "textManualInput", "textOutput", "imageTextOutput",
-    "audioTextOutput", "topicInput", "recentTextInput"
-  ];
-
-  for (const id of ids) {
-    const el = document.getElementById(id);
-    if (el && el.offsetHeight > 0 && el.offsetWidth > 0 && el.value.trim().length > 0) {
-      return el.value.trim();
-    }
-  }
-  return "";
-}
 
 async function saveSelectedQuestions() {
   const token = localStorage.getItem("accessToken");
@@ -1207,3 +1192,65 @@ function restoreRecentTextFromList(encodedText) {
 }
 
 
+async function loadLatestRecentTexts() {
+  const output = document.getElementById("section-content");
+  if (!output) return;
+
+  output.innerHTML = `
+    <h2 style="text-align:center;">🕒 Your 10 Most Recent Texts</h2>
+    <div id="recentTextsList" style="margin-top:20px;"></div>
+  `;
+
+  const list = document.getElementById("recentTextsList");
+
+  try {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      list.innerHTML = "<p style='color:red;'>❌ You must log in to view recent texts.</p>";
+      return;
+    }
+
+    const res = await fetch("https://gemini-j8xd.onrender.com/list-latest-recent-texts", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.recent_texts) {
+      list.innerHTML = "<p style='color:red;'>❌ Failed to load recent texts.</p>";
+      return;
+    }
+
+    if (data.recent_texts.length === 0) {
+      list.innerHTML = "<p style='color:gray;'>No recent texts found.</p>";
+      return;
+    }
+
+    data.recent_texts.forEach(text => {
+      const card = document.createElement("div");
+      card.style = `
+        background: #f9fafb;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 16px;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+      `;
+
+      card.innerHTML = `
+        <div style="font-size:13px; color:#666;">Saved on ${new Date(text.created_at).toLocaleString()}</div>
+        <h3 style="margin:10px 0;">📘 ${text.title_name || "(Untitled)"}</h3>
+        <textarea style="width:100%; min-height:100px; resize:vertical; font-size:14px; padding:10px; border-radius:8px; border:1px solid #ccc;">${text.extracted_text}</textarea>
+      `;
+
+      list.appendChild(card);
+    });
+
+  } catch (err) {
+    console.error("loadLatestRecentTexts error:", err);
+    list.innerHTML = "<p style='color:red;'>❌ Server error</p>";
+  }
+}

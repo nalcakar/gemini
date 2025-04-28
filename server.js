@@ -1462,6 +1462,28 @@ app.get("/get-main-topic-info/:id", async (req, res) => {
   }
 });
 
+// ✅ Get latest 10 recent texts for the 'Recent Texts' tab
+app.get("/list-latest-recent-texts", authMiddleware, async (req, res) => {
+  const email = req.user?.email;
+  if (!email) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const result = await pool.query(`
+      SELECT id, title_id, title_name, extracted_text, created_at
+      FROM recent_texts
+      WHERE user_email = $1
+      ORDER BY created_at DESC
+      LIMIT 10
+    `, [email]);
+
+    res.json({ recent_texts: result.rows });
+  } catch (err) {
+    console.error("❌ list-latest-recent-texts error:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 // === SPA (Tek Sayfa) Yönlendirme ===
 app.get("*", (req, res, next) => {
   // Eğer istek bir API endpoint'iyse yönlendirme yapma

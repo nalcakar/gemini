@@ -626,7 +626,7 @@ window.showSection = function(type) {
   content.style.display = "block";
   window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
   if (type === 'recent') {
-  loadRecentTextsList(); // load when Recent tab opened
+    loadLatestRecentTexts(); // 🆕 load latest recent texts
 }
 
   // ✅ 🌍 Dil tercihini localStorage'dan tekrar dropdown'a uygula
