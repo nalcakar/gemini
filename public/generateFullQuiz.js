@@ -2,20 +2,23 @@
 function getCurrentSectionText() {
   const lastSection = localStorage.getItem("lastSection");
 
-  // 🧠 Priority 1: If the active section has valid text, prefer it
+  // 🧠 Priority 1: If RECENT section active, check radio selection
+  if (lastSection === "recent") {
+    const selected = document.querySelector('input[name="recentTextChoice"]:checked');
+    if (selected) {
+      return decodeURIComponent(selected.value);
+    }
+  }
+
+  // 🧠 Priority 2: If active topicInput
   if (lastSection === "topic") {
     const topicInput = document.getElementById("topicInput");
     if (topicInput && topicInput.value.trim().length > 0) {
       return topicInput.value.trim();
     }
-  } else if (lastSection === "recent") {
-    const recentInput = document.getElementById("recentTextInput");
-    if (recentInput && recentInput.value.trim().length > 0) {
-      return recentInput.value.trim();
-    }
   }
 
-  // 🧠 Priority 2: If no valid text in active section, check all other inputs
+  // 🧠 Priority 3: Other general inputs
   const ids = [
     "textManualInput",
     "textOutput",
@@ -24,7 +27,6 @@ function getCurrentSectionText() {
     "topicInput",
     "recentTextInput"
   ];
-
   for (const id of ids) {
     const el = document.getElementById(id);
     if (el && el.offsetHeight > 0 && el.offsetWidth > 0 && el.value.trim().length > 0) {
@@ -1193,64 +1195,260 @@ function restoreRecentTextFromList(encodedText) {
 
 
 async function loadLatestRecentTexts() {
-  const output = document.getElementById("section-content");
-  if (!output) return;
+  const token = localStorage.getItem("accessToken");
+  if (!token) return;
 
-  output.innerHTML = `
-    <h2 style="text-align:center;">🕒 Your 10 Most Recent Texts</h2>
-    <div id="recentTextsList" style="margin-top:20px;"></div>
-  `;
+  const container = document.getElementById("recentTextsList");
+  if (!container) return;
 
-  const list = document.getElementById("recentTextsList");
+  container.innerHTML = "Loading...";
+
+  try {
+    // 🔥 Correct API: list-latest-recent-texts
+    const res = await fetch("https://gemini-j8xd.onrender.com/list-latest-recent-texts", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+
+    // 🔥 Correct field: recent_texts not texts
+    if (!Array.isArray(data.recent_texts)) {
+      container.innerHTML = "❌ Failed to load recent texts.";
+      return;
+    }
+
+    container.innerHTML = ""; // Clear previous
+
+    if (data.recent_texts.length === 0) {
+      container.innerHTML = "⚡ No recent texts found.";
+      return;
+    }
+
+    data.recent_texts.forEach((text, idx) => {
+      const wrapper = document.createElement("div");
+      wrapper.style = `
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: #f9fafb;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        transition: background 0.2s;
+        cursor: pointer;
+      `;
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "recentTextChoice";
+      input.id = `recent-${idx}`;
+      input.value = encodeURIComponent(text.extracted_text);
+      input.style.marginRight = "10px";
+
+      const label = document.createElement("label");
+      label.htmlFor = `recent-${idx}`;
+      label.textContent = text.title_name.length > 80 ? text.title_name.slice(0, 80) + "..." : text.title_name;
+      label.style = "flex-grow: 1; cursor: pointer;";
+
+      // 📦 Make entire wrapper clickable
+      wrapper.onclick = () => input.checked = true;
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(label);
+
+      container.appendChild(wrapper);
+    });
+
+  } catch (error) {
+    console.error("Error loading recent texts:", error);
+    container.innerHTML = "❌ Error loading.";
+  }
+}
+
+
+
+
+
+function viewUserRecentText(id) {
+  const card = document.getElementById(`recentCard-${id}`);
+  const textarea = document.getElementById(`recentText-${id}`);
+  if (!card || !textarea) return;
+  
+  card.scrollIntoView({ behavior: "smooth", block: "center" });
+  textarea.focus();
+}
+
+
+function editUserRecentText(id) {
+  const card = document.getElementById(`recentCard-${id}`);
+  const textarea = document.getElementById(`recentText-${id}`);
+  const saveButton = document.getElementById(`saveUserBtn-${id}`);
+  if (!card || !textarea || !saveButton) return;
+
+  textarea.removeAttribute("readonly");
+  textarea.focus();
+  saveButton.style.display = "inline-block";
+  card.classList.add("editing");
+}
+
+
+async function saveUserRecentText(id) {
+  const card = document.getElementById(`recentCard-${id}`);
+  const textarea = document.getElementById(`recentText-${id}`);
+  const saveButton = document.getElementById(`saveUserBtn-${id}`);
+  if (!textarea || !saveButton || !card) return;
+
+  const newText = textarea.value.trim();
+  if (!newText) {
+    showUserToast("⚠️ Text cannot be empty!");
+    return;
+  }
 
   try {
     const token = localStorage.getItem("accessToken");
     if (!token) {
-      list.innerHTML = "<p style='color:red;'>❌ You must log in to view recent texts.</p>";
+      showUserToast("⚠️ You must log in!");
       return;
     }
 
-    const res = await fetch("https://gemini-j8xd.onrender.com/list-latest-recent-texts", {
+    const res = await fetch(`https://gemini-j8xd.onrender.com/update-recent-text/${id}`, {
+      method: "PATCH",
       headers: {
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
-      }
+      },
+      body: JSON.stringify({ extracted_text: newText })
     });
 
     const data = await res.json();
-    if (!res.ok || !data.recent_texts) {
-      list.innerHTML = "<p style='color:red;'>❌ Failed to load recent texts.</p>";
-      return;
+    if (res.ok) {
+      showUserToast("✅ Text updated successfully!");
+      textarea.setAttribute("readonly", true);
+      saveButton.style.display = "none";
+      card.classList.remove("editing");
+    } else {
+      showUserToast("❌ Update failed: " + (data.error || "Unknown error"));
     }
-
-    if (data.recent_texts.length === 0) {
-      list.innerHTML = "<p style='color:gray;'>No recent texts found.</p>";
-      return;
-    }
-
-    data.recent_texts.forEach(text => {
-      const card = document.createElement("div");
-      card.style = `
-        background: #f9fafb;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 16px;
-        max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
-      `;
-
-      card.innerHTML = `
-        <div style="font-size:13px; color:#666;">Saved on ${new Date(text.created_at).toLocaleString()}</div>
-        <h3 style="margin:10px 0;">📘 ${text.title_name || "(Untitled)"}</h3>
-        <textarea style="width:100%; min-height:100px; resize:vertical; font-size:14px; padding:10px; border-radius:8px; border:1px solid #ccc;">${text.extracted_text}</textarea>
-      `;
-
-      list.appendChild(card);
-    });
-
   } catch (err) {
-    console.error("loadLatestRecentTexts error:", err);
-    list.innerHTML = "<p style='color:red;'>❌ Server error</p>";
+    console.error("Save user recent text error:", err);
+    showUserToast("❌ Server connection error.");
   }
 }
+
+
+function showUserToast(message = "✅ Action completed!") {
+  const toast = document.getElementById("user-toast");
+  if (!toast) return;
+
+  toast.textContent = message;
+  toast.style.opacity = "1";
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+  }, 2000);
+}
+
+let currentRecentTextId = null; // Global for modal save
+
+function openRecentTextModal(id) {
+  const textarea = document.getElementById(`recentText-${id}`);
+  const modal = document.getElementById("recentTextModal");
+  const modalTextarea = document.getElementById("recentModalTextarea");
+  const editBtn = document.getElementById("recentModalEditButton");
+  const saveBtn = document.getElementById("recentModalSaveButton");
+
+  if (!textarea || !modal || !modalTextarea) return;
+
+  currentRecentTextId = id;
+  modalTextarea.value = textarea.value;
+  modalTextarea.setAttribute("readonly", true);
+  editBtn.style.display = "inline-block";
+  saveBtn.style.display = "none";
+
+  modal.style.display = "flex";
+}
+
+function closeRecentTextModal() {
+  const modal = document.getElementById("recentTextModal");
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+function editModalRecentText() {
+  const modalTextarea = document.getElementById("recentModalTextarea");
+  const editBtn = document.getElementById("recentModalEditButton");
+  const saveBtn = document.getElementById("recentModalSaveButton");
+
+  if (!modalTextarea) return;
+
+  modalTextarea.removeAttribute("readonly");
+  modalTextarea.focus();
+  editBtn.style.display = "none";
+  saveBtn.style.display = "inline-block";
+}
+
+async function saveModalRecentText() {
+  const modalTextarea = document.getElementById("recentModalTextarea");
+  const editBtn = document.getElementById("recentModalEditButton");
+  const saveBtn = document.getElementById("recentModalSaveButton");
+
+  if (!modalTextarea || !currentRecentTextId) return;
+
+  const newText = modalTextarea.value.trim();
+  if (!newText) {
+    showUserToast("⚠️ Text cannot be empty!");
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      showUserToast("⚠️ You must log in!");
+      return;
+    }
+
+    const res = await fetch(`https://gemini-j8xd.onrender.com/update-recent-text/${currentRecentTextId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ extracted_text: newText })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      showUserToast("✅ Recent text updated!");
+
+      // ✅ Lock textarea again
+      modalTextarea.setAttribute("readonly", true);
+      editBtn.style.display = "inline-block";
+      saveBtn.style.display = "none";
+
+      // ✅ Update the card textarea
+      const cardTextarea = document.getElementById(`recentText-${currentRecentTextId}`);
+      if (cardTextarea) {
+        cardTextarea.value = newText;
+      }
+
+      // ✅ Update the saved date/time
+      const cardDiv = document.getElementById(`recentCard-${currentRecentTextId}`);
+      if (cardDiv) {
+        const dateDiv = cardDiv.querySelector("div");
+        if (dateDiv) {
+          const now = new Date();
+          dateDiv.textContent = `Updated on ${now.toLocaleString()}`;
+        }
+      }
+
+    } else {
+      showUserToast("❌ Update failed: " + (data?.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Save error:", err);
+    showUserToast("❌ Server error.");
+  }
+}
+
+

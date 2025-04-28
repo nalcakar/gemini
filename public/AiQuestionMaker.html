@@ -335,6 +335,37 @@ details summary {
 .highlight-glow {
   animation: glowHighlight 1.2s ease-out forwards;
 }
+
+
+.recent-text-card {
+  transition: background-color 0.4s;
+}
+
+.recent-text-card textarea {
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.recent-text-card.editing textarea {
+  background: #eef2ff; /* Light bluish */
+  border-color: #6366f1; /* Indigo border */
+}
+
+#user-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4f46e5;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 10001;
+}
+
+
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -725,6 +756,17 @@ window.showSection = function(type) {
 <div id="fixedQuestionsToggle" onclick="openModal()" title="Show saved questions">
   🧾
 </div>
-
+<div id="recentTextModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+  <div style="background:white; padding:20px; border-radius:12px; width:90%; max-width:800px; max-height:90%; overflow:auto; position:relative;">
+    <button onclick="closeRecentTextModal()" style="position:absolute; top:10px; right:10px; background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:6px;">✖️ Close</button>
+    <h3 style="margin-bottom:12px;">👁️ View & Edit Text</h3>
+    <textarea id="recentModalTextarea" style="width:100%; min-height:300px; resize:both; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:14px;" readonly></textarea>
+    <div style="margin-top:12px; text-align:center; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+      <button onclick="editModalRecentText()" id="recentModalEditButton" style="padding:8px 14px; background:#f59e0b; color:white; border:none; border-radius:8px; font-size:14px;">✏️ Edit</button>
+      <button onclick="saveModalRecentText()" id="recentModalSaveButton" style="display:none; padding:8px 14px; background:#10b981; color:white; border:none; border-radius:8px; font-size:14px;">💾 Save</button>
+    </div>
+  </div>
+</div>
+<div id="user-toast">✅ Saved successfully!</div>
 </body>
 </html>

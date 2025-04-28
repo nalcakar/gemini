@@ -390,7 +390,9 @@ async function saveModalText() {
   if (!modalTextarea || !currentRecentTextId) return;
 
   const newText = modalTextarea.value.trim();
-  if (!newText) return showToast("⚠️ Text cannot be empty!");
+  if (!newText) {
+    return showToast("⚠️ Text cannot be empty!");
+  }
 
   try {
     const res = await fetch(`${API}/update-recent-text/${currentRecentTextId}`, {
@@ -409,17 +411,31 @@ async function saveModalText() {
       editBtn.style.display = "inline-block";
       saveBtn.style.display = "none";
 
-      // Also update the card textarea if it still exists
+      // ✅ Update card textarea
       const cardTextarea = document.getElementById(`recentText-${currentRecentTextId}`);
-      if (cardTextarea) cardTextarea.value = newText;
+      if (cardTextarea) {
+        cardTextarea.value = newText;
+      }
+
+      // ✅ Update card date/time
+      const cardDiv = document.getElementById(`recentCard-${currentRecentTextId}`);
+      if (cardDiv) {
+        const dateDiv = cardDiv.querySelector("div");
+        if (dateDiv) {
+          const now = new Date();
+          dateDiv.textContent = `Updated on ${now.toLocaleString()}`;
+        }
+      }
+
     } else {
       showToast("❌ Update failed: " + (data?.error || "Unknown error"));
     }
   } catch (err) {
     console.error("Save error:", err);
-    showToast("❌ Server error");
+    showToast("❌ Server error.");
   }
 }
+
 
 
 async function deleteRecentText(id) {
