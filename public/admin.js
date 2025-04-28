@@ -286,8 +286,38 @@ async function loadQuestionsByTitleName(titleName) {
   if (window.MathJax) MathJax.typesetPromise?.();
 
   container.scrollIntoView({ behavior: "smooth" });
+  loadRecentTexts(currentTitleId);
 }
 
+
+async function loadRecentTexts(titleId) {
+  const container = document.getElementById("recentTextsContainer");
+  if (!container) return;
+
+  container.innerHTML = "<h4>🕒 Recent Texts</h4><p>Loading...</p>";
+
+  const res = await fetch(`${API}/list-recent-texts?email=${email}&title_id=${titleId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  const data = await res.json();
+  if (!data.recent_texts || data.recent_texts.length === 0) {
+    container.innerHTML = "<h4>🕒 Recent Texts</h4><p>No recent texts available.</p>";
+    return;
+  }
+
+  container.innerHTML = "<h4>🕒 Recent Texts</h4>";
+
+  data.recent_texts.forEach(text => {
+    const div = document.createElement("div");
+    div.style = "border:1px solid #ddd; margin-bottom:8px; padding:8px; border-radius:8px; background:#f9fafb;";
+    div.innerHTML = `
+      <div style="font-size:12px; color:#666;">${new Date(text.created_at).toLocaleString()}</div>
+      <div style="margin-top:4px;">${text.extracted_text.slice(0, 300)}...</div>
+    `;
+    container.appendChild(div);
+  });
+}
 
 
 function renderEditControls() {
