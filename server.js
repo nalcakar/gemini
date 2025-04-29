@@ -668,68 +668,74 @@ res.redirect(302, redirectUrl.toString());
 
 
 /////////////Sql////////
-app.post("/save-questions", async (req, res) => {
+// === SAVE QUESTIONS ===
+app.post("/save-questions", authMiddleware, async (req, res) => {
   const { titleName, categoryId, questions } = req.body;
   const email = req.user?.email;
 
-  if (!titleName || !categoryId || !questions || !email) {
-    return res.status(400).json({ error: "Eksik veri" });
+  if (!titleName || !categoryId || !questions || !Array.isArray(questions)) {
+    return res.status(400).json({ error: "Missing data" });
   }
 
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
+    let titleId = null;
 
-    // Başlığı bul veya oluştur
-    const { rows: titleRows } = await client.query(
-      "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
-      [titleName, email]
-    );
+    // Check if title exists
+    const titleCheck = await client.query(`
+      SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3
+    `, [titleName, categoryId, email]);
 
-    let titleId = titleRows[0]?.id;
-    if (!titleId) {
-      const insert = await client.query(
-        "INSERT INTO titles (name, category_id, user_email) VALUES ($1, $2, $3) RETURNING id",
-        [titleName, categoryId, email]
-      );
-      titleId = insert.rows[0].id;
+    if (titleCheck.rows.length > 0) {
+      titleId = titleCheck.rows[0].id;
+    } else {
+      // Insert new title if not found
+      const insertTitle = await client.query(`
+        INSERT INTO titles (name, category_id, user_email)
+        VALUES ($1, $2, $3)
+        RETURNING id
+      `, [titleName, categoryId, email]);
+      titleId = insertTitle.rows[0].id;
     }
 
-    // Soruları kaydet
-    for (const q of questions) {
-      const safeOptions = Array.isArray(q.options) ? q.options : [];
-      const safeAnswer = q.answer || "placeholder";
-      const safeExplanation = q.explanation || "";
-      const safeDifficulty = q.difficulty || null;
+    // Insert each question
+    for (const question of questions) {
+      // 🛡️ Safety fallback for missing fields
+      if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+        question.options = ["Placeholder Option"];
+      }
+      if (!question.answer || typeof question.answer !== "string") {
+        question.answer = "Placeholder Answer";
+      }
+      if (!question.explanation || typeof question.explanation !== "string") {
+        question.explanation = "";
+      }
+      if (!question.difficulty || !["easy", "medium", "hard"].includes(question.difficulty)) {
+        question.difficulty = "medium";
+      }
 
-      await client.query(
-        `INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          titleId,
-          q.question,
-          JSON.stringify(safeOptions),
-          safeAnswer,
-          safeExplanation,
-          safeDifficulty,
-          email
-        ]
-      );
+      await client.query(`
+        INSERT INTO questions (title_id, question_text, options, answer, explanation, difficulty)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        titleId,
+        question.question,
+        JSON.stringify(question.options),
+        question.answer,
+        question.explanation,
+        question.difficulty
+      ]);
     }
 
-    await client.query("COMMIT");
-
-    // 🆕 Return titleId
     res.json({ success: true, titleId });
-
   } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("❌ Soru kayıt hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
+    console.error("❌ Save questions error:", err.message);
+    res.status(500).json({ error: "Failed to save questions." });
   } finally {
     client.release();
   }
 });
+
 
 
 // ✅ Update recent text (edit & save)
