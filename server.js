@@ -689,7 +689,6 @@ app.post("/save-questions", authMiddleware, async (req, res) => {
     if (titleCheck.rows.length > 0) {
       titleId = titleCheck.rows[0].id;
     } else {
-      // Insert new title if not found
       const insertTitle = await client.query(`
         INSERT INTO titles (name, category_id, user_email)
         VALUES ($1, $2, $3)
@@ -698,9 +697,10 @@ app.post("/save-questions", authMiddleware, async (req, res) => {
       titleId = insertTitle.rows[0].id;
     }
 
-    // Insert each question
     for (const question of questions) {
-      // 🛡️ Safety fallback for missing fields
+      if (!question.question || typeof question.question !== "string" || question.question.trim() === "") {
+        continue; // Skip if question text is missing
+      }
       if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
         question.options = ["Placeholder Option"];
       }
@@ -715,15 +715,16 @@ app.post("/save-questions", authMiddleware, async (req, res) => {
       }
 
       await client.query(`
-        INSERT INTO questions (title_id, question_text, options, answer, explanation, difficulty)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [
         titleId,
-        question.question,
+        question.question.trim(),
         JSON.stringify(question.options),
         question.answer,
         question.explanation,
-        question.difficulty
+        question.difficulty,
+        email
       ]);
     }
 
