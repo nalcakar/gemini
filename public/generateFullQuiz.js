@@ -1213,9 +1213,7 @@ async function loadLatestRecentTexts() {
     }
 
     const res = await fetch("https://gemini-j8xd.onrender.com/list-latest-recent-texts", {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      headers: { Authorization: `Bearer ${token}` }
     });
 
     const data = await res.json();
@@ -1246,12 +1244,18 @@ async function loadLatestRecentTexts() {
       `;
 
       card.innerHTML = `
-      <div style="font-weight:bold; margin-bottom:6px; color:#374151;">📘 ${text.title_name || "(Untitled)"}</div>
-      <div style="font-size:12px; color:#666;">Saved on ${new Date(text.created_at).toLocaleString()}</div>
-      <textarea id="recentText-${text.id}" readonly style="width:100%; min-height:120px; padding:10px; border-radius:8px; border:1px solid #ccc; resize:vertical;">${text.extracted_text}</textarea>
-      <div style="margin-top:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-        <button onclick="openRecentTextModal(${text.id})">👁️ View / Edit</button>
-      </div>
+      <label style="display:flex; align-items:flex-start; gap:10px;">
+        <input type="radio" name="recentTextChoice" value="${encodeURIComponent(text.extracted_text)}" style="margin-top:8px;">
+        <div style="flex-grow:1;">
+          <div style="font-weight:bold; margin-bottom:6px; color:#374151;">📘 ${text.title_name || "(Untitled)"}</div>
+          <div style="font-size:12px; color:#666;">Saved on ${new Date(text.created_at).toLocaleString()}</div>
+          <textarea id="recentText-${text.id}" readonly 
+            style="width:100%; min-height:120px; padding:10px; border-radius:8px; border:1px solid #ccc; margin-top:8px; resize:vertical;">${text.extracted_text}</textarea>
+          <div style="margin-top:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="openRecentTextModal(${text.id})">👁️ View / Edit</button>
+          </div>
+        </div>
+      </label>
     `;
 
       list.appendChild(card);
@@ -1262,6 +1266,7 @@ async function loadLatestRecentTexts() {
     list.innerHTML = "<p style='color:red;'>❌ Server error</p>";
   }
 }
+
 
 
 
@@ -1444,6 +1449,221 @@ async function saveModalRecentText() {
   } catch (err) {
     console.error("Save error:", err);
     showUserToast("❌ Server error.");
+  }
+}
+
+// keywords***********
+async function generateKeywords() {
+  const output = document.getElementById("quizOutput");
+  if (output) output.innerHTML = "";
+
+  const saveBox = document.getElementById("saveQuizSection");
+  if (saveBox) {
+    saveBox.style.display = "none";
+    saveBox.style.opacity = "0";
+    saveBox.dataset.loaded = "";
+  }
+
+  const button = document.getElementById("generateKeywordsButton");
+  button.disabled = true;
+  button.textContent = "⏳ Generating Keywords...";
+
+  let extractedText = getCurrentSectionText();
+  if (!extractedText || extractedText.trim().length < 10) {
+    alert("⚠️ Please paste or upload some text first.");
+    button.disabled = false;
+    button.textContent = "✨ Generate Keywords and Explanations";
+    return;
+  }
+
+  try {
+    const accessToken = localStorage.getItem("accessToken") || "";
+
+    const res = await fetch("https://gemini-j8xd.onrender.com/generate-keywords", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ mycontent: extractedText }),
+    });
+
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+    if (!data.keywords || typeof data.keywords !== "string") {
+      throw new Error("Invalid response from AI");
+    }
+
+    const keywordsRaw = data.keywords;
+    const keywordEntries = keywordsRaw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.startsWith("-"))
+      .map(line => {
+        const [keyword, ...explanationParts] = line.substring(1).split(":");
+        return {
+          keyword: (keyword || "").trim(),
+          explanation: (explanationParts.join(":") || "").trim()
+        };
+      });
+
+    output.innerHTML = `<h3 style="text-align:center;">🔑 Generated Keywords:</h3>`;
+
+    const createControls = () => {
+      const box = document.createElement("div");
+      box.style = "margin: 10px 0; text-align: center;";
+      box.innerHTML = `
+        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+      `;
+      return box;
+    };
+
+    const topControls = createControls();
+    output.appendChild(topControls);
+
+    keywordEntries.forEach((item, i) => {
+      const details = document.createElement("details");
+      details.className = "quiz-preview";
+      details.style.maxWidth = "700px";
+      details.style.margin = "15px auto";
+      details.dataset.index = i;
+
+      details.innerHTML = `
+        <summary style="display: flex; justify-content: space-between; align-items: center;">
+          <div><b>Keyword ${i + 1}:</b> ${item.keyword}</div>
+          <label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>
+        </summary>
+        <div style="margin-top: 8px; padding: 8px;">
+          <p><strong>💬 Explanation:</strong> ${item.explanation}</p>
+        </div>
+      `;
+
+      output.appendChild(details);
+    });
+
+    const bottomControls = createControls();
+    output.appendChild(bottomControls);
+
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+    }
+
+    // ✅ If user logged in, show save box
+    if (saveBox && accessToken) {
+      saveBox.style.display = "block";
+      saveBox.style.opacity = "1";
+
+      if (!document.getElementById("saveInstructions")) {
+        const msg = document.createElement("p");
+        msg.id = "saveInstructions";
+        msg.textContent = "🎯 Select the keywords you want to save.";
+        msg.style = "font-weight: 500; font-size: 14px;";
+        saveBox.insertBefore(msg, saveBox.firstChild);
+      }
+
+      if (!saveBox.dataset.loaded) {
+        await loadMainTopics();
+        saveBox.dataset.loaded = "true";
+      }
+    }
+
+  } catch (err) {
+    console.error("❌ Error:", err);
+    alert(`❌ Failed to generate keywords.\n${err.message}`);
+  }
+
+  button.disabled = false;
+  button.textContent = "✨ Generate Keywords and Explanations";
+
+  if (typeof updateFloatingButtonVisibility === "function") {
+    updateFloatingButtonVisibility();
+  }
+}
+
+
+
+async function saveSelectedKeywords() {
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+  if (!token || !email) return alert("❌ Please log in.");
+
+  let titleName = "";
+  const dropdown = document.getElementById("titleDropdown");
+  const input = document.getElementById("newTitleInput");
+
+  if (dropdown?.value === "__new__") {
+    titleName = input?.value.trim();
+    if (!titleName) return alert("⚠️ Please enter a new title.");
+
+    currentTitleId = null;
+    currentTitleName = titleName;
+  } else {
+    titleName = dropdown?.value;
+    if (!titleName) return alert("⚠️ Please select a title.");
+
+    const selectedOption = dropdown.selectedOptions[0];
+    currentTitleId = selectedOption?.dataset?.id ? parseInt(selectedOption.dataset.id) : null;
+    currentTitleName = titleName;
+  }
+
+  const categoryId = document.getElementById("categorySelect")?.value;
+  if (!categoryId) {
+    alert("⚠️ Please select a category.");
+    return;
+  }
+
+  const questions = [];
+
+  document.querySelectorAll(".quiz-preview").forEach(block => {
+    const check = block.querySelector(".qcheck");
+    if (check?.checked) {
+      const summaryText = block.querySelector("summary div")?.innerText || "";
+      const keyword = summaryText.replace(/^Keyword \d+:\s*/, "").trim();
+      const explanation = block.querySelector("div p")?.innerText.replace(/^💬 Explanation:\s*/, "").trim() || "";
+
+      if (keyword && explanation) {
+        questions.push({
+          question: keyword,
+          options: [],
+          answer: explanation,
+          explanation: explanation,
+          difficulty: "medium"
+        });
+      }
+    }
+  });
+
+  if (questions.length === 0) {
+    alert("⚠️ You must select at least one keyword to save.");
+    return;
+  }
+
+  try {
+    const res = await fetch("https://gemini-j8xd.onrender.com/save-questions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        titleName: titleName,
+        categoryId,
+        questions
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert("✅ Keywords saved as questions successfully!");
+    } else {
+      alert("❌ Failed to save keywords: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Save keywords error:", err);
+    alert(`❌ Failed to save keywords.\n${err.message}`);
   }
 }
 
