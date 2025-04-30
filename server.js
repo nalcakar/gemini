@@ -715,16 +715,17 @@ app.post("/save-questions", authMiddleware, async (req, res) => {
       }
 
       await client.query(`
-        INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email, source)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `, [
         titleId,
-        question.question.trim(),
+        question.question,
         JSON.stringify(question.options),
         question.answer,
         question.explanation,
         question.difficulty,
-        email
+        email,
+        question.source || null
       ]);
     }
 

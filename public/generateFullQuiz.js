@@ -1583,7 +1583,7 @@ async function generateKeywords() {
   }
 }
 
-
+///keywordsssss
 
 async function saveSelectedKeywords() {
   const token = localStorage.getItem("accessToken");
@@ -1597,47 +1597,50 @@ async function saveSelectedKeywords() {
   if (dropdown?.value === "__new__") {
     titleName = input?.value.trim();
     if (!titleName) return alert("⚠️ Please enter a new title.");
-
-    currentTitleId = null;
-    currentTitleName = titleName;
   } else {
     titleName = dropdown?.value;
     if (!titleName) return alert("⚠️ Please select a title.");
-
-    const selectedOption = dropdown.selectedOptions[0];
-    currentTitleId = selectedOption?.dataset?.id ? parseInt(selectedOption.dataset.id) : null;
-    currentTitleName = titleName;
   }
 
   const categoryId = document.getElementById("categorySelect")?.value;
-  if (!categoryId) {
-    alert("⚠️ Please select a category.");
+  if (!categoryId) return alert("⚠️ Please select a category.");
+
+  const selectedBlocks = Array.from(document.querySelectorAll(".quiz-preview"))
+    .filter(block => block.querySelector("input[type='checkbox']")?.checked);
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ You must select at least one keyword to save.");
     return;
   }
 
-  const questions = [];
+  const questions = selectedBlocks.map(block => {
+    let keyword = "";
+    let definition = "";
 
-  document.querySelectorAll(".quiz-preview").forEach(block => {
-    const check = block.querySelector(".qcheck");
-    if (check?.checked) {
-      const summaryText = block.querySelector("summary div")?.innerText || "";
-      const keyword = summaryText.replace(/^Keyword \d+:\s*/, "").trim();
-      const explanation = block.querySelector("div p")?.innerText.replace(/^💬 Explanation:\s*/, "").trim() || "";
+    const summaryDiv = block.querySelector("summary div");
+    if (summaryDiv) {
+      keyword = summaryDiv.innerText.replace(/^Keyword \d+:\s*/, "").trim();
+    }
 
-      if (keyword && explanation) {
-        questions.push({
-          question: keyword,
-          options: [],
-          answer: explanation,
-          explanation: explanation,
-          difficulty: "medium"
-        });
+    const pTags = block.querySelectorAll("div > p");
+    if (pTags.length > 0) {
+      const strongNode = pTags[0].querySelector("strong");
+      if (strongNode && strongNode.nextSibling) {
+        definition = strongNode.nextSibling.textContent.trim();
       }
     }
-  });
+
+    return {
+      question: keyword || "Placeholder Keyword",
+      options: [], // ✅ EMPTY options
+      answer: definition || "Placeholder Answer",
+      explanation: "", // ❌ Blank explanation
+      difficulty: "medium"
+    };
+  }).filter(q => q.question && q.answer); // keep only valid ones
 
   if (questions.length === 0) {
-    alert("⚠️ You must select at least one keyword to save.");
+    alert("⚠️ No valid keywords to save.");
     return;
   }
 
@@ -1649,7 +1652,7 @@ async function saveSelectedKeywords() {
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
-        titleName: titleName,
+        titleName,
         categoryId,
         questions
       })
@@ -1664,6 +1667,26 @@ async function saveSelectedKeywords() {
   } catch (err) {
     console.error("Save keywords error:", err);
     alert(`❌ Failed to save keywords.\n${err.message}`);
+  }
+}
+
+
+
+
+
+function smartSaveSelected() {
+  const output = document.getElementById("quizOutput");
+  if (!output) return;
+
+  const hasKeyword = Array.from(output.querySelectorAll(".quiz-preview summary")).some(s => s.innerText.includes("Keyword"));
+  const hasQuestion = Array.from(output.querySelectorAll(".quiz-preview summary")).some(s => s.innerText.includes("Q"));
+
+  if (hasKeyword) {
+    saveSelectedKeywords();
+  } else if (hasQuestion) {
+    saveSelectedQuestions();
+  } else {
+    alert("⚠️ No questions or keywords found.");
   }
 }
 

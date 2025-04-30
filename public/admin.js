@@ -267,6 +267,10 @@ async function loadQuestionsByTitleName(titleName) {
         <summary>
           Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> 
           <span class="difficulty-badge ${difficulty}" style="margin-left:8px;">${badge}</span>
+            ${q.source === "keyword" ? `
+      <span style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 3px 6px; border-radius: 6px; margin-left: 6px;">
+        🔑 Keyword-Based
+      </span>` : ""}
         </summary>
         <ul>
           ${options.map((opt, idx) => `
