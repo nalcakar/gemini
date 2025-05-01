@@ -283,7 +283,7 @@ Format:
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Answer]
+~~Cevap: [Correct Option Text]
 &&Açıklama: [Short Explanation about why this answer is correct.]
 
 Rules:
@@ -307,7 +307,7 @@ Format:
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Answer]
+~~Cevap: [Correct Option Text]
 &&Açıklama: [Short Explanation about why this answer is correct.]
 
 Rules:
