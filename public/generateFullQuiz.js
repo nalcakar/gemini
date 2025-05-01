@@ -504,60 +504,40 @@ async function saveSelectedQuestions() {
   if (dropdown?.value === "__new__") {
     titleName = input?.value.trim();
     if (!titleName) return alert("⚠️ Please enter a new title.");
-
-    currentTitleId = null;
-    currentTitleName = titleName;
-
   } else {
     titleName = dropdown?.value;
     if (!titleName) return alert("⚠️ Please select a title.");
-
-    const selectedOption = dropdown.selectedOptions[0];
-    currentTitleId = selectedOption?.dataset?.id ? parseInt(selectedOption.dataset.id) : null;
-    currentTitleName = titleName;
   }
 
   const categoryId = document.getElementById("categorySelect")?.value;
-  if (!categoryId) {
-    alert("⚠️ Please select a category.");
-    return;
-  }
+  if (!categoryId) return alert("⚠️ Please select a category.");
 
-  const questions = [];
+  const selectedBlocks = Array.from(document.querySelectorAll(".quiz-preview"))
+    .filter(block => block.querySelector("input[type='checkbox']")?.checked);
 
-  document.querySelectorAll(".quiz-preview").forEach(block => {
-    const check = block.querySelector(".qcheck");
-    if (check?.checked) {
-      const q = {};
-
-      block.querySelectorAll(".q").forEach(s => {
-        const key = s.dataset.key;
-        const val = s.dataset.latex?.trim() || s.innerText.trim();
-        if (key?.startsWith("option")) {
-          q.options = q.options || [];
-          q.options.push(val);
-        } else {
-          q[key] = val;
-        }
-      });
-
-      const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
-      if (diffText.includes("easy")) q.difficulty = "easy";
-      else if (diffText.includes("hard")) q.difficulty = "hard";
-      else q.difficulty = "medium";
-
-      q.options = q.options || [];
-      q.answer = q.answer || "placeholder";
-      q.explanation = q.explanation || "";
-
-      questions.push(q);
-    }
-  });
-
-  if (questions.length === 0) {
+  if (selectedBlocks.length === 0) {
     alert("⚠️ You must select at least one question to save.");
     return;
   }
+
+  const questions = selectedBlocks.map(block => {
+    const questionText = block.querySelector("[data-key='question']")?.dataset.latex?.trim() || "";
+    const explanation = block.querySelector("[data-key='explanation']")?.dataset.latex?.trim() || "";
+    const answer = block.querySelector("[data-key='answer']")?.dataset.latex?.trim() || "";
+    const difficulty = block.querySelector("[data-key='difficulty']")?.innerText?.trim() || "medium";
+
+    const optionElems = block.querySelectorAll("[data-key='option']");
+    const options = Array.from(optionElems).map(opt => opt.dataset.latex?.trim() || "");
+
+    return {
+      question: questionText || "Untitled",
+      options: options.length > 0 ? options : [],
+      answer: answer || "No Answer",
+      explanation: explanation || "",
+      difficulty,
+      source: "mcq"  // ✅ add MCQ source tag
+    };
+  }).filter(q => q.question && q.answer);
 
   try {
     const res = await fetch("https://gemini-j8xd.onrender.com/save-questions", {
@@ -567,7 +547,7 @@ async function saveSelectedQuestions() {
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
-        titleName: titleName,
+        titleName,
         categoryId,
         questions
       })
@@ -575,44 +555,16 @@ async function saveSelectedQuestions() {
 
     const data = await res.json();
     if (res.ok) {
-      alert("✅ Questions saved successfully.");
-
-      const realTitleId = data.titleId || currentTitleId || null;  // 🆕 Get the real titleId!
-
-      // ✅ Save the recent input text
-      const extractedText = getCurrentSectionText();
-      if (extractedText.trim().length > 0) {
-        const recentSavePayload = {
-          extracted_text: extractedText,
-          title_id: realTitleId,
-          title_name: currentTitleName || titleName
-        };
-
-        const recentRes = await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(recentSavePayload)
-        });
-
-        const recentData = await recentRes.json();
-        if (!recentRes.ok) {
-          console.error("❌ Failed to save recent text:", recentData);
-        } else {
-          console.log("✅ Recent text saved successfully.");
-        }
-      }
-
+      alert("✅ Questions saved successfully!");
     } else {
-      alert("❌ Could not save questions: " + (data?.error || "Server error"));
+      alert("❌ Failed to save questions: " + (data.error || "Unknown error"));
     }
   } catch (err) {
-    console.error("❌ Save error:", err);
-    alert("❌ Could not connect to the server.");
+    console.error("Save questions error:", err);
+    alert(`❌ Failed to save questions.\n${err.message}`);
   }
 }
+
 
 
 // ==== Load Titles with data-id ====
@@ -1632,12 +1584,13 @@ async function saveSelectedKeywords() {
 
     return {
       question: keyword || "Placeholder Keyword",
-      options: [], // ✅ EMPTY options
-      answer: definition || "Placeholder Answer",
-      explanation: "", // ❌ Blank explanation
-      difficulty: "medium"
+      options: [],                            // ✅ empty options
+      answer: definition || "Placeholder",    // ✅ use definition as answer
+      explanation: "",                        // ✅ leave blank
+      difficulty: "medium",
+      source: "keyword"                       // ✅ THE FIX
     };
-  }).filter(q => q.question && q.answer); // keep only valid ones
+  }).filter(q => q.question && q.answer);
 
   if (questions.length === 0) {
     alert("⚠️ No valid keywords to save.");
