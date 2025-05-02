@@ -323,8 +323,40 @@ Rules:
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
-const cleaned = raw.replace(/^~~Cevap:\s*[A-D]\)\s*/gm, "~~Cevap: ");
-res.json({ questions: cleaned });
+
+    // Parse and map Gemini text to structured questions
+    const blocks = raw.split("***").filter(Boolean);
+    const parsed = blocks.map(block => {
+      const lines = block.trim().split("\n").map(line => line.trim());
+      const question = lines[0];
+      const options = lines
+        .filter(l => l.startsWith("///"))
+        .map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
+    
+      const optionMap = {};
+      ["A", "B", "C", "D"].forEach((key, i) => {
+        const rawLine = lines.find(l => l.startsWith(`/// ${key})`));
+        if (rawLine) optionMap[key] = rawLine.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
+      });
+    
+      let answerRaw = (lines.find(l => l.startsWith("~~Cevap:")) || "").replace(/^~~Cevap:\s*/, "").trim();
+      let explanation = (lines.find(l => l.startsWith("&&Açıklama:")) || "").replace(/^&&Açıklama:\s*/, "").trim();
+    
+      // If answer is A/B/C/D, replace with actual text
+      if (/^[A-D]$/.test(answerRaw)) {
+        answerRaw = optionMap[answerRaw] || answerRaw;
+      }
+    
+      return {
+        question,
+        options,
+        answer: answerRaw,
+        explanation
+      };
+    });
+    
+    res.json({ questions: parsed });
+    
   } catch (err) {
     console.error("Gemini Error:", err.message);
     res.status(500).json({
