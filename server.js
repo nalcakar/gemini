@@ -283,7 +283,7 @@ Format:
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Answer Text] (don't use A), B)...)
+~~Cevap: [Correct Option] 
 &&Açıklama: [Short Explanation about why this answer is correct.]
 
 Rules:
@@ -307,7 +307,7 @@ Format:
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Answer Text] (don't use A), B)...)
+~~Cevap: [Correct Option] 
 &&Açıklama: [Short Explanation about why this answer is correct.]
 
 Rules:
@@ -323,7 +323,8 @@ Rules:
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
-    res.json({ questions: raw });
+const cleaned = raw.replace(/^~~Cevap:\s*[A-D]\)\s*/gm, "~~Cevap: ");
+res.json({ questions: cleaned });
   } catch (err) {
     console.error("Gemini Error:", err.message);
     res.status(500).json({
