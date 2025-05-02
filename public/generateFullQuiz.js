@@ -524,18 +524,117 @@ async function saveSelectedQuestions() {
     const questionText = block.querySelector("[data-key='question']")?.dataset.latex?.trim() || "";
     const explanation = block.querySelector("[data-key='explanation']")?.dataset.latex?.trim() || "";
     const answer = block.querySelector("[data-key='answer']")?.dataset.latex?.trim() || "";
-    const difficulty = block.querySelector("[data-key='difficulty']")?.innerText?.trim() || "medium";
+    const difficulty = block.querySelector(".difficulty-line")?.dataset.level || "medium";
 
-    const optionElems = block.querySelectorAll("[data-key='option']");
-    const options = Array.from(optionElems).map(opt => opt.dataset.latex?.trim() || "");
+    const optionElems = block.querySelectorAll("[data-key^='option']");
+    const options = Array.from(optionElems)
+      .map(opt => opt.dataset.latex?.trim())
+      .filter(Boolean);
 
     return {
-      question: questionText || "Untitled",
-      options: options.length > 0 ? options : [],
-      answer: answer || "No Answer",
-      explanation: explanation || "",
+      question: questionText,
+      options,
+      answer,
+      explanation,
       difficulty,
-      source: "mcq"  // ✅ add MCQ source tag
+      source: "mcq"
+    };
+  }).filter(q => q.question && q.answer && q.options.length > 0);
+
+  try {
+    const res = await fetch("https://gemini-j8xd.onrender.com/save-questions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        titleName,
+        categoryId,
+        questions
+      })
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.titleId) {
+      // ✅ Save to recent_texts with real title_id
+      await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title_name: titleName,
+          title_id: data.titleId,
+          extracted_text: getCurrentSectionText()
+        })
+      });
+
+      alert("✅ Questions saved successfully!");
+    } else {
+      alert("❌ Failed to save questions: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Save questions error:", err);
+    alert(`❌ Failed to save questions.\n${err.message}`);
+  }
+}
+
+
+async function saveSelectedKeywords() {
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+  if (!token || !email) return alert("❌ Please log in.");
+
+  let titleName = "";
+  const dropdown = document.getElementById("titleDropdown");
+  const input = document.getElementById("newTitleInput");
+
+  if (dropdown?.value === "__new__") {
+    titleName = input?.value.trim();
+    if (!titleName) return alert("⚠️ Please enter a new title.");
+  } else {
+    titleName = dropdown?.value;
+    if (!titleName) return alert("⚠️ Please select a title.");
+  }
+
+  const categoryId = document.getElementById("categorySelect")?.value;
+  if (!categoryId) return alert("⚠️ Please select a category.");
+
+  const selectedBlocks = Array.from(document.querySelectorAll(".quiz-preview"))
+    .filter(block => block.querySelector("input[type='checkbox']")?.checked);
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ You must select at least one keyword to save.");
+    return;
+  }
+
+  const questions = selectedBlocks.map(block => {
+    let keyword = "";
+    let definition = "";
+
+    const summaryDiv = block.querySelector("summary div");
+    if (summaryDiv) {
+      keyword = summaryDiv.innerText.replace(/^Keyword \d+:\s*/, "").trim();
+    }
+
+    const pTags = block.querySelectorAll("div > p");
+    if (pTags.length > 0) {
+      const strongNode = pTags[0].querySelector("strong");
+      if (strongNode && strongNode.nextSibling) {
+        definition = strongNode.nextSibling.textContent.trim();
+      }
+    }
+
+    return {
+      question: keyword || "Placeholder Keyword",
+      options: [],
+      answer: definition || "Placeholder Answer",
+      explanation: "",
+      difficulty: "medium",
+      source: "keyword"
     };
   }).filter(q => q.question && q.answer);
 
@@ -554,16 +653,33 @@ async function saveSelectedQuestions() {
     });
 
     const data = await res.json();
-    if (res.ok) {
-      alert("✅ Questions saved successfully!");
+
+    if (res.ok && data.titleId) {
+      // ✅ Save recent text with real title_id
+      await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title_name: titleName,
+          title_id: data.titleId,
+          extracted_text: getCurrentSectionText()
+        })
+      });
+
+      alert("✅ Keywords saved as questions successfully!");
     } else {
-      alert("❌ Failed to save questions: " + (data.error || "Unknown error"));
+      alert("❌ Failed to save keywords: " + (data.error || "Unknown error"));
     }
   } catch (err) {
-    console.error("Save questions error:", err);
-    alert(`❌ Failed to save questions.\n${err.message}`);
+    console.error("Save keywords error:", err);
+    alert(`❌ Failed to save keywords.\n${err.message}`);
   }
 }
+
+
 
 
 
@@ -1537,91 +1653,9 @@ async function generateKeywords() {
 
 ///keywordsssss
 
-async function saveSelectedKeywords() {
-  const token = localStorage.getItem("accessToken");
-  const email = localStorage.getItem("userEmail");
-  if (!token || !email) return alert("❌ Please log in.");
 
-  let titleName = "";
-  const dropdown = document.getElementById("titleDropdown");
-  const input = document.getElementById("newTitleInput");
 
-  if (dropdown?.value === "__new__") {
-    titleName = input?.value.trim();
-    if (!titleName) return alert("⚠️ Please enter a new title.");
-  } else {
-    titleName = dropdown?.value;
-    if (!titleName) return alert("⚠️ Please select a title.");
-  }
 
-  const categoryId = document.getElementById("categorySelect")?.value;
-  if (!categoryId) return alert("⚠️ Please select a category.");
-
-  const selectedBlocks = Array.from(document.querySelectorAll(".quiz-preview"))
-    .filter(block => block.querySelector("input[type='checkbox']")?.checked);
-
-  if (selectedBlocks.length === 0) {
-    alert("⚠️ You must select at least one keyword to save.");
-    return;
-  }
-
-  const questions = selectedBlocks.map(block => {
-    let keyword = "";
-    let definition = "";
-
-    const summaryDiv = block.querySelector("summary div");
-    if (summaryDiv) {
-      keyword = summaryDiv.innerText.replace(/^Keyword \d+:\s*/, "").trim();
-    }
-
-    const pTags = block.querySelectorAll("div > p");
-    if (pTags.length > 0) {
-      const strongNode = pTags[0].querySelector("strong");
-      if (strongNode && strongNode.nextSibling) {
-        definition = strongNode.nextSibling.textContent.trim();
-      }
-    }
-
-    return {
-      question: keyword || "Placeholder Keyword",
-      options: [],                            // ✅ empty options
-      answer: definition || "Placeholder",    // ✅ use definition as answer
-      explanation: "",                        // ✅ leave blank
-      difficulty: "medium",
-      source: "keyword"                       // ✅ THE FIX
-    };
-  }).filter(q => q.question && q.answer);
-
-  if (questions.length === 0) {
-    alert("⚠️ No valid keywords to save.");
-    return;
-  }
-
-  try {
-    const res = await fetch("https://gemini-j8xd.onrender.com/save-questions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        titleName,
-        categoryId,
-        questions
-      })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      alert("✅ Keywords saved as questions successfully!");
-    } else {
-      alert("❌ Failed to save keywords: " + (data.error || "Unknown error"));
-    }
-  } catch (err) {
-    console.error("Save keywords error:", err);
-    alert(`❌ Failed to save keywords.\n${err.message}`);
-  }
-}
 
 
 
