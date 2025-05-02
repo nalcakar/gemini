@@ -206,21 +206,21 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
+
+
 app.post("/generate-questions", async (req, res) => {
   const { mycontent, userLanguage, userFocus, difficulty } = req.body;
   const user = req.user || {};
 
   const tierQuestionCounts = {
-    "25539224": 10,  // Bronze
-    "25296810": 15,  // Silver
-    "25669215": 20   // Gold
+    "25539224": 10,
+    "25296810": 15,
+    "25669215": 20
   };
 
-  const userTier = user.tier;
-  const questionCount = tierQuestionCounts[userTier] || 5;
-
-  // Dil algılama
+  const questionCount = tierQuestionCounts[user.tier] || 5;
   const langCode = franc(mycontent);
+
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
     "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
@@ -230,26 +230,13 @@ app.post("/generate-questions", async (req, res) => {
   };
 
   const isoMap = {
-    "İngilizce": "English",
-    "Türkçe": "Turkish",
-    "Arapça": "Arabic",
-    "Fransızca": "French",
-    "İspanyolca": "Spanish",
-    "Almanca": "German",
-    "İtalyanca": "Italian",
-    "Portekizce": "Portuguese",
-    "Rusça": "Russian",
-    "Çince": "Chinese",
-    "Japonca": "Japanese",
-    "Korece": "Korean",
-    "Flemenkçe": "Dutch",
-    "Lehçe": "Polish",
-    "Hintçe": "Hindi",
-    "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese",
-    "Tayca": "Thai",
-    "Romence": "Romanian",
-    "Ukraynaca": "Ukrainian"
+    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic",
+    "Fransızca": "French", "İspanyolca": "Spanish", "Almanca": "German",
+    "İtalyanca": "Italian", "Portekizce": "Portuguese", "Rusça": "Russian",
+    "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
+    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi",
+    "Bengalce": "Bengali", "Vietnamca": "Vietnamese", "Tayca": "Thai",
+    "Romence": "Romanian", "Ukraynaca": "Ukrainian"
   };
 
   let questionLanguage = "İngilizce";
@@ -262,12 +249,8 @@ app.post("/generate-questions", async (req, res) => {
   const promptLanguage = isoMap[questionLanguage] || "English";
   const isShortTopic = mycontent.length < 80;
 
-  // ✅ Temiz tekli prompt yapısı
-  let prompt = "";
-
-  if (isShortTopic) {
-    prompt = `
-You are an expert question generator.
+  let prompt = isShortTopic
+    ? `You are an expert question generator.
 
 Your task is to generate exactly ${questionCount} multiple-choice questions based on the topic: "${mycontent}".
 
@@ -278,23 +261,13 @@ All output must be written in ${promptLanguage}.
 
 Format:
 ***[Question text]
-
 /// A) Option 1
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Option] 
-&&Açıklama: [Short Explanation about why this answer is correct.]
-
-Rules:
-- Use exactly this structure, no extra numbering (no 1., 2., etc.)
-- No additional comments outside the requested format.
-- Each explanation must be at least 2 complete sentences.
-- If the question involves math, format expressions using LaTeX ($...$).
-`;
-  } else {
-    prompt = `
-You are an expert quiz generator.
+~~Cevap: [Correct Text or Letter]
+&&Açıklama: [Short Explanation]`
+    : `You are an expert quiz generator.
 
 Based on the following content (in ${promptLanguage}), generate exactly ${questionCount} multiple-choice questions:
 
@@ -302,37 +275,52 @@ Based on the following content (in ${promptLanguage}), generate exactly ${questi
 
 Format:
 ***[Question text]
-
 /// A) Option 1
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Option] 
-&&Açıklama: [Short Explanation about why this answer is correct.]
-
-Rules:
-- Use exactly the specified structure, no numbering.
-- No additional notes or commentary outside.
-- All content must be in ${promptLanguage}.
-- Each explanation should be at least 2 full sentences.
-- If math appears, format formulas properly using LaTeX ($...$).
-`;
-  }
+~~Cevap: [Correct Text or Letter]
+&&Açıklama: [Short Explanation]`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
-const cleaned = raw.replace(/^~~Cevap:\s*[A-D]\)\s*/gm, "~~Cevap: ");
-res.json({ questions: cleaned });
+
+    // 🧠 Parse Gemini output into structured questions
+    const blocks = raw.split("***").filter(Boolean);
+    const questions = blocks.map(block => {
+      const lines = block.trim().split("\n").map(l => l.trim());
+      const question = lines[0];
+      const options = lines.filter(l => l.startsWith("///")).map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
+      const answerLine = lines.find(l => l.startsWith("~~Cevap:")) || "";
+      const explanationLine = lines.find(l => l.startsWith("&&Açıklama:")) || "";
+
+      let answer = answerLine.replace(/^~~Cevap:\s*/, "").trim();
+      const explanation = explanationLine.replace(/^&&Açıklama:\s*/, "").trim();
+
+      // 🧹 If answer is a letter like "B", convert to real text
+      if (/^[A-D]$/.test(answer)) {
+        const idx = { A: 0, B: 1, C: 2, D: 3 }[answer];
+        answer = options[idx] || answer;
+      }
+
+      return {
+        question,
+        options,
+        answer,
+        explanation,
+        difficulty: difficulty || "medium"
+      };
+    });
+
+    res.json({ questions });
   } catch (err) {
     console.error("Gemini Error:", err.message);
-    res.status(500).json({
-      error: "Failed to generate questions",
-      message: err.message
-    });
+    res.status(500).json({ error: "Failed to generate questions", message: err.message });
   }
 });
+
 
 
 
