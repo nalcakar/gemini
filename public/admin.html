@@ -352,41 +352,73 @@
 
 
 /* 🔄 Backside specific */
-#flashcardBack {
-  transform: rotateY(180deg);
-  background: #e0ffe0;
+#flashcardModal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 95%;
+  max-width: 700px;
+  max-height: 90vh;   
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  z-index: 10000;
+  overflow: visible;
 }
 
-/* 📱 Responsive Adjustments */
+#flashcardCard {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  margin: 20px auto 200px auto; /* ⬅️ 100px bottom margin */
+  perspective: 1200px;
+  position: relative;
+  overflow: visible;
+}
+
+#flashcardInner {
+  width: 100%;
+  min-height: 220px;
+  transition: transform 0.8s ease;
+  transform-style: preserve-3d;
+  position: relative;
+}
+
+#flashcardFront,
+#flashcardBack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 220px;
+  padding: 20px;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 20px;
+  overflow-y: auto;
+}
+
+#flashcardFront {
+  background: #f0f0f0;
+  z-index: 2;
+}
+
+#flashcardBack {
+  background: #e0ffe0;
+  transform: rotateY(180deg);
+  z-index: 1;
+}
+
 @media (max-width: 600px) {
   #flashcardCard {
-    min-height: 140px;
-    width: 90%;
-    max-width: 360px;
-    margin: 10px auto 30px auto; /* 🛠 bigger margin bottom */
-  }
-  #flashcardInner {
-    height: 140px;
-  }
-  #flashcardFront, #flashcardBack {
-    font-size: 16px;
-    padding: 12px;
-  }
-}
-
-@media (max-width: 400px) {
-  #flashcardCard {
-    min-height: 120px;
-    width: 95%;
-    max-width: 300px;
-    margin: 8px auto 30px auto; /* 🛠 maintain margin */
-  }
-  #flashcardInner {
-    height: 120px;
-  }
-  #flashcardFront, #flashcardBack {
-    font-size: 14px;
-    padding: 10px;
+    margin-bottom: 140px; /* more breathing room on mobile */
   }
 }
 
@@ -822,7 +854,7 @@ function collapseAllDetails() {
   </div>
 
   <!-- Game Section (shown first) -->
-  <div id="flashcardGameSection" style="display:block; text-align:center; padding-bottom:150px;">
+  <div id="flashcardGameSection" style="display:block; text-align:center; padding-bottom:250px;">
 
     <!-- Counter -->
     <h3 id="flashcardCounter" style="margin-bottom:20px;">Flashcard 1/10</h3>
@@ -886,13 +918,13 @@ function collapseAllDetails() {
     </div>
 
     <!-- Answer Buttons -->
-    <div id="flashcardControls" style="margin-top:20px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">
+    <div id="flashcardControls" style="margin-top:60px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">
       <button onclick="markKnown(true)" style="background:#22c55e; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">✅ I Knew</button>
       <button onclick="markKnown(false)" style="background:#ef4444; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">❌ I Didn't Know</button>
     </div>
 
     <!-- Navigation Buttons -->
-    <div style="margin-top:20px; display:flex; justify-content:center; gap:16px;">
+    <div style="margin-top:40px; display:flex; justify-content:center; gap:16px;">
       <button id="prevButton" onclick="prevFlashcard()" style="background:#3b82f6; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">⬅️ Previous</button>
       <button id="nextButton" onclick="nextFlashcard()" style="background:#3b82f6; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">➡️ Next</button>
     </div>

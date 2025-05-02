@@ -250,27 +250,31 @@ async function loadQuestionsByTitleName(titleName) {
       const block = document.createElement("details");
       block.className = "question-card";
       block.setAttribute("data-id", q.id);
-
+      block.dataset.selected = "true"; // ✅ Mark as selected for flashcards
+    
       const question = q.question || "";
       const options = q.options || [];
       const explanation = q.explanation || "";
       const answer = q.answer || "";
       const difficulty = q.difficulty || "medium";
-
+    
       const badge = {
         easy: "🟢 Easy",
         medium: "🟡 Medium",
         hard: "🔴 Hard"
       }[difficulty] || "";
-
+    
       block.innerHTML = `
         <summary>
           Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> 
           <span class="difficulty-badge ${difficulty}" style="margin-left:8px;">${badge}</span>
-            ${q.source === "keyword" ? `
-      <span style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 3px 6px; border-radius: 6px; margin-left: 6px;">
-        🔑 Keyword-Based
-      </span>` : ""}
+          <label style="float:right; font-size:14px;">
+            <input type="checkbox" class="flashcard-checkbox" checked onchange="toggleFlashcardSelection(this)"> ✅
+          </label>
+          ${q.source === "keyword" ? `
+            <span style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 3px 6px; border-radius: 6px; margin-left: 6px;">
+              🔑 Keyword-Based
+            </span>` : ""}
         </summary>
         <ul>
           ${options.map((opt, idx) => `
@@ -284,8 +288,10 @@ async function loadQuestionsByTitleName(titleName) {
           <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
         </div>
       `;
+    
       container.appendChild(block);
     });
+    
   }
 
   // ✅ AFTER questions, create Recent Texts container

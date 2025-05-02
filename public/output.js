@@ -1,3 +1,10 @@
+
+
+const difficultyEmoji = {
+  easy: "🟢",
+  medium: "🟡",
+  hard: "🔴"
+};
 async function exportAsTXT() {
     const container = document.getElementById("modalQuestionList");
     if (!container) return alert("⚠️ No questions loaded.");
@@ -203,43 +210,49 @@ function shuffleArray(array) {
   }
 }
 
-async function openFlashcardMode() {
-    const container = document.getElementById("modalQuestionList");
-    if (!container) return alert("⚠️ No questions loaded.");
-  
-    const questionBlocks = container.querySelectorAll("details");
-    if (questionBlocks.length === 0) {
-      alert("⚠️ No questions found.");
-      return;
-    }
-  
-    flashcards = [];
-    currentFlashcardIndex = 0;
-    knownCount = 0;
-    answeredCount = 0;
-  
-    flashcards = Array.from(questionBlocks).map((block) => {
-      const question = block.querySelector("summary .q")?.textContent.trim() || "No question.";
-      const options = Array.from(block.querySelectorAll("ul li")).map((li) => li.textContent.trim().replace(/^[A-D]\)\s*/, ''));
-      const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
-      const answerLetter = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "A";
-      const index = "ABCD".indexOf(answerLetter.toUpperCase());
-      const answerText = (index >= 0 && index < options.length) ? options[index] : "Answer not found.";
+function openFlashcardMode() {
+  const blocks = document.querySelectorAll("#modalQuestionList .question-card");
+
+  // ✅ Select all if none are checked
+  const noneSelected = !Array.from(blocks).some(block =>
+    block.querySelector("input[type='checkbox']")?.checked
+  );
+
+  if (noneSelected) {
+    blocks.forEach(block => {
+      const checkbox = block.querySelector("input[type='checkbox']");
+      if (checkbox) checkbox.checked = true;
+    });
+  }
+
+  flashcards = Array.from(blocks)
+    .filter(block => block.querySelector("input[type='checkbox']")?.checked)
+    .map((block, i) => {
+      const questionSpan = block.querySelector("summary .q[data-key='question']");
+      const answerText = block.querySelector("p:nth-of-type(1)")?.textContent?.replace(/^✅ Answer:\s*/, "").trim() || "Answer not found.";
+
       return {
-        question,
-        answer: answerText,
+        front: questionSpan?.textContent?.trim() || `Q${i + 1}`,
+        back: `<strong>✅ Answer:</strong> ${answerText}`,
         isAnswered: false
       };
     });
-  
-    shuffleArray(flashcards);
-  
-    document.getElementById("flashcardModal").style.display = "block";
-    document.getElementById("flashcardGameSection").style.display = "block"; // 🟢 Show game
-    document.getElementById("flashcardResultSection").style.display = "none"; // 🔴 Hide result
-  
-    renderFlashcard(); // 🟢 Render the first flashcard immediately
+
+  if (flashcards.length === 0) {
+    alert("⚠️ No selected flashcards to show.");
+    return;
   }
+
+  currentFlashcardIndex = 0;
+  knownCount = 0;
+  answeredCount = 0;
+
+  document.getElementById("flashcardModal").style.display = "block";
+  renderFlashcard();
+}
+
+
+
   
 
 function renderFlashcard() {
@@ -247,34 +260,11 @@ function renderFlashcard() {
   const card = flashcards[currentFlashcardIndex];
 
   document.getElementById("flashcardCounter").textContent = `Flashcard ${currentFlashcardIndex + 1}/${total}`;
-  document.getElementById("flashcardFrontContent").textContent = card.question;
-  document.getElementById("flashcardBackContent").textContent = `Answer: ${card.answer}`;
-  
+  document.getElementById("flashcardFrontContent").innerHTML = card.front;
+  document.getElementById("flashcardBackContent").innerHTML = card.back;
 
   updateScore();
-
-  document.getElementById("flashcardInner").style.transform = "rotateY(0deg)";
-
-  const cardOuter = document.getElementById("flashcardCard");
-  if (cardOuter) {
-    if (card.isAnswered) {
-      cardOuter.style.border = "3px solid #22c55e";
-    } else {
-      cardOuter.style.border = "1px solid #d1d5db";
-    }
-  }
-
-  const knownBtn = document.querySelector("#flashcardControls button:nth-child(1)");
-  const unknownBtn = document.querySelector("#flashcardControls button:nth-child(2)");
-  if (knownBtn && unknownBtn) {
-    knownBtn.disabled = card.isAnswered;
-    unknownBtn.disabled = card.isAnswered;
-    knownBtn.style.background = card.isAnswered ? "#9ca3af" : "#22c55e";
-    unknownBtn.style.background = card.isAnswered ? "#9ca3af" : "#ef4444";
-  }
-
-  document.getElementById("prevButton").style.display = currentFlashcardIndex === 0 ? "none" : "inline-block";
-  document.getElementById("nextButton").style.display = currentFlashcardIndex === total - 1 ? "none" : "inline-block";
+  if (window.MathJax) MathJax.typesetPromise();
 }
 
 function markKnown(knewIt) {
@@ -323,16 +313,20 @@ function flipFlashcard() {
 function nextFlashcard() {
   if (currentFlashcardIndex < flashcards.length - 1) {
     currentFlashcardIndex++;
+    document.getElementById("flashcardInner").style.transform = "rotateY(0deg)"; // ✅ Show front
     renderFlashcard();
   }
 }
 
+
 function prevFlashcard() {
   if (currentFlashcardIndex > 0) {
     currentFlashcardIndex--;
+    document.getElementById("flashcardInner").style.transform = "rotateY(0deg)"; // ✅ Show front
     renderFlashcard();
   }
 }
+
 
 function closeFlashcardModal() {
   document.getElementById("flashcardModal").style.display = "none";
