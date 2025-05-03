@@ -52,9 +52,7 @@ function expandAllDetails(open = true) {
 
 async function generateFullQuiz() {
   const output = document.getElementById("quizOutput");
-  if (output) {
-    output.innerHTML = "";
-  }
+  if (output) output.innerHTML = "";
 
   const saveBox = document.getElementById("saveQuizSection");
   if (saveBox) {
@@ -102,42 +100,12 @@ async function generateFullQuiz() {
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
-    if (!data.questions || typeof data.questions !== "string") {
+
+    if (!Array.isArray(data.questions)) {
       throw new Error("Invalid response from AI");
     }
 
-    const raw = data.questions;
-    const parsedQuestions = raw
-      .split("***")
-      .map(q => q.trim())
-      .filter(Boolean)
-      .map(block => {
-        const question = block.split("///")[0].trim();
-        const answerMatch = block.match(/~~Cevap:\s*(.+)/i);
-        const explanationMatch = block.match(/&&Açıklama:\s*([\s\S]*)/i);
-
-        const options = [];
-        const optionsMatch = block.match(/(\/\/\/.*)/gi);
-        if (optionsMatch?.length === 1 && optionsMatch[0].includes("///")) {
-          optionsMatch[0]
-            .split("///")
-            .map(opt => opt.replace("///", "").trim())
-            .filter(opt => opt.length > 0)
-            .forEach(opt => options.push(opt));
-        } else if (optionsMatch?.length > 1) {
-          optionsMatch.forEach(optLine => {
-            options.push(optLine.replace("///", "").trim());
-          });
-        }
-
-        return {
-          question,
-          options,
-          answer: answerMatch ? answerMatch[1].trim() : "",
-          explanation: explanationMatch ? explanationMatch[1].trim() : "",
-          difficulty: difficulty || "medium"
-        };
-      });
+    const parsedQuestions = data.questions;
 
     const createControls = () => {
       const box = document.createElement("div");
@@ -196,13 +164,11 @@ async function generateFullQuiz() {
     });
 
     const newTitleInput = document.getElementById("newTitleInput");
-    if (newTitleInput) {
-      newTitleInput.style.display = "none"; // ✅ Hide after generation
-    }
+    if (newTitleInput) newTitleInput.style.display = "none";
 
     output.appendChild(bottomControls);
 
-    if (window.MathJax && window.MathJax.typesetPromise) {
+    if (window.MathJax?.typesetPromise) {
       window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
     }
 
@@ -235,6 +201,7 @@ async function generateFullQuiz() {
     updateFloatingButtonVisibility();
   }
 }
+
 
 
 
@@ -504,60 +471,42 @@ async function saveSelectedQuestions() {
   if (dropdown?.value === "__new__") {
     titleName = input?.value.trim();
     if (!titleName) return alert("⚠️ Please enter a new title.");
-
-    currentTitleId = null;
-    currentTitleName = titleName;
-
   } else {
     titleName = dropdown?.value;
     if (!titleName) return alert("⚠️ Please select a title.");
-
-    const selectedOption = dropdown.selectedOptions[0];
-    currentTitleId = selectedOption?.dataset?.id ? parseInt(selectedOption.dataset.id) : null;
-    currentTitleName = titleName;
   }
 
   const categoryId = document.getElementById("categorySelect")?.value;
-  if (!categoryId) {
-    alert("⚠️ Please select a category.");
-    return;
-  }
+  if (!categoryId) return alert("⚠️ Please select a category.");
 
-  const questions = [];
+  const selectedBlocks = Array.from(document.querySelectorAll(".quiz-preview"))
+    .filter(block => block.querySelector("input[type='checkbox']")?.checked);
 
-  document.querySelectorAll(".quiz-preview").forEach(block => {
-    const check = block.querySelector(".qcheck");
-    if (check?.checked) {
-      const q = {};
-
-      block.querySelectorAll(".q").forEach(s => {
-        const key = s.dataset.key;
-        const val = s.dataset.latex?.trim() || s.innerText.trim();
-        if (key?.startsWith("option")) {
-          q.options = q.options || [];
-          q.options.push(val);
-        } else {
-          q[key] = val;
-        }
-      });
-
-      const diffText = block.querySelector(".difficulty-line")?.innerText?.toLowerCase() || "";
-      if (diffText.includes("easy")) q.difficulty = "easy";
-      else if (diffText.includes("hard")) q.difficulty = "hard";
-      else q.difficulty = "medium";
-
-      q.options = q.options || [];
-      q.answer = q.answer || "placeholder";
-      q.explanation = q.explanation || "";
-
-      questions.push(q);
-    }
-  });
-
-  if (questions.length === 0) {
+  if (selectedBlocks.length === 0) {
     alert("⚠️ You must select at least one question to save.");
     return;
   }
+
+  const questions = selectedBlocks.map(block => {
+    const questionText = block.querySelector("[data-key='question']")?.dataset.latex?.trim() || "";
+    const explanation = block.querySelector("[data-key='explanation']")?.dataset.latex?.trim() || "";
+    const answer = block.querySelector("[data-key='answer']")?.dataset.latex?.trim() || "";
+    const difficulty = block.querySelector(".difficulty-line")?.dataset.level || "medium";
+
+    const optionElems = block.querySelectorAll("[data-key^='option']");
+    const options = Array.from(optionElems)
+      .map(opt => opt.dataset.latex?.trim())
+      .filter(Boolean);
+
+    return {
+      question: questionText,
+      options,
+      answer,
+      explanation,
+      difficulty,
+      source: "mcq"
+    };
+  }).filter(q => q.question && q.answer && q.options.length > 0);
 
   try {
     const res = await fetch("https://gemini-j8xd.onrender.com/save-questions", {
@@ -567,52 +516,138 @@ async function saveSelectedQuestions() {
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
-        titleName: titleName,
+        titleName,
         categoryId,
         questions
       })
     });
 
     const data = await res.json();
-    if (res.ok) {
-      alert("✅ Questions saved successfully.");
 
-      const realTitleId = data.titleId || currentTitleId || null;  // 🆕 Get the real titleId!
+    if (res.ok && data.titleId) {
+      // ✅ Save to recent_texts with real title_id
+      await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title_name: titleName,
+          title_id: data.titleId,
+          extracted_text: getCurrentSectionText()
+        })
+      });
 
-      // ✅ Save the recent input text
-      const extractedText = getCurrentSectionText();
-      if (extractedText.trim().length > 0) {
-        const recentSavePayload = {
-          extracted_text: extractedText,
-          title_id: realTitleId,
-          title_name: currentTitleName || titleName
-        };
-
-        const recentRes = await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(recentSavePayload)
-        });
-
-        const recentData = await recentRes.json();
-        if (!recentRes.ok) {
-          console.error("❌ Failed to save recent text:", recentData);
-        } else {
-          console.log("✅ Recent text saved successfully.");
-        }
-      }
-
+      alert("✅ Questions saved successfully!");
     } else {
-      alert("❌ Could not save questions: " + (data?.error || "Server error"));
+      alert("❌ Failed to save questions: " + (data.error || "Unknown error"));
     }
   } catch (err) {
-    console.error("❌ Save error:", err);
-    alert("❌ Could not connect to the server.");
+    console.error("Save questions error:", err);
+    alert(`❌ Failed to save questions.\n${err.message}`);
   }
 }
+
+
+async function saveSelectedKeywords() {
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+  if (!token || !email) return alert("❌ Please log in.");
+
+  let titleName = "";
+  const dropdown = document.getElementById("titleDropdown");
+  const input = document.getElementById("newTitleInput");
+
+  if (dropdown?.value === "__new__") {
+    titleName = input?.value.trim();
+    if (!titleName) return alert("⚠️ Please enter a new title.");
+  } else {
+    titleName = dropdown?.value;
+    if (!titleName) return alert("⚠️ Please select a title.");
+  }
+
+  const categoryId = document.getElementById("categorySelect")?.value;
+  if (!categoryId) return alert("⚠️ Please select a category.");
+
+  const selectedBlocks = Array.from(document.querySelectorAll(".quiz-preview"))
+    .filter(block => block.querySelector("input[type='checkbox']")?.checked);
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ You must select at least one keyword to save.");
+    return;
+  }
+
+  const questions = selectedBlocks.map(block => {
+    let keyword = "";
+    let definition = "";
+
+    const summaryDiv = block.querySelector("summary div");
+    if (summaryDiv) {
+      keyword = summaryDiv.innerText.replace(/^Keyword \d+:\s*/, "").trim();
+    }
+
+    const pTags = block.querySelectorAll("div > p");
+    if (pTags.length > 0) {
+      const strongNode = pTags[0].querySelector("strong");
+      if (strongNode && strongNode.nextSibling) {
+        definition = strongNode.nextSibling.textContent.trim();
+      }
+    }
+
+    return {
+      question: keyword || "Placeholder Keyword",
+      options: [],
+      answer: definition || "Placeholder Answer",
+      explanation: "",
+      difficulty: "medium",
+      source: "keyword"
+    };
+  }).filter(q => q.question && q.answer);
+
+  try {
+    const res = await fetch("https://gemini-j8xd.onrender.com/save-questions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        titleName,
+        categoryId,
+        questions
+      })
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.titleId) {
+      // ✅ Save recent text with real title_id
+      await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title_name: titleName,
+          title_id: data.titleId,
+          extracted_text: getCurrentSectionText()
+        })
+      });
+
+      alert("✅ Keywords saved as questions successfully!");
+    } else {
+      alert("❌ Failed to save keywords: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Save keywords error:", err);
+    alert(`❌ Failed to save keywords.\n${err.message}`);
+  }
+}
+
+
+
 
 
 // ==== Load Titles with data-id ====
@@ -1449,6 +1484,163 @@ async function saveModalRecentText() {
   } catch (err) {
     console.error("Save error:", err);
     showUserToast("❌ Server error.");
+  }
+}
+
+// keywords***********
+async function generateKeywords() {
+  const output = document.getElementById("quizOutput");
+  if (output) output.innerHTML = "";
+
+  const saveBox = document.getElementById("saveQuizSection");
+  if (saveBox) {
+    saveBox.style.display = "none";
+    saveBox.style.opacity = "0";
+    saveBox.dataset.loaded = "";
+  }
+
+  const button = document.getElementById("generateKeywordsButton");
+  button.disabled = true;
+  button.textContent = "⏳ Generating Keywords...";
+
+  let extractedText = getCurrentSectionText();
+  if (!extractedText || extractedText.trim().length < 10) {
+    alert("⚠️ Please paste or upload some text first.");
+    button.disabled = false;
+    button.textContent = "✨ Generate Keywords and Explanations";
+    return;
+  }
+
+  try {
+    const accessToken = localStorage.getItem("accessToken") || "";
+
+    const res = await fetch("https://gemini-j8xd.onrender.com/generate-keywords", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ mycontent: extractedText }),
+    });
+
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+    if (!data.keywords || typeof data.keywords !== "string") {
+      throw new Error("Invalid response from AI");
+    }
+
+    const keywordsRaw = data.keywords;
+    const keywordEntries = keywordsRaw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.startsWith("-"))
+      .map(line => {
+        const [keyword, ...explanationParts] = line.substring(1).split(":");
+        return {
+          keyword: (keyword || "").trim(),
+          explanation: (explanationParts.join(":") || "").trim()
+        };
+      });
+
+    output.innerHTML = `<h3 style="text-align:center;">🔑 Generated Keywords:</h3>`;
+
+    const createControls = () => {
+      const box = document.createElement("div");
+      box.style = "margin: 10px 0; text-align: center;";
+      box.innerHTML = `
+        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+      `;
+      return box;
+    };
+
+    const topControls = createControls();
+    output.appendChild(topControls);
+
+    keywordEntries.forEach((item, i) => {
+      const details = document.createElement("details");
+      details.className = "quiz-preview";
+      details.style.maxWidth = "700px";
+      details.style.margin = "15px auto";
+      details.dataset.index = i;
+
+      details.innerHTML = `
+        <summary style="display: flex; justify-content: space-between; align-items: center;">
+          <div><b>Keyword ${i + 1}:</b> ${item.keyword}</div>
+          <label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>
+        </summary>
+        <div style="margin-top: 8px; padding: 8px;">
+          <p><strong>💬 Explanation:</strong> ${item.explanation}</p>
+        </div>
+      `;
+
+      output.appendChild(details);
+    });
+
+    const bottomControls = createControls();
+    output.appendChild(bottomControls);
+
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+    }
+
+    // ✅ If user logged in, show save box
+    if (saveBox && accessToken) {
+      saveBox.style.display = "block";
+      saveBox.style.opacity = "1";
+
+      if (!document.getElementById("saveInstructions")) {
+        const msg = document.createElement("p");
+        msg.id = "saveInstructions";
+        msg.textContent = "🎯 Select the keywords you want to save.";
+        msg.style = "font-weight: 500; font-size: 14px;";
+        saveBox.insertBefore(msg, saveBox.firstChild);
+      }
+
+      if (!saveBox.dataset.loaded) {
+        await loadMainTopics();
+        saveBox.dataset.loaded = "true";
+      }
+    }
+
+  } catch (err) {
+    console.error("❌ Error:", err);
+    alert(`❌ Failed to generate keywords.\n${err.message}`);
+  }
+
+  button.disabled = false;
+  button.textContent = "✨ Generate Keywords and Explanations";
+
+  if (typeof updateFloatingButtonVisibility === "function") {
+    updateFloatingButtonVisibility();
+  }
+}
+
+///keywordsssss
+
+
+
+
+
+
+
+
+
+function smartSaveSelected() {
+  const output = document.getElementById("quizOutput");
+  if (!output) return;
+
+  const hasKeyword = Array.from(output.querySelectorAll(".quiz-preview summary")).some(s => s.innerText.includes("Keyword"));
+  const hasQuestion = Array.from(output.querySelectorAll(".quiz-preview summary")).some(s => s.innerText.includes("Q"));
+
+  if (hasKeyword) {
+    saveSelectedKeywords();
+  } else if (hasQuestion) {
+    saveSelectedQuestions();
+  } else {
+    alert("⚠️ No questions or keywords found.");
   }
 }
 
