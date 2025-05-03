@@ -317,53 +317,32 @@
   <div id="user-box"></div>
 
   <h2>📘 Title / Category / Main Topic Management</h2>
-<button id="toggleEditMode" onclick="toggleEditMode()">🛠️ Toggle Edit Mode</button>
+  <button id="toggleEditMode" onclick="toggleEditMode()">🛠️ Toggle Edit Mode</button>
 
-<div class="panel">
-  <div class="sidebar">
-    <div class="column" id="mainTopics">
-      <h3>📂 Main Topics</h3>
-    </div>
-
-    <div class="column" id="categories">
-      <h3>📁 Categories</h3>
-    </div>
-
-    <div class="column" id="titles">
-      <h3>📝 Titles</h3>
-    </div>
-  </div>
-
-  <div class="content">
-
-    <!-- ⬇️ Outputs Section (NEW and FIXED outside dynamic refresh) -->
-    <div id="outputOptions" style="margin-bottom: 30px; padding:20px; background:#f9fafb; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-      <h3 style="text-align:center; margin-bottom:20px;">📤 Generate Outputs</h3>
-      <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px;">
-        <button onclick="exportAsTXT()" style="padding:12px 18px; border:none; border-radius:10px; background:#3b82f6; color:white; font-weight:bold; font-size:15px;">📜 Export as TXT</button>
-        <button onclick="exportAsWord()" style="padding:12px 18px; border:none; border-radius:10px; background:#0ea5e9; color:white; font-weight:bold; font-size:15px;">📄 Export as Word</button>
-        <button onclick="openFlashcardMode()" style="padding:12px 18px; border:none; border-radius:10px; background:#22c55e; color:white; font-weight:bold; font-size:15px;">🎴 Flashcards</button>
-        <button onclick="extractKeywords()" style="padding:12px 18px; border:none; border-radius:10px; background:#f59e0b; color:white; font-weight:bold; font-size:15px;">🧠 Keywords</button>
-        <button onclick="startQuizMode()" style="padding:12px 18px; border:none; border-radius:10px; background:#ef4444; color:white; font-weight:bold; font-size:15px;">🖥️ Take Quiz</button>
+  <div class="panel">
+    <div class="sidebar">
+      <div class="column" id="mainTopics">
+        <h3>📂 Main Topics</h3>
+      </div>
+  
+      <div class="column" id="categories">
+        <h3>📁 Categories</h3>
+      </div>
+  
+      <div class="column" id="titles">
+        <h3>📝 Titles</h3>
       </div>
     </div>
-    <!-- ⬆️ -->
-
-    <!-- ⬇️ Modal Question List (Dynamic) -->
-    <div id="modalQuestionList">
+    
+    <div class="content" id="modalQuestionList">
       <h3>📋 Questions</h3>
       <p>⬅️ Select a title to view questions</p>
-
-      <!-- Recent Texts -->
       <div class="column" id="recentTextsContainer">
         <h3>🕒 Recent Texts</h3>
         <p>⬅️ Select a title to view its recent texts.</p>
       </div>
     </div>
-
   </div>
-</div>
-
   
   
   
@@ -376,7 +355,6 @@
   </div>
 
   <script src="admin.js"></script>
-  <script src="output.js"></script>
   <script>
     window.MathJax = {
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
