@@ -283,7 +283,7 @@ Format:
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Option] 
+~~Cevap: [Correct Option]
 &&Açıklama: [Short Explanation about why this answer is correct.]
 
 Rules:
@@ -307,7 +307,7 @@ Format:
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
-~~Cevap: [Correct Option] 
+~~Cevap: [Correct Option]
 &&Açıklama: [Short Explanation about why this answer is correct.]
 
 Rules:
@@ -323,40 +323,7 @@ Rules:
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
-
-    // Parse and map Gemini text to structured questions
-    const blocks = raw.split("***").filter(Boolean);
-    const parsed = blocks.map(block => {
-      const lines = block.trim().split("\n").map(line => line.trim());
-      const question = lines[0];
-      const options = lines
-        .filter(l => l.startsWith("///"))
-        .map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
-    
-      const optionMap = {};
-      ["A", "B", "C", "D"].forEach((key, i) => {
-        const rawLine = lines.find(l => l.startsWith(`/// ${key})`));
-        if (rawLine) optionMap[key] = rawLine.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
-      });
-    
-      let answerRaw = (lines.find(l => l.startsWith("~~Cevap:")) || "").replace(/^~~Cevap:\s*/, "").trim();
-      let explanation = (lines.find(l => l.startsWith("&&Açıklama:")) || "").replace(/^&&Açıklama:\s*/, "").trim();
-    
-      // If answer is A/B/C/D, replace with actual text
-      if (/^[A-D]$/.test(answerRaw)) {
-        answerRaw = optionMap[answerRaw] || answerRaw;
-      }
-    
-      return {
-        question,
-        options,
-        answer: answerRaw,
-        explanation
-      };
-    });
-    
-    res.json({ questions: parsed });
-    
+    res.json({ questions: raw });
   } catch (err) {
     console.error("Gemini Error:", err.message);
     res.status(500).json({
@@ -486,7 +453,53 @@ app.post("/generate-keywords", async (req, res) => {
   }
 });
 
+app.post("/define-keyword", async (req, res) => {
+  const { keyword, mycontent } = req.body;
 
+  if (!keyword || keyword.length < 2) {
+    return res.status(400).json({ error: "Anahtar kelime eksik veya çok kısa." });
+  }
+
+  const langCode = franc(mycontent || keyword);
+  const languageMap = {
+    "eng": "English", "tur": "Turkish", "spa": "Spanish", "fra": "French",
+    "deu": "German", "ita": "Italian", "por": "Portuguese", "rus": "Russian",
+    "jpn": "Japanese", "kor": "Korean", "nld": "Dutch", "pol": "Polish",
+    "ara": "Arabic", "hin": "Hindi", "ben": "Bengali", "zho": "Chinese",
+    "vie": "Vietnamese", "tha": "Thai", "ron": "Romanian", "ukr": "Ukrainian"
+  };
+  const detectedLang = languageMap[langCode] || "English";
+
+  const prompt = mycontent
+    ? `
+You are given a text and a keyword. Explain the meaning of the keyword based on the context of the text in ${detectedLang}.
+Avoid generic definitions — consider how the term is used in this passage.
+
+Text:
+"""
+${mycontent}
+"""
+
+Keyword:
+"${keyword}"
+
+Explain it in 2–3 simple sentences in ${detectedLang}, clearly and in context.
+`
+    : `
+Explain the term "${keyword}" in ${detectedLang} using 2–3 simple sentences.
+Avoid list format, give a direct definition only.
+`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const result = await model.generateContent(prompt);
+    const explanation = await result.response.text();
+    res.json({ explanation: explanation.trim(), lang: detectedLang });
+  } catch (err) {
+    console.error("Define Keyword Error:", err.message);
+    res.status(500).json({ error: "Tanım alınamadı." });
+  }
+});
 
 app.post("/generate-docx", (req, res) => {
   const { questions, title } = req.body;
@@ -701,76 +714,68 @@ res.redirect(302, redirectUrl.toString());
 
 
 /////////////Sql////////
-// === SAVE QUESTIONS ===
-app.post("/save-questions", authMiddleware, async (req, res) => {
+app.post("/save-questions", async (req, res) => {
   const { titleName, categoryId, questions } = req.body;
   const email = req.user?.email;
 
-  if (!titleName || !categoryId || !questions || !Array.isArray(questions)) {
-    return res.status(400).json({ error: "Missing data" });
+  if (!titleName || !categoryId || !questions || !email) {
+    return res.status(400).json({ error: "Eksik veri" });
   }
 
   const client = await pool.connect();
   try {
-    let titleId = null;
+    await client.query("BEGIN");
 
-    // Check if title exists
-    const titleCheck = await client.query(`
-      SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3
-    `, [titleName, categoryId, email]);
+    // Başlığı bul veya oluştur
+    const { rows: titleRows } = await client.query(
+      "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
+      [titleName, email]
+    );
 
-    if (titleCheck.rows.length > 0) {
-      titleId = titleCheck.rows[0].id;
-    } else {
-      const insertTitle = await client.query(`
-        INSERT INTO titles (name, category_id, user_email)
-        VALUES ($1, $2, $3)
-        RETURNING id
-      `, [titleName, categoryId, email]);
-      titleId = insertTitle.rows[0].id;
+    let titleId = titleRows[0]?.id;
+    if (!titleId) {
+      const insert = await client.query(
+        "INSERT INTO titles (name, category_id, user_email) VALUES ($1, $2, $3) RETURNING id",
+        [titleName, categoryId, email]
+      );
+      titleId = insert.rows[0].id;
     }
 
-    for (const question of questions) {
-      if (!question.question || typeof question.question !== "string" || question.question.trim() === "") {
-        continue; // Skip if question text is missing
-      }
-      if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
-        question.options = ["Placeholder Option"];
-      }
-      if (!question.answer || typeof question.answer !== "string") {
-        question.answer = "Placeholder Answer";
-      }
-      if (!question.explanation || typeof question.explanation !== "string") {
-        question.explanation = "";
-      }
-      if (!question.difficulty || !["easy", "medium", "hard"].includes(question.difficulty)) {
-        question.difficulty = "medium";
-      }
+    // Soruları kaydet
+    for (const q of questions) {
+      const safeOptions = Array.isArray(q.options) ? q.options : [];
+      const safeAnswer = q.answer || "placeholder";
+      const safeExplanation = q.explanation || "";
+      const safeDifficulty = q.difficulty || null;
 
-      await client.query(`
-        INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email, source)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        titleId,
-        question.question,
-        JSON.stringify(question.options),
-        question.answer,
-        question.explanation,
-        question.difficulty,
-        email,
-        question.source || null
-      ]);
+      await client.query(
+        `INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          titleId,
+          q.question,
+          JSON.stringify(safeOptions),
+          safeAnswer,
+          safeExplanation,
+          safeDifficulty,
+          email
+        ]
+      );
     }
 
+    await client.query("COMMIT");
+
+    // 🆕 Return titleId
     res.json({ success: true, titleId });
+
   } catch (err) {
-    console.error("❌ Save questions error:", err.message);
-    res.status(500).json({ error: "Failed to save questions." });
+    await client.query("ROLLBACK");
+    console.error("❌ Soru kayıt hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
   } finally {
     client.release();
   }
 });
-
 
 
 // ✅ Update recent text (edit & save)
@@ -1340,7 +1345,90 @@ app.get("/list-all-titles", async (req, res) => {
   }
 });
 
+app.post("/save-flashcards", async (req, res) => {
+  const { title, title_id, keywords, userEmail, promptText } = req.body;
 
+  if ((!title_id && !title) || !keywords || !userEmail) {
+    return res.status(400).json({ success: false, message: "Eksik bilgi" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    let resolvedTitleId = title_id;
+
+    if (!resolvedTitleId) {
+      // 1. Başlık kontrolü
+      const titleSelect = await client.query(
+        "SELECT id FROM titles WHERE name = $1 AND user_email = $2 LIMIT 1",
+        [title, userEmail]
+      );
+      resolvedTitleId = titleSelect.rows[0]?.id;
+
+      // 2. Başlık yoksa oluştur
+      if (!resolvedTitleId) {
+        // a) Ana başlık
+        const mainRes = await client.query(`
+          INSERT INTO main_topics(name, user_email)
+          VALUES ('AI', $1)
+          ON CONFLICT(name, user_email) DO NOTHING
+          RETURNING id
+        `, [userEmail]);
+        const main_topic_id = mainRes.rows[0]?.id || (
+          await client.query("SELECT id FROM main_topics WHERE name = 'AI' AND user_email = $1", [userEmail])
+        ).rows[0]?.id;
+
+        // b) Kategori
+        const catRes = await client.query(`
+          INSERT INTO categories(name, main_topic_id, user_email)
+          VALUES ('Flashcards', $1, $2)
+          ON CONFLICT(name, main_topic_id, user_email) DO NOTHING
+          RETURNING id
+        `, [main_topic_id, userEmail]);
+        const category_id = catRes.rows[0]?.id || (
+          await client.query("SELECT id FROM categories WHERE name = 'Flashcards' AND main_topic_id = $1 AND user_email = $2", [main_topic_id, userEmail])
+        ).rows[0]?.id;
+
+        // c) Başlık oluştur
+        const titleInsert = await client.query(`
+          INSERT INTO titles(name, category_id, user_email, prompt_text)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT(name, category_id, user_email) DO NOTHING
+          RETURNING id
+        `, [title, category_id, userEmail, promptText || null]);
+        resolvedTitleId = titleInsert.rows[0]?.id || (
+          await client.query("SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3", [title, category_id, userEmail])
+        ).rows[0]?.id;
+      }
+    }
+
+    // 3. Soruları kaydet
+    let insertCount = 0;
+    for (const kw of keywords) {
+      const q = kw.keyword || kw.question;
+      const a = kw.explanation || kw.answer;
+
+      if (!q || !a) continue;
+
+      await client.query(
+        "INSERT INTO questions(title_id, question, options, answer, user_email) VALUES ($1, $2, $3, $4, $5)",
+        [resolvedTitleId, q, JSON.stringify([]), a, userEmail]
+      );
+
+      insertCount++;
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, inserted: insertCount });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Flashcard kayıt hatası:", err.message);
+    res.status(500).json({ success: false, message: "Sunucu hatası: " + err.message });
+  } finally {
+    client.release();
+  }
+});
 
 app.get("/get-questions-by-name", authMiddleware, async (req, res) => {
   const { title, email } = req.query;

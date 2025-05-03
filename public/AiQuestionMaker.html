@@ -441,10 +441,6 @@ details summary {
   <button id="generateQuizButton" onclick="generateFullQuiz()" class="generate-btn">
     Generate Multiple Choice Questions
   </button>
-  <button id="generateKeywordsButton" onclick="generateKeywords()" class="generate-btn" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-top: 12px;">
-    ✨ Generate Keywords and Explanations
-  </button>
-  
 </div>
 
 <!-- Soruların çıktısı -->
@@ -481,11 +477,10 @@ details summary {
            style="display: none; padding: 10px; width: 100%; max-width: 400px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px;" />
 
     <!-- Save Button -->
-    <button onclick="smartSaveSelected()" 
-        style="padding: 12px 24px; font-size: 16px; border-radius: 10px; background: #10b981; color: white; border: none; box-shadow: 0 2px 6px rgba(16,185,129,0.3); cursor: pointer;">
-  💾 Save Selected
-</button>
-
+    <button onclick="saveSelectedQuestions()" 
+            style="padding: 12px 24px; font-size: 16px; border-radius: 10px; background: #10b981; color: white; border: none; box-shadow: 0 2px 6px rgba(16,185,129,0.3); cursor: pointer;">
+      💾 Save Selected Questions
+    </button>
 
     <!-- View Questions -->
     <div id="viewQuestionsWrapper" style="display: none; margin-top: 16px;">
