@@ -996,7 +996,7 @@ app.get("/get-questions", async (req, res) => {
   }
 
   try {
-    const result = await db.query(
+    const result = await pool.query(  // ✅ Use pool here!
       `SELECT id, question, options, answer, explanation, difficulty
        FROM questions
        WHERE title_id = $1 AND user_email = $2
@@ -1010,6 +1010,7 @@ app.get("/get-questions", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 
