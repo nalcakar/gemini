@@ -988,21 +988,25 @@ app.get("/list-titles", authMiddleware, async (req, res) => {
 });
 
 app.get("/get-questions", async (req, res) => {
-  const { title_id, email } = req.query;
-  if (!title_id || !email) return res.status(400).json({ success: false, message: "Eksik veri" });
+  const title_id = req.query.title_id;
+  const email = req.query.email || req.user?.email;
+
+  if (!title_id || !email) {
+    return res.status(400).json({ success: false, message: "❌ Missing title_id or user email." });
+  }
 
   try {
     const result = await pool.query(`
       SELECT id, question, options, answer, explanation, difficulty
-      FROM questions 
+      FROM questions
       WHERE title_id = $1 AND user_email = $2
       ORDER BY id DESC
     `, [title_id, email]);
 
     res.json({ questions: result.rows });
   } catch (err) {
-    console.error("❌ Soru getirme hatası:", err.message);
-    res.status(500).json({ success: false, message: "Sunucu hatası" });
+    console.error("❌ Error fetching questions:", err.message);
+    res.status(500).json({ success: false, message: "❌ Server error loading questions." });
   }
 });
 

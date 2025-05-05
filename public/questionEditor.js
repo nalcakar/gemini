@@ -140,118 +140,61 @@ let shouldReloadQuestions = false;
   
   
   
-  window.editExistingQuestion = function (id) {
-    const btn = document.querySelector(`button[onclick="editExistingQuestion(${id})"]`);
-    const block = btn?.closest("details");
-    if (!block) return;
-    if (block.querySelector("textarea")) return;
+  async function loadExistingQuestions(titleId) {
+    const token = localStorage.getItem("accessToken");
+    if (!token || !titleId) return;
   
-    // 🆕 Edit başlarken eski HTML sakla
-    if (!block.dataset.originalHTML) {
-      block.dataset.originalHTML = block.innerHTML;
-    }
+    const container = document.getElementById("modalQuestionList");
+    if (!container) return;
   
-    const summary = block.querySelector("summary");
-    let questionSpan = summary.querySelector(".q[data-key='question']");
-    let questionText = "";
+    container.innerHTML = "Loading...";
   
-    if (questionSpan) {
-      questionText = questionSpan.dataset.latex || questionSpan.textContent.trim();
-    } else {
-      const match = summary?.textContent.match(/^Q\d+\.\s*(.*)$/);
-      questionText = match?.[1] || summary?.textContent.trim() || "";
-    }
-  
-    const createAutoResizingTextarea = (value, key) => {
-      const textarea = document.createElement("textarea");
-      textarea.className = "q-edit";
-      textarea.dataset.key = key;
-      textarea.value = value;
-      textarea.style.cssText = `
-        width: 100%; margin-top: 8px; padding: 8px; font-size: 15px;
-        border-radius: 6px; overflow: hidden; resize: none; line-height: 1.2; height: 1.1em; min-height: 1.1em;
-      `;
-      textarea.addEventListener("input", () => {
-        textarea.style.height = "auto";
-        textarea.style.height = textarea.scrollHeight + "px";
+    try {
+      const res = await fetch(`https://gemini-j8xd.onrender.com/get-questions?title_id=${titleId}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      setTimeout(() => {
-        textarea.style.height = textarea.scrollHeight + "px";
-      }, 30);
-      return textarea;
-    };
   
-    const qTextarea = createAutoResizingTextarea(questionText, "question");
-    summary.insertAdjacentElement("afterend", qTextarea);
-  
-    qTextarea.addEventListener("input", () => {
-      if (questionSpan) {
-        const newText = qTextarea.value.trim();
-        questionSpan.textContent = newText;
-        questionSpan.dataset.latex = newText;
-        if (window.MathJax?.typesetPromise) MathJax.typesetPromise([questionSpan]);
+      const data = await res.json();
+      if (!Array.isArray(data.questions)) {
+        container.innerHTML = "<p>❌ Failed to load questions.</p>";
+        return;
       }
-    });
   
-    const options = block.querySelectorAll("ul li");
-    options.forEach((li, i) => {
-      const val = li.dataset.latex || li.textContent.trim();
-      const textarea = createAutoResizingTextarea(val, `option${i}`);
-      li.insertAdjacentElement("afterend", textarea);
-    });
+      container.innerHTML = "";
   
-    const expSpan = block.querySelector(".q[data-key='explanation']");
-    if (expSpan) {
-      const val = expSpan.dataset.latex || expSpan.textContent.trim();
-      const textarea = createAutoResizingTextarea(val, "explanation");
-      expSpan.insertAdjacentElement("afterend", textarea);
+      data.questions.forEach((q, i) => {
+        const block = document.createElement("details");
+        block.innerHTML = `
+          <summary><b>Q${i + 1}.</b> <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span></summary>
+          <ul>
+            ${q.options.map((opt, idx) => `
+              <li class="q" data-key="option${idx}" data-latex="${opt}">${opt}</li>
+            `).join("")}
+          </ul>
+          <p><strong>✅ Answer:</strong> <span class="q" data-key="answer" data-latex="${q.answer}">${q.answer}</span></p>
+          <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${q.explanation}">${q.explanation}</span></p>
+          <p class="difficulty-line" data-level="${q.difficulty}">
+            <strong>Difficulty:</strong> ${
+              q.difficulty === "easy" ? "🟢 Easy" :
+              q.difficulty === "hard" ? "🔴 Hard" : "🟡 Medium"
+            }
+          </p>
+          <div style="margin-top:8px;">
+            <button onclick="editExistingQuestion(${q.id})">✏️ Edit</button>
+            <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Delete</button>
+          </div>
+        `;
+        container.appendChild(block);
+      });
+  
+      if (window.MathJax?.typesetPromise) {
+        window.MathJax.typesetPromise([container]);
+      }
+    } catch (err) {
+      console.error("❌ Error loading questions:", err);
+      container.innerHTML = "<p>❌ Server error loading questions.</p>";
     }
-  
-    const diffText = block.querySelector(".difficulty-line")?.innerText.toLowerCase() || "";
-    let difficulty = "medium";
-    if (diffText.includes("easy")) difficulty = "easy";
-    else if (diffText.includes("hard")) difficulty = "hard";
-  
-    const select = document.createElement("select");
-    select.className = "q-difficulty";
-    select.style.cssText = "margin-top: 8px; padding: 8px 10px; font-size: 14px; border-radius: 6px;";
-    ["easy", "medium", "hard"].forEach(level => {
-      const opt = document.createElement("option");
-      opt.value = level;
-      opt.textContent = {
-        easy: "🟢 Easy",
-        medium: "🟡 Medium",
-        hard: "🔴 Hard"
-      }[level];
-      if (level === difficulty) opt.selected = true;
-      select.appendChild(opt);
-    });
-    block.appendChild(select);
-  
-    // ✅ Save ve Cancel butonları
-    const btnRow = document.createElement("div");
-    btnRow.style.marginTop = "10px";
-  
-    const saveBtn = document.createElement("button");
-    saveBtn.textContent = "✅ Save";
-    saveBtn.onclick = () => saveExistingQuestion(id, saveBtn);
-    saveBtn.style.marginRight = "8px";
-  
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "❌ Cancel";
-    cancelBtn.onclick = () => cancelExistingEdit(block);
-  
-    btnRow.appendChild(saveBtn);
-    btnRow.appendChild(cancelBtn);
-    block.appendChild(btnRow);
-  
-    // 🆕 Edit sırasında arka planı sarı yap
-    block.style.backgroundColor = "#fef9c3"; // light yellow
-  
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      window.MathJax.typesetPromise([block]).catch(console.error);
-    }
-  };
+  }
   
   
   
@@ -353,7 +296,8 @@ let shouldReloadQuestions = false;
             <li class="q" data-key="option" data-latex="${opt}">${opt}</li>
           `).join("")}
         </ul>
-        <p><strong>✅ Answer:</strong> <span class="q" data-key="answer" data-latex="">placeholder</span></p>
+        <p><strong>✅ Answer:</strong> <span class="q" data-key="answer" data-latex="${answer}">${answer}</span></p>
+
         <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${updatedQuestion.explanation}">${updatedQuestion.explanation}</span></p>
         <p class="difficulty-line" data-level="${updatedQuestion.difficulty}">
           <strong>Difficulty:</strong> ${
