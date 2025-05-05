@@ -422,6 +422,11 @@
   }
 }
 
+
+.disabled-btn {
+  background: #9ca3af !important;
+  cursor: not-allowed !important;
+}
   </style>
 </head>
 <body>
@@ -928,7 +933,13 @@ function collapseAllDetails() {
       <button id="prevButton" onclick="prevFlashcard()" style="background:#3b82f6; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">⬅️ Previous</button>
       <button id="nextButton" onclick="nextFlashcard()" style="background:#3b82f6; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">➡️ Next</button>
     </div>
-
+    <div style="text-align: center; margin-bottom: 12px;">
+      <label style="display:inline-flex; align-items:center; gap:6px; font-size: 16px;">
+        <input type="checkbox" id="flashcardFlipToggle" />
+        🔁 Flip flashcard sides (Answer first)
+      </label>
+    </div>
+    
     <!-- Score -->
     <div id="flashcardScore" style="margin-top:20px; font-weight:bold; font-size:18px;">✅ Knew: 0 / Answered: 0</div>
 

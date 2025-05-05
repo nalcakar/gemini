@@ -140,77 +140,7 @@ let shouldReloadQuestions = false;
   
   
   
-  async function loadExistingQuestions(titleId) {
-    const token = localStorage.getItem("accessToken");
-    if (!token || !titleId) return;
-  
-    const container = document.getElementById("modalQuestionList");
-    if (!container) return;
-  
-    container.innerHTML = "Loading...";
-  
-    try {
-      const res = await fetch(`https://gemini-j8xd.onrender.com/get-questions?title_id=${titleId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-  
-      const data = await res.json();
-  
-      if (!Array.isArray(data.questions)) {
-        container.innerHTML = "<p>❌ Failed to load questions.</p>";
-        return;
-      }
-  
-      console.log("📦 Loaded Questions:");
-      container.innerHTML = "";
-  
-      data.questions.forEach((q, i) => {
-        console.log(`Q${i + 1} Data:`);
-        console.log("  question:", q.question);
-        console.log("  options:", q.options);
-        console.log("  answer:", q.answer);
-        console.log("  explanation:", q.explanation);
-        console.log("  difficulty:", q.difficulty);
-  
-        const safeAnswer = q.answer || "(No answer)";
-        const safeExplanation = q.explanation || "(No explanation)";
-  
-        const block = document.createElement("details");
-        block.innerHTML = `
-          <summary><b>Q${i + 1}.</b> <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span></summary>
-          <ul>
-            ${q.options.map((opt, idx) => `
-              <li class="q" data-key="option${idx}" data-latex="${opt}">${opt}</li>
-            `).join("")}
-          </ul>
-          <p><strong>✅ Answer:</strong> 
-            <span class="q" data-key="answer" data-latex="${safeAnswer}">${safeAnswer}</span>
-          </p>
-          <p><strong>💡 Explanation:</strong> 
-            <span class="q" data-key="explanation" data-latex="${safeExplanation}">${safeExplanation}</span>
-          </p>
-          <p class="difficulty-line" data-level="${q.difficulty}">
-            <strong>Difficulty:</strong> ${
-              q.difficulty === "easy" ? "🟢 Easy" :
-              q.difficulty === "hard" ? "🔴 Hard" : "🟡 Medium"
-            }
-          </p>
-          <div style="margin-top:8px;">
-            <button onclick="editExistingQuestion(${q.id})">✏️ Edit</button>
-            <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Delete</button>
-          </div>
-        `;
-        container.appendChild(block);
-      });
-  
-      if (window.MathJax?.typesetPromise) {
-        window.MathJax.typesetPromise([container]);
-      }
-    } catch (err) {
-      console.error("❌ Error loading questions:", err);
-      container.innerHTML = "<p>❌ Server error loading questions.</p>";
-    }
-  }
+ 
   
   
   
@@ -260,6 +190,7 @@ let shouldReloadQuestions = false;
         newContent.option2 || "",
         newContent.option3 || ""
       ],
+      answer: newContent.answer || "",
       explanation: newContent.explanation || "",
       difficulty: difficultySelect?.value || "medium"
     };

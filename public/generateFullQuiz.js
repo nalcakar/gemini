@@ -490,13 +490,26 @@ async function saveSelectedQuestions() {
   const questions = selectedBlocks.map(block => {
     const questionText = block.querySelector("[data-key='question']")?.dataset.latex?.trim() || "";
     const explanation = block.querySelector("[data-key='explanation']")?.dataset.latex?.trim() || "";
-    const answer = block.querySelector("[data-key='answer']")?.dataset.latex?.trim() || "";
     const difficulty = block.querySelector(".difficulty-line")?.dataset.level || "medium";
 
     const optionElems = block.querySelectorAll("[data-key^='option']");
     const options = Array.from(optionElems)
       .map(opt => opt.dataset.latex?.trim())
       .filter(Boolean);
+
+    // ✅ Robust answer extraction
+    let answer = "";
+    const answerSpan = block.querySelector("[data-key='answer']");
+    if (answerSpan) {
+      answer = answerSpan.dataset.latex?.trim() || answerSpan.textContent.trim();
+    } else {
+      const answerP = Array.from(block.querySelectorAll("p"))
+        .find(p => p.textContent.startsWith("✅ Answer:"));
+      if (answerP) {
+        const parts = answerP.textContent.split("✅ Answer:");
+        if (parts[1]) answer = parts[1].trim();
+      }
+    }
 
     return {
       question: questionText,
@@ -525,7 +538,7 @@ async function saveSelectedQuestions() {
     const data = await res.json();
 
     if (res.ok && data.titleId) {
-      // ✅ Save to recent_texts with real title_id
+      // ✅ Save to recent_texts with title_id
       await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
         method: "POST",
         headers: {
@@ -1030,25 +1043,29 @@ async function loadTitles(categoryId) {
           }
   
           block.innerHTML = `
-            <summary>
-              <b>Q${i + 1}.</b> <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span>
-            </summary>
-            <ul>
-              ${q.options.map((opt, idx) => `
-                <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
-              `).join("")}
-            </ul>
-            <p><strong>💡 Explanation:</strong>
-              <span class="q" data-key="explanation" data-latex="${q.explanation}">${q.explanation}</span>
-            </p>
-            <p class="difficulty-line" data-level="${q.difficulty}">
-              <strong>Difficulty:</strong> ${badge}
-            </p>
-            <div style="margin-top: 8px;">
-              <button onclick="editExistingQuestion(${q.id})">✏️ Edit</button>
-              <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Delete</button>
-            </div>
-          `;
+  <summary>
+    <b>Q${i + 1}.</b> <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span>
+  </summary>
+  <ul>
+    ${q.options.map((opt, idx) => `
+      <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
+    `).join("")}
+  </ul>
+  <p><strong>✅ Answer:</strong>
+    <span class="q" data-key="answer" data-latex="${q.answer}">${q.answer}</span>
+  </p>
+  <p><strong>💡 Explanation:</strong>
+    <span class="q" data-key="explanation" data-latex="${q.explanation}">${q.explanation}</span>
+  </p>
+  <p class="difficulty-line" data-level="${q.difficulty}">
+    <strong>Difficulty:</strong> ${badge}
+  </p>
+  <div style="margin-top: 8px;">
+    <button onclick="editExistingQuestion(${q.id})">✏️ Edit</button>
+    <button onclick="deleteExistingQuestion(${q.id}, this)">🗑️ Delete</button>
+  </div>
+`;
+
   
           container.appendChild(block);
         });

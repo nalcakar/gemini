@@ -997,7 +997,7 @@ app.get("/get-questions", async (req, res) => {
 
   try {
     const result = await pool.query(  // ✅ Use pool here!
-      `SELECT id, question, options, answer, explanation, difficulty
+      `SELECT id, question, options, answer, explanation, difficulty, source
        FROM questions
        WHERE title_id = $1 AND user_email = $2
        ORDER BY id ASC`,

@@ -251,7 +251,8 @@ async function loadQuestionsByTitleName(titleName) {
       block.className = "question-card";
       block.setAttribute("data-id", q.id);
       block.dataset.selected = "true"; // ✅ Mark as selected for flashcards
-    
+      block.dataset.source = q.source || "mcq"; // ✅ add this line
+      
       const question = q.question || "";
       const options = q.options || [];
       const explanation = q.explanation || "";

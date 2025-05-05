@@ -6,56 +6,6 @@ const difficultyEmoji = {
   hard: "🔴"
 };
 async function exportAsTXT() {
-    const container = document.getElementById("modalQuestionList");
-    if (!container) return alert("⚠️ No questions loaded.");
-  
-    const questionBlocks = container.querySelectorAll("details");
-  
-    if (questionBlocks.length === 0) {
-      alert("⚠️ No questions found to export.");
-      return;
-    }
-  
-    let questionsPart = "=== QUIZ QUESTIONS ===\n\n";
-    let answersPart = "=== ANSWERS & EXPLANATIONS ===\n\n";
-  
-    questionBlocks.forEach((block, index) => {
-      const qNumber = index + 1;
-      const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
-  
-      const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
-        const letter = String.fromCharCode(65 + idx); // A, B, C, D
-        let cleanText = li.textContent.trim();
-        // Remove first A), B), C), D) if already present
-        cleanText = cleanText.replace(/^[A-D]\)\s*/, '');
-        return `${letter}) ${cleanText}`;
-      }).join("\n");
-  
-      const answerParagraphs = block.querySelectorAll("p");
-      const answerText = answerParagraphs[0]?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
-      const explanationSpan = block.querySelector(".q[data-key='explanation']") || answerParagraphs[1]?.querySelector("span");
-      const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
-  
-      // Build parts
-      questionsPart += `Q${qNumber}. ${questionText}\n${options}\n\n`;
-      answersPart += `Q${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
-    });
-  
-    const finalText = questionsPart + "\n" + answersPart;
-  
-    // Download
-    const blob = new Blob([finalText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = (currentTitleName || "quiz") + ".txt";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-  
-
-  async function exportAsWord() {
   const container = document.getElementById("modalQuestionList");
   if (!container) return alert("⚠️ No questions loaded.");
 
@@ -65,57 +15,98 @@ async function exportAsTXT() {
     return;
   }
 
-  let content = "";
-
-  content += "=== QUIZ QUESTIONS ===\n\n";
+  let questionsPart = "=== QUESTIONS ===\n\n";
+  let answersPart = "=== ANSWERS ===\n\n";
 
   questionBlocks.forEach((block, index) => {
     const qNumber = index + 1;
     const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
+    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+    const source = block.dataset.source || "";
 
-    const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
-      const letter = String.fromCharCode(65 + idx); // A, B, C, D
-      let cleanText = li.textContent.trim();
-      cleanText = cleanText.replace(/^[A-D]\)\s*/, ''); // remove any double A)
-      return `${letter}) ${cleanText}`;
-    }).join("\n");
+    questionsPart += `${qNumber}. ${questionText}\n`;
 
-    content += `Q${qNumber}. ${questionText}\n${options}\n\n`;
+    if (source === "keyword") {
+      questionsPart += `______________________\n\n`;
+    } else {
+      const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
+        let cleanText = li.textContent.trim().replace(/^[A-D]\)\s*/, '');
+        return `${String.fromCharCode(65 + idx)}) ${cleanText}`;
+      }).join("\n");
+      questionsPart += `${options}\n\n`;
+
+      const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
+      const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
+      answersPart += `${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
+      return;
+    }
+
+    answersPart += `${qNumber}. Correct Answer: ${answerText}\n\n`;
   });
 
-  content += "\n=== ANSWERS & EXPLANATIONS ===\n\n";
+  const finalText = questionsPart + "\n" + answersPart;
 
-  questionBlocks.forEach((block, index) => {
-    const qNumber = index + 1;
-
-    const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
-    const answerText = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
-
-    const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
-    const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
-
-    content += `Q${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
-  });
-
-  // Prepare Word doc
-  const header = `
-    MIME-Version: 1.0
-    Content-Type: multipart/related; boundary="boundary";
-
-    --boundary
-    Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-
-    `;
-
-  const blob = new Blob([content], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const blob = new Blob([finalText], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = (currentTitleName || "quiz") + ".docx";
+  a.download = (currentTitleName || "questions") + ".txt";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
+
+
+async function exportAsWord() {
+  const container = document.getElementById("modalQuestionList");
+  if (!container) return alert("⚠️ No questions loaded.");
+
+  const questionBlocks = container.querySelectorAll("details");
+  if (questionBlocks.length === 0) {
+    alert("⚠️ No questions found to export.");
+    return;
+  }
+
+  let content = "=== QUESTIONS ===\n\n";
+  let answers = "=== ANSWERS ===\n\n";
+
+  questionBlocks.forEach((block, index) => {
+    const qNumber = index + 1;
+    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
+    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+    const source = block.dataset.source || "";
+
+    content += `${qNumber}. ${questionText}\n`;
+
+    if (source === "keyword") {
+      content += `______________________\n\n`;
+      answers += `${qNumber}. Correct Answer: ${answerText}\n\n`;
+    } else {
+      const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
+        let text = li.textContent.trim().replace(/^[A-D]\)\s*/, '');
+        return `${String.fromCharCode(65 + idx)}) ${text}`;
+      }).join("\n");
+
+      const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
+      const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
+
+      content += `${options}\n\n`;
+      answers += `${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
+    }
+  });
+
+  const fullDoc = content + "\n" + answers;
+
+  const blob = new Blob([fullDoc], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = (currentTitleName || "questions") + ".docx";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 async function exportAsWord() {
     if (!currentTitleId) {
       alert("⚠️ Please select a Title first.");
@@ -211,13 +202,18 @@ function shuffleArray(array) {
 }
 
 function openFlashcardMode() {
+  // Load saved preference from localStorage
+  const toggle = document.getElementById("flashcardFlipToggle");
+  if (toggle) {
+    toggle.checked = localStorage.getItem("flashcardFlipMode") === "answerFirst";
+  }
+
   const blocks = document.querySelectorAll("#modalQuestionList .question-card");
 
   // ✅ Select all if none are checked
   const noneSelected = !Array.from(blocks).some(block =>
     block.querySelector("input[type='checkbox']")?.checked
   );
-
   if (noneSelected) {
     blocks.forEach(block => {
       const checkbox = block.querySelector("input[type='checkbox']");
@@ -225,17 +221,30 @@ function openFlashcardMode() {
     });
   }
 
+  // Determine flip mode
+  const isAnswerFirst = toggle?.checked;
+
+  // Save current setting
+  localStorage.setItem("flashcardFlipMode", isAnswerFirst ? "answerFirst" : "questionFirst");
+
+  // Build flashcards
   flashcards = Array.from(blocks)
     .filter(block => block.querySelector("input[type='checkbox']")?.checked)
     .map((block, i) => {
       const questionSpan = block.querySelector("summary .q[data-key='question']");
       const answerText = block.querySelector("p:nth-of-type(1)")?.textContent?.replace(/^✅ Answer:\s*/, "").trim() || "Answer not found.";
 
-      return {
-        front: questionSpan?.textContent?.trim() || `Q${i + 1}`,
-        back: `<strong>✅ Answer:</strong> ${answerText}`,
-        isAnswered: false
-      };
+      return isAnswerFirst
+        ? {
+            front: `<strong>✅ Answer:</strong> ${answerText}`,
+            back: questionSpan?.textContent?.trim() || `Q${i + 1}`,
+            isAnswered: false
+          }
+        : {
+            front: questionSpan?.textContent?.trim() || `Q${i + 1}`,
+            back: `<strong>✅ Answer:</strong> ${answerText}`,
+            isAnswered: false
+          };
     });
 
   if (flashcards.length === 0) {
@@ -252,20 +261,49 @@ function openFlashcardMode() {
 }
 
 
+window.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("flashcardFlipToggle");
+  if (toggle) {
+    // Set initial state from localStorage
+    toggle.checked = localStorage.getItem("flashcardFlipMode") === "answerFirst";
+
+    toggle.addEventListener("change", function () {
+      const isAnswerFirst = this.checked;
+      localStorage.setItem("flashcardFlipMode", isAnswerFirst ? "answerFirst" : "questionFirst");
+
+      // Update all flashcards
+      flashcards = flashcards.map((card, i) => {
+        const block = document.querySelectorAll("#modalQuestionList .question-card")[i];
+        const questionSpan = block.querySelector("summary .q[data-key='question']");
+        const answerText = block.querySelector("p:nth-of-type(1)")?.textContent?.replace(/^✅ Answer:\s*/, "").trim() || "Answer not found.";
+
+        return isAnswerFirst
+          ? {
+              front: `<strong>✅ Answer:</strong> ${answerText}`,
+              back: questionSpan?.textContent?.trim() || `Q${i + 1}`,
+              isAnswered: flashcards[i]?.isAnswered || false
+            }
+          : {
+              front: questionSpan?.textContent?.trim() || `Q${i + 1}`,
+              back: `<strong>✅ Answer:</strong> ${answerText}`,
+              isAnswered: flashcards[i]?.isAnswered || false
+            };
+      });
+
+      // Rerender current card with new orientation
+      renderFlashcard();
+    });
+  }
+});
+
+
+
+
+
 
   
 
-function renderFlashcard() {
-  const total = flashcards.length;
-  const card = flashcards[currentFlashcardIndex];
 
-  document.getElementById("flashcardCounter").textContent = `Flashcard ${currentFlashcardIndex + 1}/${total}`;
-  document.getElementById("flashcardFrontContent").innerHTML = card.front;
-  document.getElementById("flashcardBackContent").innerHTML = card.back;
-
-  updateScore();
-  if (window.MathJax) MathJax.typesetPromise();
-}
 
 function markKnown(knewIt) {
   if (flashcards[currentFlashcardIndex].isAnswered) return;
@@ -364,4 +402,41 @@ function restartFlashcards() {
   document.getElementById("flashcardResultSection").style.display = "none";
 
   renderFlashcard();
+}
+
+function disableAnswerButtons() {
+  const knownBtn = document.querySelector("#flashcardControls button:nth-child(1)");
+  const unknownBtn = document.querySelector("#flashcardControls button:nth-child(2)");
+  if (knownBtn && unknownBtn) {
+    knownBtn.disabled = true;
+    unknownBtn.disabled = true;
+    knownBtn.classList.add("disabled-btn");
+    unknownBtn.classList.add("disabled-btn");
+  }
+}
+
+function renderFlashcard() {
+  const total = flashcards.length;
+  const card = flashcards[currentFlashcardIndex];
+
+  document.getElementById("flashcardCounter").textContent = `Flashcard ${currentFlashcardIndex + 1}/${total}`;
+  document.getElementById("flashcardFrontContent").innerHTML = card.front;
+  document.getElementById("flashcardBackContent").innerHTML = card.back;
+
+  const knownBtn = document.querySelector("#flashcardControls button:nth-child(1)");
+  const unknownBtn = document.querySelector("#flashcardControls button:nth-child(2)");
+  if (!card.isAnswered) {
+    knownBtn.disabled = false;
+    unknownBtn.disabled = false;
+    knownBtn.classList.remove("disabled-btn");
+    unknownBtn.classList.remove("disabled-btn");
+  } else {
+    knownBtn.disabled = true;
+    unknownBtn.disabled = true;
+    knownBtn.classList.add("disabled-btn");
+    unknownBtn.classList.add("disabled-btn");
+  }
+
+  updateScore();
+  if (window.MathJax) MathJax.typesetPromise();
 }
