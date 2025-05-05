@@ -988,27 +988,29 @@ app.get("/list-titles", authMiddleware, async (req, res) => {
 });
 
 app.get("/get-questions", async (req, res) => {
-  const title_id = req.query.title_id;
-  const email = req.query.email || req.user?.email;
+  const titleId = req.query.title_id;
+  const email = req.user?.email;
 
-  if (!title_id || !email) {
-    return res.status(400).json({ success: false, message: "❌ Missing title_id or user email." });
+  if (!titleId || !email) {
+    return res.status(400).json({ error: "Missing title_id or user not logged in." });
   }
 
   try {
-    const result = await pool.query(`
-      SELECT id, question, options, answer, explanation, difficulty
-      FROM questions
-      WHERE title_id = $1 AND user_email = $2
-      ORDER BY id DESC
-    `, [title_id, email]);
+    const result = await db.query(
+      `SELECT id, question, options, answer, explanation, difficulty
+       FROM questions
+       WHERE title_id = $1 AND user_email = $2
+       ORDER BY id ASC`,
+      [titleId, email]
+    );
 
     res.json({ questions: result.rows });
   } catch (err) {
-    console.error("❌ Error fetching questions:", err.message);
-    res.status(500).json({ success: false, message: "❌ Server error loading questions." });
+    console.error("Error in /get-questions:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 

@@ -155,14 +155,26 @@ let shouldReloadQuestions = false;
       });
   
       const data = await res.json();
+  
       if (!Array.isArray(data.questions)) {
         container.innerHTML = "<p>❌ Failed to load questions.</p>";
         return;
       }
   
+      console.log("📦 Loaded Questions:");
       container.innerHTML = "";
   
       data.questions.forEach((q, i) => {
+        console.log(`Q${i + 1} Data:`);
+        console.log("  question:", q.question);
+        console.log("  options:", q.options);
+        console.log("  answer:", q.answer);
+        console.log("  explanation:", q.explanation);
+        console.log("  difficulty:", q.difficulty);
+  
+        const safeAnswer = q.answer || "(No answer)";
+        const safeExplanation = q.explanation || "(No explanation)";
+  
         const block = document.createElement("details");
         block.innerHTML = `
           <summary><b>Q${i + 1}.</b> <span class="q" data-key="question" data-latex="${q.question}">${q.question}</span></summary>
@@ -171,8 +183,12 @@ let shouldReloadQuestions = false;
               <li class="q" data-key="option${idx}" data-latex="${opt}">${opt}</li>
             `).join("")}
           </ul>
-          <p><strong>✅ Answer:</strong> <span class="q" data-key="answer" data-latex="${q.answer}">${q.answer}</span></p>
-          <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${q.explanation}">${q.explanation}</span></p>
+          <p><strong>✅ Answer:</strong> 
+            <span class="q" data-key="answer" data-latex="${safeAnswer}">${safeAnswer}</span>
+          </p>
+          <p><strong>💡 Explanation:</strong> 
+            <span class="q" data-key="explanation" data-latex="${safeExplanation}">${safeExplanation}</span>
+          </p>
           <p class="difficulty-line" data-level="${q.difficulty}">
             <strong>Difficulty:</strong> ${
               q.difficulty === "easy" ? "🟢 Easy" :
@@ -195,6 +211,8 @@ let shouldReloadQuestions = false;
       container.innerHTML = "<p>❌ Server error loading questions.</p>";
     }
   }
+  
+  
   
   
   
