@@ -58,6 +58,11 @@ async function exportAsTXT() {
 
 
 async function exportAsWord() {
+  if (!currentTitleId) {
+    alert("⚠️ Please select a Title first.");
+    return;
+  }
+
   const container = document.getElementById("modalQuestionList");
   if (!container) return alert("⚠️ No questions loaded.");
 
@@ -67,76 +72,67 @@ async function exportAsWord() {
     return;
   }
 
-  let content = "=== QUESTIONS ===\n\n";
-  let answers = "=== ANSWERS ===\n\n";
+  const questions = [];
 
-  let detectedSource = "mcq"; // default
   questionBlocks.forEach((block, index) => {
-    const qNumber = index + 1;
-    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
-    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
+    const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
+    const answerText = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+    const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
+    const explanationText = explanationSpan?.textContent.trim() || "";
+
     const source = block.dataset.source || "mcq";
+    const isKeyword = source === "keyword";
 
-    if (index === 0) detectedSource = source; // detect from the first question
-
-    content += `${qNumber}. ${questionText}\n`;
-
-    if (source === "keyword") {
-      content += `______________________\n\n`;
-      answers += `${qNumber}. Correct Answer: ${answerText}\n\n`;
-    } else {
+    let a = "", b = "", c = "", d = "";
+    if (!isKeyword) {
       const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
-        let text = li.textContent.trim().replace(/^[A-D]\)\s*/, '');
-        return `${String.fromCharCode(65 + idx)}) ${text}`;
-      }).join("\n");
-
-      const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
-      const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
-
-      content += `${options}\n\n`;
-      answers += `${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
+        return li.textContent.trim().replace(/^[A-D]\)\s*/, '');
+      });
+      a = options[0] || "";
+      b = options[1] || "";
+      c = options[2] || "";
+      d = options[3] || "";
     }
+
+    questions.push({
+      index: index + 1,
+      question: questionText,
+      a, b, c, d,
+      answer: answerText,
+      explanation: explanationText,
+      is_keyword: isKeyword
+    });
   });
 
-  const fullText = content + "\n" + answers;
-  const templateURL = detectedSource === "keyword"
-    ? "/templatef.docx"
-    : "/template.docx";
-
   try {
-    const response = await fetch(templateURL);
-    if (!response.ok) throw new Error("Template file not found");
-    const arrayBuffer = await response.arrayBuffer();
+    const templateRes = await fetch("/template-mixed.docx");
+    if (!templateRes.ok) throw new Error("Template file not found.");
+    const templateBuffer = await templateRes.arrayBuffer();
 
-    const zip = new PizZip(arrayBuffer);
+    const zip = new PizZip(templateBuffer);
     const doc = new window.docxtemplater().loadZip(zip);
+    doc.setData({ title: currentTitleName, questions });
 
-    doc.setData({ fullText });
-    doc.render();
+    try {
+      doc.render();
+    } catch (error) {
+      console.error("❌ Docxtemplater render error:", error);
+      alert("❌ Error rendering DOCX file.");
+      return;
+    }
 
-    const out = doc.getZip().generate({
-      type: "blob",
-      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    });
-
+    const blob = doc.getZip().generate({ type: "blob" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(out);
-    a.download = (currentTitleName || "questions") + ".docx";
+    a.href = url;
+    a.download = `${currentTitleName || "questions"}.docx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   } catch (err) {
-    console.error("DOCX template export error:", err);
-    // fallback: plain text
-    const fallbackBlob = new Blob([fullText], {
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(fallbackBlob);
-    a.download = (currentTitleName || "questions") + ".docx";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    console.error("❌ Export DOCX error:", err);
+    alert("❌ Failed to export DOCX.");
   }
 }
 
