@@ -67,45 +67,77 @@ async function exportAsWord() {
     return;
   }
 
-  let content = "=== QUESTIONS ===\n\n";
-  let answers = "=== ANSWERS ===\n\n";
+  const questions = Array.from(questionBlocks).map((block, index) => {
+    const question = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
+    const answer = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+    const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
+    const explanation = explanationSpan?.textContent.trim() || "";
+    const source = (block.dataset.source || "").trim().toLowerCase();
 
-  questionBlocks.forEach((block, index) => {
-    const qNumber = index + 1;
-    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
-    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
-    const source = block.dataset.source || "";
-
-    content += `${qNumber}. ${questionText}\n`;
-
-    if (source === "keyword") {
-      content += `______________________\n\n`;
-      answers += `${qNumber}. Correct Answer: ${answerText}\n\n`;
+    if (source === "flash" || source === "keyword") {
+      return {
+        index: index + 1,
+        question,
+        a: "______________________",
+        b: "",
+        c: "",
+        d: "",
+        answer,
+        explanation: ""
+      };
     } else {
-      const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
-        let text = li.textContent.trim().replace(/^[A-D]\)\s*/, '');
-        return `${String.fromCharCode(65 + idx)}) ${text}`;
-      }).join("\n");
-
-      const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
-      const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
-
-      content += `${options}\n\n`;
-      answers += `${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
+      const options = Array.from(block.querySelectorAll("ul li")).map(li =>
+        li.textContent.trim().replace(/^[A-Da-d]\)\s*/, '')
+      );
+      return {
+        index: index + 1,
+        question,
+        a: options[0] || "",
+        b: options[1] || "",
+        c: options[2] || "",
+        d: options[3] || "",
+        answer,
+        explanation
+      };
     }
   });
 
-  const fullDoc = content + "\n" + answers;
+  // Load template.docx from server or local URL
+  fetch("/template-updated.docx")
+    .then(res => res.arrayBuffer())
+    .then(content => {
+      const zip = new PizZip(content);
+      const doc = new window.docxtemplater().loadZip(zip);
 
-  const blob = new Blob([fullDoc], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = (currentTitleName || "questions") + ".docx";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+      doc.setData({
+        title: currentTitleName || "Untitled",
+        questions
+      });
+
+      try {
+        doc.render();
+      } catch (error) {
+        console.error("Render Error:", error);
+        alert("❌ Failed to generate Word document.");
+        return;
+      }
+
+      const out = doc.getZip().generate({
+        type: "blob",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      });
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(out);
+      link.download = (currentTitleName || "questions") + ".docx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
 }
+
+
 
 async function exportAsWord() {
     if (!currentTitleId) {
