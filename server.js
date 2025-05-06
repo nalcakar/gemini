@@ -495,31 +495,37 @@ app.post("/generate-docx", async (req, res) => {
       return res.status(400).json({ error: "Invalid questions array." });
     }
 
-    // Load the DOCX template
     const content = fs.readFileSync(path.resolve(__dirname, "template.docx"), "binary");
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
-    // Map and include is_keyword flag
-    const withIndex = questions.map((q, i) => ({
-      index: i + 1,
-      question: q.question,
-      a: q.a || "",
-      b: q.b || "",
-      c: q.c || "",
-      d: q.d || "",
-      answer: q.answer || "",
-      explanation: q.explanation || "",
-      is_keyword: q.is_keyword === true
-    }));
+    const questionSection = [];
+    const answerSection = [];
 
-    doc.setData({ title: title || "Untitled", questions: withIndex });
+    questions.forEach((q, i) => {
+      const index = i + 1;
+
+      if (q.is_keyword === true) {
+        questionSection.push(`${index}. ${q.question}\n______________________\n`);
+        answerSection.push(`${index}. Correct Answer: ${q.answer || ""}\n`);
+      } else {
+        const a = q.a || "", b = q.b || "", c = q.c || "", d = q.d || "";
+        questionSection.push(`${index}. ${q.question}\na) ${a}\nb) ${b}\nc) ${c}\nd) ${d}\n`);
+        answerSection.push(`${index}. Correct Answer: ${q.answer || ""}\n🧠 Explanation: ${q.explanation || ""}\n`);
+      }
+    });
+
+    doc.setData({
+      title: title || "Untitled",
+      questions_block: questionSection.join("\n"),
+      answers_block: answerSection.join("\n")
+    });
 
     try {
       doc.render();
-    } catch (renderErr) {
-      console.error("Docxtemplater render error:", renderErr);
-      return res.status(500).json({ error: "Docxtemplater render error" });
+    } catch (err) {
+      console.error("❌ Docxtemplater render error:", err);
+      return res.status(500).json({ error: "Template rendering error" });
     }
 
     const buf = doc.getZip().generate({ type: "nodebuffer" });
@@ -528,10 +534,11 @@ app.post("/generate-docx", async (req, res) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.send(buf);
   } catch (err) {
-    console.error("Error generating DOCX:", err);
-    res.status(500).json({ error: "Server error generating DOCX" });
+    console.error("❌ DOCX generation error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 
