@@ -488,11 +488,6 @@ app.post("/generate-keywords", async (req, res) => {
 
 
 
-const fs = require("fs");
-const path = require("path");
-const PizZip = require("pizzip");
-const Docxtemplater = require("docxtemplater");
-
 app.post("/generate-docx", async (req, res) => {
   try {
     const { questions, title } = req.body;
@@ -515,10 +510,9 @@ app.post("/generate-docx", async (req, res) => {
       d: q.d || "",
       answer: q.answer || "",
       explanation: q.explanation || "",
-      is_keyword: q.is_keyword === true // ✅ must be a boolean
+      is_keyword: q.is_keyword === true
     }));
 
-    // Set data and render
     doc.setData({ title: title || "Untitled", questions: withIndex });
 
     try {
