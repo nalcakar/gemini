@@ -70,15 +70,18 @@ async function exportAsWord() {
   let content = "=== QUESTIONS ===\n\n";
   let answers = "=== ANSWERS ===\n\n";
 
+  let detectedSource = "mcq"; // default
   questionBlocks.forEach((block, index) => {
     const qNumber = index + 1;
     const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
     const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
-    const source = block.dataset.source || "";
+    const source = block.dataset.source || "mcq";
+
+    if (index === 0) detectedSource = source; // detect from the first question
 
     content += `${qNumber}. ${questionText}\n`;
 
-    if (source === "keywords") {
+    if (source === "keyword") {
       content += `______________________\n\n`;
       answers += `${qNumber}. Correct Answer: ${answerText}\n\n`;
     } else {
@@ -95,17 +98,48 @@ async function exportAsWord() {
     }
   });
 
-  const fullDoc = content + "\n" + answers;
+  const fullText = content + "\n" + answers;
+  const templateURL = detectedSource === "keyword"
+    ? "/templatef.docx"
+    : "/template.docx";
 
-  const blob = new Blob([fullDoc], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = (currentTitleName || "questions") + ".docx";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  try {
+    const response = await fetch(templateURL);
+    if (!response.ok) throw new Error("Template file not found");
+    const arrayBuffer = await response.arrayBuffer();
+
+    const zip = new PizZip(arrayBuffer);
+    const doc = new window.docxtemplater().loadZip(zip);
+
+    doc.setData({ fullText });
+    doc.render();
+
+    const out = doc.getZip().generate({
+      type: "blob",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(out);
+    a.download = (currentTitleName || "questions") + ".docx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    console.error("DOCX template export error:", err);
+    // fallback: plain text
+    const fallbackBlob = new Blob([fullText], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(fallbackBlob);
+    a.download = (currentTitleName || "questions") + ".docx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
+
 
 async function exportAsWord() {
     if (!currentTitleId) {
