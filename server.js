@@ -488,57 +488,57 @@ app.post("/generate-keywords", async (req, res) => {
 
 
 
-app.post("/generate-docx", (req, res) => {
-  const { questions, title } = req.body;
+const fs = require("fs");
+const path = require("path");
+const PizZip = require("pizzip");
+const Docxtemplater = require("docxtemplater");
 
-  if (!questions || !Array.isArray(questions) || questions.length === 0) {
-    return res.status(400).json({ error: "Soru listesi eksik veya boş." });
-  }
-
-  // Soruları numaralandırarak yeniden düzenle
-  const withIndex = questions.map((q, i) => ({
-    index: i + 1,
-    question: q.question,
-    a: q.a,
-    b: q.b,
-    c: q.c,
-    d: q.d,
-    answer: q.answer,
-    explanation: q.explanation
-  }));
-
-  // Şablon dosyasını oku
-  const content = fs.readFileSync(path.join(__dirname, "template.docx"), "binary");
-  const zip = new PizZip(content);
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-  });
-
+app.post("/generate-docx", async (req, res) => {
   try {
-    // Şablona başlık ve soruları ekle
-    doc.render({ questions: withIndex, title: title || "Quiz" });
-  } catch (error) {
-    console.error("Docx şablon hatası:", error);
-    return res.status(500).json({ error: "Belge oluşturulamadı." });
+    const { questions, title } = req.body;
+    if (!questions || !Array.isArray(questions)) {
+      return res.status(400).json({ error: "Invalid questions array." });
+    }
+
+    // Load the DOCX template
+    const content = fs.readFileSync(path.resolve(__dirname, "template.docx"), "binary");
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+    // Map and include is_keyword flag
+    const withIndex = questions.map((q, i) => ({
+      index: i + 1,
+      question: q.question,
+      a: q.a || "",
+      b: q.b || "",
+      c: q.c || "",
+      d: q.d || "",
+      answer: q.answer || "",
+      explanation: q.explanation || "",
+      is_keyword: q.is_keyword === true // ✅ must be a boolean
+    }));
+
+    // Set data and render
+    doc.setData({ title: title || "Untitled", questions: withIndex });
+
+    try {
+      doc.render();
+    } catch (renderErr) {
+      console.error("Docxtemplater render error:", renderErr);
+      return res.status(500).json({ error: "Docxtemplater render error" });
+    }
+
+    const buf = doc.getZip().generate({ type: "nodebuffer" });
+
+    res.setHeader("Content-Disposition", `attachment; filename=${title || "questions"}.docx`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.send(buf);
+  } catch (err) {
+    console.error("Error generating DOCX:", err);
+    res.status(500).json({ error: "Server error generating DOCX" });
   }
-
-  const buffer = doc.getZip().generate({ type: "nodebuffer" });
-
-  // Dosya adı için güvenli bir format oluştur
-  const safeFilename = (title || "quiz")
-    .toLowerCase()
-    .replace(/[^a-z0-9\-_\sçğıöşü]/gi, "")  // Türkçe karakterlere izin ver
-    .replace(/\s+/g, "_")  // boşlukları _ ile değiştir
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");  // aksanları temizle
-
-  res.set({
-    "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "Content-Disposition": `attachment; filename="${safeFilename}.docx"`
-  });
-
-  res.send(buffer);
 });
+
 
 
 

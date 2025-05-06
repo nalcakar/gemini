@@ -56,7 +56,6 @@ async function exportAsTXT() {
   document.body.removeChild(a);
 }
 
-
 async function exportAsWord() {
   if (!currentTitleId) {
     alert("⚠️ Please select a Title first.");
@@ -75,25 +74,26 @@ async function exportAsWord() {
   const questions = [];
 
   questionBlocks.forEach((block, index) => {
+    const source = block.dataset.source || "mcq";
     const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
     const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
     const answerText = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
     const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
     const explanationText = explanationSpan?.textContent.trim() || "";
 
-    const source = block.dataset.source || "mcq";
     const isKeyword = source === "keyword";
-
     let a = "", b = "", c = "", d = "";
+
     if (!isKeyword) {
-      const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
-        return li.textContent.trim().replace(/^[A-D]\)\s*/, '');
-      });
+      const options = Array.from(block.querySelectorAll("ul li")).map((li) => li.textContent.trim());
       a = options[0] || "";
       b = options[1] || "";
       c = options[2] || "";
       d = options[3] || "";
     }
+
+    // ✅ Debug check
+    console.log(`📝 Q${index + 1} source: ${source} | Text: ${questionText}`);
 
     questions.push({
       index: index + 1,
@@ -106,114 +106,33 @@ async function exportAsWord() {
   });
 
   try {
-    const templateRes = await fetch("/template-mixed.docx");
-    if (!templateRes.ok) throw new Error("Template file not found.");
-    const templateBuffer = await templateRes.arrayBuffer();
+    const response = await fetch("https://gemini-j8xd.onrender.com/generate-docx", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        questions,
+        title: currentTitleName || "Quiz"
+      })
+    });
 
-    const zip = new PizZip(templateBuffer);
-    const doc = new window.docxtemplater().loadZip(zip);
-    doc.setData({ title: currentTitleName, questions });
+    if (!response.ok) throw new Error("❌ Failed to generate DOCX.");
 
-    try {
-      doc.render();
-    } catch (error) {
-      console.error("❌ Docxtemplater render error:", error);
-      alert("❌ Error rendering DOCX file.");
-      return;
-    }
-
-    const blob = doc.getZip().generate({ type: "blob" });
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${currentTitleName || "questions"}.docx`;
+    a.download = `${currentTitleName || "quiz"}.docx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   } catch (err) {
-    console.error("❌ Export DOCX error:", err);
-    alert("❌ Failed to export DOCX.");
+    console.error("Export error:", err);
+    alert("❌ Failed to generate Word file.");
   }
 }
 
 
-async function exportAsWord() {
-    if (!currentTitleId) {
-      alert("⚠️ Please select a Title first.");
-      return;
-    }
-  
-    const container = document.getElementById("modalQuestionList");
-    if (!container) return alert("⚠️ No questions loaded.");
-  
-    const questionBlocks = container.querySelectorAll("details");
-    if (questionBlocks.length === 0) {
-      alert("⚠️ No questions found to export.");
-      return;
-    }
-  
-    const questions = [];
-  
-    questionBlocks.forEach((block, index) => {
-      const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
-  
-      const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
-        let text = li.textContent.trim();
-        text = text.replace(/^[A-D]\)\s*/, '');
-        return text;
-      });
-  
-      const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
-      const answerText = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
-  
-      const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
-      const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
-  
-      questions.push({
-        question: questionText,
-        a: options[0] || "",
-        b: options[1] || "",
-        c: options[2] || "",
-        d: options[3] || "",
-        answer: answerText,
-        explanation: explanationText
-      });
-    });
-  
-    try {
-      const response = await fetch(`${API}/generate-docx`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          questions: questions,
-          title: currentTitleName
-        })
-      });
-  
-      if (!response.ok) {
-        const error = await response.json();
-        alert("❌ Error creating DOCX: " + (error?.error || "Unknown server error."));
-        return;
-      }
-  
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-  
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${currentTitleName || "quiz"}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-  
-    } catch (err) {
-      console.error("❌ Export DOCX error:", err);
-      alert("❌ Failed to export DOCX.");
-    }
-  }
+
 
   /// flashcards:
 
