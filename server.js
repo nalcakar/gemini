@@ -463,6 +463,69 @@ app.post("/generate-keywords", async (req, res) => {
   }
 });
 
+app.post("/generate-keywords-topic", async (req, res) => {
+  const { topic, focus, userLanguage, difficulty } = req.body;
+  const user = req.user || {};
+
+  const tierKeywordCounts = {
+    "25539224": 10,
+    "25296810": 15,
+    "25669215": 20
+  };
+
+  const userTier = user.tier;
+  const keywordCount = tierKeywordCounts[userTier] || 8;
+
+  const promptLanguage = {
+    "İngilizce": "English",
+    "Türkçe": "Turkish",
+    "Arapça": "Arabic",
+    "Fransızca": "French",
+    "İspanyolca": "Spanish",
+    "Almanca": "German",
+    "İtalyanca": "Italian",
+    "Portekizce": "Portuguese",
+    "Rusça": "Russian",
+    "Çince": "Chinese",
+    "Japonca": "Japanese",
+    "Korece": "Korean",
+    "Flemenkçe": "Dutch",
+    "Lehçe": "Polish",
+    "Hintçe": "Hindi",
+    "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese",
+    "Tayca": "Thai",
+    "Romence": "Romanian",
+    "Ukraynaca": "Ukrainian"
+  }[userLanguage] || "English";
+
+  const prompt = `
+You are an expert educator.
+
+Your task is to generate ${keywordCount} important keywords based on the topic below.
+
+Topic: "${topic}"
+${focus ? `Focus: "${focus}"` : ""}
+
+Instructions:
+- List each translated keyword in ${promptLanguage} on a new line, with a colon and an explanation.
+- Explain how the keyword relates to the topic.
+- Use simple and informative language.
+
+Format:
+- [Keyword]: [Explanation in ${promptLanguage}]
+`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
+    res.json({ keywords: text });
+  } catch (err) {
+    console.error("Gemini Keyword Topic hata:", err.message);
+    res.status(500).json({ error: "Topic tabanlı anahtar kelimeler üretilemedi" });
+  }
+});
 
 
 app.post("/suggest-topic-focus", async (req, res) => {

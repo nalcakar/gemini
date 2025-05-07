@@ -1521,7 +1521,7 @@ async function generateKeywords() {
   button.textContent = "⏳ Generating Keywords...";
 
   let extractedText = getCurrentSectionText();
-  if (!extractedText || extractedText.trim().length < 10) {
+  if (!extractedText || extractedText.trim().length < 2) {
     alert("⚠️ Please paste or upload some text first.");
     button.disabled = false;
     button.textContent = "✨ Generate Keywords and Explanations";
@@ -1667,3 +1667,51 @@ function smartSaveSelected() {
   }
 }
 
+
+
+async function generateTopicKeywords() {
+  const topic = document.getElementById("topicInput")?.value.trim();
+  const focus = document.getElementById("topicFocus")?.value.trim();
+  const lang = document.getElementById("languageSelect")?.value;
+  const diff = document.getElementById("difficultySelect")?.value;
+  const output = document.getElementById("quizOutput");
+
+  if (!topic || topic.length < 2) {
+    alert("⚠️ Please enter a topic.");
+    return;
+  }
+
+  const btn = document.getElementById("generateKeywordsButton");
+  btn.disabled = true;
+  btn.textContent = "⏳ Generating Keywords...";
+
+  try {
+    const token = localStorage.getItem("accessToken") || "";
+    const res = await fetch("https://gemini-j8xd.onrender.com/generate-keywords-topic", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        topic,
+        focus,
+        userLanguage: lang,
+        difficulty: diff
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.keywords) {
+      output.innerHTML = "<p style='color:red;'>❌ Failed to generate topic keywords.</p>";
+    } else {
+      output.innerHTML = `<pre class="quiz-preview" style="white-space:pre-wrap;">${data.keywords}</pre>`;
+    }
+  } catch (err) {
+    output.innerHTML = "<p style='color:red;'>❌ Error generating topic keywords.</p>";
+    console.error("Topic Keyword Error:", err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ Generate Keywords and Explanations";
+  }
+}
