@@ -266,29 +266,34 @@ async function loadQuestionsByTitleName(titleName) {
       }[difficulty] || "";
     
       block.innerHTML = `
-        <summary>
-          Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> 
-          <span class="difficulty-badge ${difficulty}" style="margin-left:8px;">${badge}</span>
-          <label style="float:right; font-size:14px;">
-            <input type="checkbox" class="flashcard-checkbox" checked onchange="toggleFlashcardSelection(this)"> ✅
-          </label>
-          ${q.source === "keyword" ? `
-            <span style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 3px 6px; border-radius: 6px; margin-left: 6px;">
-              🔑 Keyword-Based
-            </span>` : ""}
-        </summary>
+      <summary>
+        Q${i + 1}. <span class="q" data-key="question" data-latex="${question}">${question}</span> 
+        <span class="difficulty-badge ${difficulty}" style="margin-left:8px;">${badge}</span>
+        <label style="float:right; font-size:14px;">
+          <input type="checkbox" class="flashcard-checkbox" checked onchange="toggleFlashcardSelection(this)"> ✅
+        </label>
+        ${q.source === "keyword" ? `
+          <span style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 3px 6px; border-radius: 6px; margin-left: 6px;">
+            🔑 Keyword-Based
+          </span>` : ""}
+      </summary>
+      ${q.source !== "keyword" ? `
         <ul>
           ${options.map((opt, idx) => `
             <li class="q" data-key="option${idx + 1}" data-latex="${opt}">${opt}</li>
           `).join("")}
         </ul>
-        <p><strong>✅ Answer:</strong> ${answer}</p>
+      ` : ""}
+      <p><strong>✅ Answer:</strong> ${answer}</p>
+      ${q.source !== "keyword" ? `
         <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${explanation}">${explanation}</span></p>
-        <div style="margin-top: 8px;">
-          <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
-          <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
-        </div>
-      `;
+      ` : ""}
+      <div style="margin-top: 8px;">
+        <button onclick="adminEditQuestion(${q.id})">✏️ Edit</button>
+        <button onclick="adminDeleteQuestion(${q.id}, this)">🗑️ Delete</button>
+      </div>
+    `;
+    
     
       container.appendChild(block);
     });

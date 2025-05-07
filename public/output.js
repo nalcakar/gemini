@@ -27,11 +27,13 @@ async function exportAsTXT() {
     const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
     const source = block.dataset.source || "";
 
-    questionsPart += `${qNumber}. ${questionText}\n`;
-
     if (source === "keyword") {
-      questionsPart += `______________________\n\n`;
+      // ✅ CEVAP sonra boşluk
+      questionsPart += `${qNumber}. ✅ ${answerText}\n    __________\n\n`;
+      answersPart += `${qNumber}. 🔄 ${questionText}\n   ✅ Answer: ${answerText}\n\n`;
     } else {
+      // MCQ normal biçim
+      questionsPart += `${qNumber}. ${questionText}\n`;
       const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
         let cleanText = li.textContent.trim().replace(/^[A-D]\)\s*/, '');
         return `${String.fromCharCode(65 + idx)}) ${cleanText}`;
@@ -40,11 +42,8 @@ async function exportAsTXT() {
 
       const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
       const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
-      answersPart += `${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
-      return;
+      answersPart += `${qNumber}. ✅ Correct Answer: ${answerText}\n💡 Explanation: ${explanationText}\n\n`;
     }
-
-    answersPart += `${qNumber}. Correct Answer: ${answerText}\n\n`;
   });
 
   const finalText = questionsPart + "\n" + answersPart;
@@ -58,6 +57,7 @@ async function exportAsTXT() {
   a.click();
   document.body.removeChild(a);
 }
+
 
 async function exportAsWord() {
   if (!currentTitleId) {
@@ -81,13 +81,14 @@ async function exportAsWord() {
 
   selectedBlocks.forEach((block, index) => {
     const source = block.dataset.source || "mcq";
+    const isKeyword = source === "keyword";
+
     const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
     const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
     const answerText = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
     const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
     const explanationText = explanationSpan?.textContent.trim() || "";
 
-    const isKeyword = source === "keyword";
     let a = "", b = "", c = "", d = "";
 
     if (!isKeyword) {
@@ -98,14 +99,25 @@ async function exportAsWord() {
       d = options[3] || "";
     }
 
-    questions.push({
-      index: index + 1,
-      question: questionText,
-      a, b, c, d,
-      answer: answerText,
-      explanation: explanationText,
-      is_keyword: isKeyword
-    });
+    if (isKeyword) {
+      questions.push({
+        index: index + 1,
+        question: `${answerText}`,
+        a: "", b: "", c: "", d: "",
+        answer: questionText,
+        explanation: explanationText,
+        is_keyword: true
+      });
+    } else {
+      questions.push({
+        index: index + 1,
+        question: questionText,
+        a, b, c, d,
+        answer: answerText,
+        explanation: explanationText,
+        is_keyword: false
+      });
+    }
   });
 
   try {
@@ -133,6 +145,7 @@ async function exportAsWord() {
     alert("❌ Failed to generate Word file.");
   }
 }
+
 
 
 
@@ -435,10 +448,10 @@ function showPreviewModal(type) {
     const source = block.dataset.source || "";
     const answer = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
 
-    preview += `${qNum}. ${question}\n`;
+    preview += `${qNum}. ${answer}\n`;
 
     if (source === "keyword") {
-      preview += `______________________\nAnswer: ${answer}\n\n`;
+      preview += `______________________\nAnswer: ${question}\n\n`;
     } else {
       const options = Array.from(block.querySelectorAll("ul li")).map((li, i) => {
         let text = li.textContent.trim();

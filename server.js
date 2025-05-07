@@ -441,46 +441,65 @@ Sadece listeyi döndür.
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
-  const { mycontent } = req.body;
+  const { mycontent, userLanguage } = req.body;
+
   const langCode = franc(mycontent);
   const languageMap = {
-    "eng": "English",
-    "tur": "Turkish",
-    "spa": "Spanish",
-    "fra": "French",
-    "deu": "German",
-    "ita": "Italian",
-    "por": "Portuguese",
-    "rus": "Russian",
-    "jpn": "Japanese",
-    "kor": "Korean",
-    "nld": "Dutch",
-    "pol": "Polish",
-    "ara": "Arabic",
-    "hin": "Hindi",
-    "ben": "Bengali",
-    "zho": "Chinese",
-    "vie": "Vietnamese",
-    "tha": "Thai",
-    "ron": "Romanian",
-    "ukr": "Ukrainian"
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
   };
-  const questionLanguage = languageMap[langCode] || "ingilizce";
+
+  const isoMap = {
+    "İngilizce": "English",
+    "Türkçe": "Turkish",
+    "Arapça": "Arabic",
+    "Fransızca": "French",
+    "İspanyolca": "Spanish",
+    "Almanca": "German",
+    "İtalyanca": "Italian",
+    "Portekizce": "Portuguese",
+    "Rusça": "Russian",
+    "Çince": "Chinese",
+    "Japonca": "Japanese",
+    "Korece": "Korean",
+    "Flemenkçe": "Dutch",
+    "Lehçe": "Polish",
+    "Hintçe": "Hindi",
+    "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese",
+    "Tayca": "Thai",
+    "Romence": "Romanian",
+    "Ukraynaca": "Ukrainian"
+  };
+
+  let questionLanguage = "İngilizce";
+  if (userLanguage?.trim()) {
+    questionLanguage = userLanguage.trim();
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
+
+  const promptLanguage = isoMap[questionLanguage] || "English";
 
   const prompt = `
-  The text is in ${questionLanguage}.
-  Instructions:
-  1. Identify the topic of the text.
-  2. Based on general knowledge, list 10 to 20 keywords from the text in ${questionLanguage}.
-  3. Start each line with a dash (-).
-  4. After the keyword, write a colon and explain its meaning in ${questionLanguage} with two or three sentences. 
-  Avoid generic definitions — consider how the term is used in this passage.
-  Example format:
-  - Keyword: Explanation
-  Text:
-  """
-  ${mycontent}
-  """`;
+The text is in ${promptLanguage}.
+Instructions:
+1. Identify the topic of the text.
+2. Based on general knowledge, list 10 to 20 keywords from the text in ${promptLanguage}.
+3. Start each line with a dash (-).
+4. After the keyword, write a colon and explain its meaning in ${promptLanguage} with two or three sentences.
+Avoid generic definitions — consider how the term is used in this passage.
+
+Example format:
+- Keyword: Explanation
+
+Text:
+"""
+${mycontent}
+"""`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
@@ -492,6 +511,7 @@ app.post("/generate-keywords", async (req, res) => {
     res.status(500).json({ error: "Anahtar kelimeler üretilemedi" });
   }
 });
+
 
 
 
