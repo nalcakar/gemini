@@ -436,18 +436,18 @@ You are an expert in content analysis.
 Your task is to extract exactly ${keywordCount} important keywords from the following text.
 
 Instructions:
-- The output must be in ${promptLanguage}.
-- List each keyword on a new line, starting with a dash (-).
-- After the keyword, write a colon and give a brief explanation (2-3 sentences) about its meaning **in the context of this passage**.
-- Do not give generic dictionary definitions.
+  1. Identify the topic of the text.
+  2. Based on general knowledge, list 10 to 20 keywords from the text in ${questionLanguage}.
+  3. Start each line with a dash (-).
+  4. After the keyword, write a colon and explain its meaning in ${questionLanguage} with two or three sentences. 
+  Avoid generic definitions — consider how the term is used in this passage.
+  Example format:
+  - Keyword: Explanation
+  Text:
+  """
+  ${mycontent}
+  """`;
 
-Format:
-- Keyword: Meaning in context
-
-Text:
-"""
-${mycontent}
-"""`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
