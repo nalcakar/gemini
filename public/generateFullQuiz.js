@@ -1675,6 +1675,14 @@ async function generateTopicKeywords() {
   const lang = document.getElementById("languageSelect")?.value;
   const diff = document.getElementById("difficultySelect")?.value;
   const output = document.getElementById("quizOutput");
+  const saveBox = document.getElementById("saveQuizSection");
+
+  if (output) output.innerHTML = "";
+  if (saveBox) {
+    saveBox.style.display = "none";
+    saveBox.style.opacity = "0";
+    saveBox.dataset.loaded = "";
+  }
 
   if (!topic || topic.length < 2) {
     alert("⚠️ Please enter a topic.");
@@ -1702,16 +1710,94 @@ async function generateTopicKeywords() {
     });
 
     const data = await res.json();
-    if (!res.ok || !data.keywords) {
-      output.innerHTML = "<p style='color:red;'>❌ Failed to generate topic keywords.</p>";
-    } else {
-      output.innerHTML = `<pre class="quiz-preview" style="white-space:pre-wrap;">${data.keywords}</pre>`;
+    if (!res.ok || !data.keywords || typeof data.keywords !== "string") {
+      throw new Error("❌ Invalid response from AI");
     }
+
+    const keywordsRaw = data.keywords;
+    const keywordEntries = keywordsRaw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.startsWith("-"))
+      .map(line => {
+        const [keyword, ...explanationParts] = line.substring(1).split(":");
+        return {
+          keyword: (keyword || "").trim(),
+          explanation: (explanationParts.join(":") || "").trim()
+        };
+      });
+
+    output.innerHTML = `<h3 style="text-align:center;">🧠 Topic-based Keywords:</h3>`;
+
+    const createControls = () => {
+      const box = document.createElement("div");
+      box.style = "margin: 10px 0; text-align: center;";
+      box.innerHTML = `
+        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+      `;
+      return box;
+    };
+
+    const topControls = createControls();
+    output.appendChild(topControls);
+
+    keywordEntries.forEach((item, i) => {
+      const details = document.createElement("details");
+      details.className = "quiz-preview";
+      details.style.maxWidth = "700px";
+      details.style.margin = "15px auto";
+      details.dataset.index = i;
+
+      details.innerHTML = `
+        <summary style="display: flex; justify-content: space-between; align-items: center;">
+          <div><b>Keyword ${i + 1}:</b> ${item.keyword}</div>
+          <label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>
+        </summary>
+        <div style="margin-top: 8px; padding: 8px;">
+          <p><strong>💬 Explanation:</strong> ${item.explanation}</p>
+        </div>
+      `;
+
+      output.appendChild(details);
+    });
+
+    const bottomControls = createControls();
+    output.appendChild(bottomControls);
+
+    if (window.MathJax?.typesetPromise) {
+      await window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+    }
+
+    if (saveBox && token) {
+      saveBox.style.display = "block";
+      saveBox.style.opacity = "1";
+
+      if (!document.getElementById("saveInstructions")) {
+        const msg = document.createElement("p");
+        msg.id = "saveInstructions";
+        msg.textContent = "🎯 Select the keywords you want to save.";
+        msg.style = "font-weight: 500; font-size: 14px;";
+        saveBox.insertBefore(msg, saveBox.firstChild);
+      }
+
+      if (!saveBox.dataset.loaded) {
+        await loadMainTopics();
+        saveBox.dataset.loaded = "true";
+      }
+    }
+
   } catch (err) {
-    output.innerHTML = "<p style='color:red;'>❌ Error generating topic keywords.</p>";
-    console.error("Topic Keyword Error:", err);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "✨ Generate Keywords and Explanations";
+    console.error("❌ Error:", err);
+    alert(`❌ Failed to generate topic keywords.\n${err.message}`);
+  }
+
+  btn.disabled = false;
+  btn.textContent = "✨ Generate Keywords and Explanations";
+
+  if (typeof updateFloatingButtonVisibility === "function") {
+    updateFloatingButtonVisibility();
   }
 }

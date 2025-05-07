@@ -467,16 +467,27 @@ app.post("/generate-keywords-topic", async (req, res) => {
   const { topic, focus, userLanguage, difficulty } = req.body;
   const user = req.user || {};
 
+  // 🎯 Tier-based keyword count
   const tierKeywordCounts = {
-    "25539224": 10,
-    "25296810": 15,
-    "25669215": 20
+    "25539224": 10,  // Bronze
+    "25296810": 15,  // Silver
+    "25669215": 20   // Gold
   };
 
   const userTier = user.tier;
   const keywordCount = tierKeywordCounts[userTier] || 8;
 
-  const promptLanguage = {
+  // 🌐 Language detection and mapping
+  const langCode = franc(topic || "");
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+
+  const isoMap = {
     "İngilizce": "English",
     "Türkçe": "Turkish",
     "Arapça": "Arabic",
@@ -497,24 +508,39 @@ app.post("/generate-keywords-topic", async (req, res) => {
     "Tayca": "Thai",
     "Romence": "Romanian",
     "Ukraynaca": "Ukrainian"
-  }[userLanguage] || "English";
+  };
 
+  let questionLanguage = "İngilizce";
+  if (userLanguage?.trim()) {
+    questionLanguage = userLanguage.trim();
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
+
+  const promptLanguage = isoMap[questionLanguage] || "English";
+
+  // 🧠 Topic-based prompt
   const prompt = `
 You are an expert educator.
 
-Your task is to generate ${keywordCount} important keywords based on the topic below.
+Your task is to generate exactly ${keywordCount} essential and **educational** keywords related to the topic below.
 
 Topic: "${topic}"
 ${focus ? `Focus: "${focus}"` : ""}
 
 Instructions:
-- List each translated keyword in ${promptLanguage} on a new line, with a colon and an explanation.
-- Explain how the keyword relates to the topic.
-- Use simple and informative language.
+- Select keywords that are **important for understanding and teaching** this topic.
+- Translate the keywords and explanations into ${promptLanguage}.
+- Each keyword must be significant for learners to grasp the subject well.
+- List each translated keyword on a new line, starting with a dash (-).
+- After the keyword, add a colon and give a **2–3 sentence educational explanation** that highlights why it is important in the context of the topic.
+- Avoid dictionary definitions. Instead, explain how the keyword contributes to comprehension or application.
+- Do not include the original (non-translated) keywords.
 
 Format:
-- [Keyword]: [Explanation in ${promptLanguage}]
+- [Translated Keyword]: [Explanation in ${promptLanguage}]
 `;
+
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
@@ -526,6 +552,9 @@ Format:
     res.status(500).json({ error: "Topic tabanlı anahtar kelimeler üretilemedi" });
   }
 });
+
+
+
 
 
 app.post("/suggest-topic-focus", async (req, res) => {
