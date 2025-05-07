@@ -328,8 +328,7 @@ Rules:
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await model.generateContent(prompt);
-    const raw = await result.response.text();
+    const raw = await generateWithRetry(prompt);
 
     // Parse and map Gemini text to structured questions
     const blocks = raw.split("***").filter(Boolean);
@@ -422,8 +421,7 @@ Sadece listeyi döndür.
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    const text = await result.response.text();
+    const raw = await generateWithRetry(prompt);
 
     const suggestions = text
       .split("\n")
@@ -517,8 +515,7 @@ ${mycontent}
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await model.generateContent(prompt);
-    const text = await result.response.text();
+    const raw = await generateWithRetry(prompt);
     res.json({ keywords: text });
   } catch (err) {
     console.error("Gemini Keyword hata:", err.message);
@@ -526,6 +523,23 @@ ${mycontent}
   }
 });
 
+async function generateWithRetry(prompt, retries = 3, delay = 2000) {
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return await result.response.text();
+    } catch (err) {
+      if (err.message.includes("503") && i < retries - 1) {
+        console.warn(`⚠️ Gemini overloaded, retrying in ${delay}ms... (${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
 
 
 
