@@ -436,10 +436,10 @@ You are an expert in content analysis.
 Your task is to extract exactly ${keywordCount} important keywords from the following text.
 
 Instructions:
-- The output must be in ${promptLanguage}.
+- The keyword and explanation must be in ${promptLanguage}.
 - List each keyword on a new line, starting with a dash (-).
 - After the keyword, write a colon and give a brief explanation (2-3 sentences) about its meaning **in the context of this passage**.
-- Do not give generic dictionary definitions.
+- Give generic dictionary definitions.
 
 Format:
 - Keyword: Meaning in context
