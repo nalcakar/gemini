@@ -328,7 +328,8 @@ Rules:
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const raw = await generateWithRetry(prompt);
+    const result = await model.generateContent(prompt);
+    const raw = await result.response.text();
 
     // Parse and map Gemini text to structured questions
     const blocks = raw.split("***").filter(Boolean);
@@ -372,6 +373,92 @@ Rules:
   }
 });
 
+
+// === ANAHTAR KELİME ÜRETME ===
+app.post("/generate-keywords", async (req, res) => {
+  const { mycontent, userLanguage, difficulty } = req.body;
+  const user = req.user || {};
+
+  const tierKeywordCounts = {
+    "25539224": 10,  // Bronze
+    "25296810": 15,  // Silver
+    "25669215": 20   // Gold
+  };
+
+  const userTier = user.tier;
+  const keywordCount = tierKeywordCounts[userTier] || 8;
+
+  // 🌐 Language detection and mapping
+  const langCode = franc(mycontent || "");
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+
+  const isoMap = {
+    "İngilizce": "English",
+    "Türkçe": "Turkish",
+    "Arapça": "Arabic",
+    "Fransızca": "French",
+    "İspanyolca": "Spanish",
+    "Almanca": "German",
+    "İtalyanca": "Italian",
+    "Portekizce": "Portuguese",
+    "Rusça": "Russian",
+    "Çince": "Chinese",
+    "Japonca": "Japanese",
+    "Korece": "Korean",
+    "Flemenkçe": "Dutch",
+    "Lehçe": "Polish",
+    "Hintçe": "Hindi",
+    "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese",
+    "Tayca": "Thai",
+    "Romence": "Romanian",
+    "Ukraynaca": "Ukrainian"
+  };
+
+  let questionLanguage = "İngilizce";
+  if (userLanguage?.trim()) {
+    questionLanguage = userLanguage.trim();
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
+
+  const promptLanguage = isoMap[questionLanguage] || "English";
+
+  const prompt = `
+You are an expert in content analysis.
+
+Your task is to extract exactly ${keywordCount} important keywords from the following text.
+
+Instructions:
+- The output must be in ${promptLanguage}.
+- List each keyword on a new line, starting with a dash (-).
+- After the keyword, write a colon and give a brief explanation (2-3 sentences) about its meaning **in the context of this passage**.
+- Do not give generic dictionary definitions.
+
+Format:
+- Keyword: Meaning in context
+
+Text:
+"""
+${mycontent}
+"""`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
+    res.json({ keywords: text });
+  } catch (err) {
+    console.error("Gemini Keyword hata:", err.message);
+    res.status(500).json({ error: "Anahtar kelimeler üretilemedi" });
+  }
+});
 
 
 
@@ -421,7 +508,8 @@ Sadece listeyi döndür.
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const raw = await generateWithRetry(prompt);
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
 
     const suggestions = text
       .split("\n")
@@ -437,132 +525,6 @@ Sadece listeyi döndür.
 
 
 
-// === ANAHTAR KELİME ÜRETME ===
-app.post("/generate-keywords", async (req, res) => {
-  const { mycontent, userLanguage, difficulty } = req.body;
-  const user = req.user || {};
-
-  const tierKeywordCounts = {
-    "25539224": 10,
-    "25296810": 15,
-    "25669215": 20
-  };
-  const userTier = user.tier;
-  const keywordCount = tierKeywordCounts[userTier] || 8;
-
-  const langCode = franc(mycontent);
-  const languageMap = {
-    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
-  };
-
-  const isoMap = {
-    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
-    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
-    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
-    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
-  };
-
-  const acceptedLabels = {
-    "English": "İngilizce", "İngilizce": "İngilizce",
-    "Turkish": "Türkçe", "Türkçe": "Türkçe",
-    "Spanish": "İspanyolca", "Español": "İspanyolca", "İspanyolca": "İspanyolca",
-    "French": "Fransızca", "Français": "Fransızca", "Fransızca": "Fransızca",
-    "German": "Almanca", "Deutsch": "Almanca", "Almanca": "Almanca",
-    "Italian": "İtalyanca", "Italiano": "İtalyanca", "İtalyanca": "İtalyanca",
-    "Portuguese": "Portekizce", "Português": "Portekizce", "Portekizce": "Portekizce",
-    "Russian": "Rusça", "Русский": "Rusça", "Rusça": "Rusça",
-    "Arabic": "Arapça", "العربية": "Arapça", "Arapça": "Arapça",
-    "Chinese": "Çince", "中文": "Çince", "Çince": "Çince",
-    "Japanese": "Japonca", "日本語": "Japonca", "Japonca": "Japonca",
-    "Korean": "Korece", "한국어": "Korece", "Korece": "Korece",
-    "Dutch": "Flemenkçe", "Nederlands": "Flemenkçe", "Flemenkçe": "Flemenkçe",
-    "Polish": "Lehçe", "Polski": "Lehçe", "Lehçe": "Lehçe",
-    "Hindi": "Hintçe", "हिंदी": "Hintçe", "Hintçe": "Hintçe",
-    "Bengali": "Bengalce", "বাংলা": "Bengalce", "Bengalce": "Bengalce",
-    "Vietnamese": "Vietnamca", "Tiếng Việt": "Vietnamca", "Vietnamca": "Vietnamca",
-    "Thai": "Tayca", "ภาษาไทย": "Tayca", "Tayca": "Tayca",
-    "Romanian": "Romence", "Română": "Romence", "Romence": "Romence",
-    "Ukrainian": "Ukraynaca", "Українська": "Ukraynaca", "Ukraynaca": "Ukraynaca"
-  };
-
-  let questionLanguage = "İngilizce";
-  if (userLanguage?.trim()) {
-    const trimmed = userLanguage.trim();
-    questionLanguage = acceptedLabels[trimmed] || trimmed;
-  } else if (languageMap[langCode]) {
-    questionLanguage = languageMap[langCode];
-  }
-
-  const promptLanguage = isoMap[questionLanguage] || "English";
-
-  const prompt = `
-The text is in ${promptLanguage}.
-Instructions:
-1. Identify the main topic of the text.
-2. Based on your knowledge, extract exactly ${keywordCount} important keywords in ${promptLanguage}.
-3. Format: each line starts with a dash (-), followed by the keyword, a colon, then 2–3 full sentence explanations in ${promptLanguage}.
-${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}. Tailor the keyword complexity and explanation depth accordingly.` : ""}
-Avoid generic definitions — make explanations contextually relevant.
-
-Example format:
-- Keyword: Explanation
-
-Text:
-"""
-${mycontent}
-"""`;
-
-  async function generateWithRetry(prompt, retries = 3, delay = 2000) {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        const result = await model.generateContent(prompt);
-        return await result.response.text();
-      } catch (err) {
-        if (err.message.includes("503") && i < retries - 1) {
-          console.warn(`⚠️ Gemini overloaded, retrying in ${delay}ms... (${i + 1}/${retries})`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        } else {
-          throw err;
-        }
-      }
-    }
-  }
-
-  try {
-    const raw = await generateWithRetry(prompt);
-    res.json({ keywords: raw });
-  } catch (err) {
-    console.error("Gemini Keyword hata:", err.message);
-    res.status(500).json({ error: "Anahtar kelimeler üretilemedi", message: err.message });
-  }
-});
-
-
-
-async function generateWithRetry(prompt, retries = 3, delay = 2000) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-
-  for (let i = 0; i < retries; i++) {
-    try {
-      const result = await model.generateContent(prompt);
-      return await result.response.text();
-    } catch (err) {
-      if (err.message.includes("503") && i < retries - 1) {
-        console.warn(`⚠️ Gemini overloaded, retrying in ${delay}ms... (${i + 1}/${retries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } else {
-        throw err;
-      }
-    }
-  }
-}
 
 
 
