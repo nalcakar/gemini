@@ -430,7 +430,8 @@ app.post("/generate-keywords", async (req, res) => {
 
   const promptLanguage = isoMap[questionLanguage] || "English";
 
-  const prompt = `
+  
+const prompt = `
 You are an expert in content analysis.
 
 Your task is to extract exactly ${keywordCount} important keywords from the following text.
@@ -439,7 +440,7 @@ Instructions:
 - The keyword and explanation must be in ${promptLanguage}.
 - List each keyword on a new line, starting with a dash (-).
 - After the keyword, write a colon and give a brief explanation (2-3 sentences) about its meaning **in the context of this passage**.
-- Give generic dictionary definitions.
+- Avoid generic dictionary definitions — focus on how each keyword is used in this specific text.
 
 Format:
 - Keyword: Meaning in context
@@ -448,6 +449,7 @@ Text:
 """
 ${mycontent}
 """`;
+
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
