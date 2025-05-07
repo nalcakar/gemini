@@ -442,17 +442,14 @@ app.post("/generate-keywords", async (req, res) => {
   const { mycontent, userLanguage, difficulty } = req.body;
   const user = req.user || {};
 
-  // 🎯 Tier-based keyword count
   const tierKeywordCounts = {
-    "25539224": 10,  // Bronze
-    "25296810": 15,  // Silver
-    "25669215": 20   // Gold
+    "25539224": 10,
+    "25296810": 15,
+    "25669215": 20
   };
-
   const userTier = user.tier;
   const keywordCount = tierKeywordCounts[userTier] || 8;
 
-  // 🌐 Language detection and mapping
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
@@ -470,7 +467,6 @@ app.post("/generate-keywords", async (req, res) => {
     "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
   };
 
-  // Accept multilingual labels
   const acceptedLabels = {
     "English": "İngilizce", "İngilizce": "İngilizce",
     "Turkish": "Türkçe", "Türkçe": "Türkçe",
@@ -496,15 +492,14 @@ app.post("/generate-keywords", async (req, res) => {
 
   let questionLanguage = "İngilizce";
   if (userLanguage?.trim()) {
-    const normalized = acceptedLabels[userLanguage.trim()];
-    if (normalized) questionLanguage = normalized;
+    const trimmed = userLanguage.trim();
+    questionLanguage = acceptedLabels[trimmed] || trimmed;
   } else if (languageMap[langCode]) {
     questionLanguage = languageMap[langCode];
   }
 
   const promptLanguage = isoMap[questionLanguage] || "English";
 
-  // 🧠 Build the prompt dynamically
   const prompt = `
 The text is in ${promptLanguage}.
 Instructions:
@@ -522,7 +517,6 @@ Text:
 ${mycontent}
 """`;
 
-  // Retry logic for Gemini overload
   async function generateWithRetry(prompt, retries = 3, delay = 2000) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
 
@@ -549,6 +543,7 @@ ${mycontent}
     res.status(500).json({ error: "Anahtar kelimeler üretilemedi", message: err.message });
   }
 });
+
 
 
 async function generateWithRetry(prompt, retries = 3, delay = 2000) {
