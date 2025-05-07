@@ -431,25 +431,26 @@ app.post("/generate-keywords", async (req, res) => {
   const promptLanguage = isoMap[questionLanguage] || "English";
 
   
-const prompt = `
-You are an expert in content analysis.
-
-Your task is to extract exactly ${keywordCount} important keywords from the following text.
-
-Instructions:
-- The keyword and explanation must be in ${promptLanguage}.
-- List each keyword on a new line, starting with a dash (-).
-- After the keyword, write a colon and give a brief explanation (2-3 sentences) about its meaning **in the context of this passage**.
-- Avoid generic dictionary definitions — focus on how each keyword is used in this specific text.
-
-Format:
-- Keyword: Meaning in context
-
-Text:
-"""
-${mycontent}
-"""`;
-
+  const prompt = `
+  You are an expert in content analysis and translation.
+  
+  Your task is to extract exactly ${keywordCount} important keywords from the following text.
+  
+  Instructions:
+  - Translate the keywords and explanations into ${promptLanguage}.
+  - List each keyword on a new line, starting with a dash (-).
+  - After the translated keyword, write a colon and give a 2–3 sentence explanation about its meaning **in the context of the passage**.
+  - Do not include the original (source language) keyword.
+  - Avoid dictionary definitions — explain how the keyword is used in this specific text.
+  
+  Format:
+  - [Translated Keyword]: [Explanation in ${promptLanguage}]
+  
+  Text:
+  """
+  ${mycontent}
+  """`;
+  
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
