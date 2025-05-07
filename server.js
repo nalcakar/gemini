@@ -441,8 +441,20 @@ Sadece listeyi döndür.
 
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", async (req, res) => {
-  const { mycontent, userLanguage } = req.body;
+  const { mycontent, userLanguage, difficulty } = req.body;
+  const user = req.user || {};
 
+  // 🎯 Tier-based keyword count
+  const tierKeywordCounts = {
+    "25539224": 10,  // Bronze
+    "25296810": 15,  // Silver
+    "25669215": 20   // Gold
+  };
+
+  const userTier = user.tier;
+  const keywordCount = tierKeywordCounts[userTier] || 8;
+
+  // 🌐 Language detection and mapping
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
@@ -484,14 +496,16 @@ app.post("/generate-keywords", async (req, res) => {
 
   const promptLanguage = isoMap[questionLanguage] || "English";
 
+  // 🧠 Build the prompt dynamically
   const prompt = `
 The text is in ${promptLanguage}.
 Instructions:
-1. Identify the topic of the text.
-2. Based on general knowledge, list 10 to 20 keywords from the text in ${promptLanguage}.
+1. Identify the main topic of the text.
+2. Based on your knowledge, extract ${keywordCount} important keywords from the text in ${promptLanguage}.
 3. Start each line with a dash (-).
-4. After the keyword, write a colon and explain its meaning in ${promptLanguage} with two or three sentences.
-Avoid generic definitions — consider how the term is used in this passage.
+4. After the keyword, write a colon and explain it with 2–3 full sentences in ${promptLanguage}.
+${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}. Make sure keywords and explanations reflect this level.` : ""}
+Avoid generic definitions — tailor explanations to how the term is used in this passage.
 
 Example format:
 - Keyword: Explanation
