@@ -23,7 +23,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const fetch = require("node-fetch");
 
 // ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
-const allowedOrigins = ["https://doitwithai.org"];
+const allowedOrigins = ["https://doitwithai.org", "http://localhost:3001"];
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
@@ -117,10 +117,17 @@ app.use(async (req, res, next) => {
 });
 
 app.use(cors({
-  origin: "https://doitwithai.org",
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 }));
+
 
 
 

@@ -427,6 +427,10 @@
   background: #9ca3af !important;
   cursor: not-allowed !important;
 }
+.question-card.unselected {
+  opacity: 0.5;
+  background-color: #f3f4f6;
+}
   </style>
   <!-- Ensure you include these in your HTML for docx templating -->
 <script src="https://unpkg.com/pizzip@3.1.1/dist/pizzip.min.js"></script>
@@ -465,8 +469,8 @@
     <div id="outputOptions" style="margin-bottom: 30px; padding:20px; background:#f9fafb; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
       <h3 style="text-align:center; margin-bottom:20px;">📤 Generate Outputs</h3>
       <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px;">
-        <button onclick="exportAsTXT()" style="padding:12px 18px; border:none; border-radius:10px; background:#3b82f6; color:white; font-weight:bold; font-size:15px;">📜 Export as TXT</button>
-        <button onclick="exportAsWord()" style="padding:12px 18px; border:none; border-radius:10px; background:#0ea5e9; color:white; font-weight:bold; font-size:15px;">📄 Export as Word</button>
+        <button onclick="showPreviewModal('txt')" style="padding:12px 18px; border:none; border-radius:10px; background:#3b82f6; color:white; font-weight:bold; font-size:15px;">📜 Export as TXT</button>
+<button onclick="showPreviewModal('docx')" style="padding:12px 18px; border:none; border-radius:10px; background:#0ea5e9; color:white; font-weight:bold; font-size:15px;">📄 Export as Word</button>
         <button onclick="openFlashcardMode()" style="padding:12px 18px; border:none; border-radius:10px; background:#22c55e; color:white; font-weight:bold; font-size:15px;">🎴 Flashcards</button>
         <button onclick="extractKeywords()" style="padding:12px 18px; border:none; border-radius:10px; background:#f59e0b; color:white; font-weight:bold; font-size:15px;">🧠 Keywords</button>
         <button onclick="startQuizMode()" style="padding:12px 18px; border:none; border-radius:10px; background:#ef4444; color:white; font-weight:bold; font-size:15px;">🖥️ Take Quiz</button>
@@ -475,6 +479,10 @@
     <!-- ⬆️ -->
 
     <!-- ⬇️ Modal Question List (Dynamic) -->
+     <!-- Select All Toggle (initially hidden) -->
+     <div id="selectAllWrapper" style="display:none; text-align:right; margin-bottom:10px;">
+      <button id="toggleSelectAll" onclick="toggleAllQuestions()">🔲 Deselect All</button>
+    </div>
     <div id="modalQuestionList">
       <h3>📋 Questions</h3>
       <p>⬅️ Select a title to view questions</p>
@@ -963,6 +971,15 @@ function collapseAllDetails() {
 
 
 
+<div id="exportPreviewModal" style="display:none; position:fixed; top:10%; left:50%; transform:translateX(-50%); background:#fff; padding:20px; max-width:600px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.2); border-radius:12px; z-index:1000;">
+  <h3 style="margin-bottom:10px;">📋 Export Preview</h3>
+  <pre id="previewContent" style="max-height:400px; overflow-y:auto; background:#f9f9f9; padding:10px; border:1px solid #ccc;"></pre>
+  <div style="text-align:right; margin-top:10px;">
+    <button onclick="closePreviewModal()">❌ Cancel</button>
+    <button onclick="confirmExport('txt')">📄 Confirm TXT Export</button>
+    <button onclick="confirmExport('docx')">📝 Confirm Word Export</button>
+  </div>
+</div>
 
   
   

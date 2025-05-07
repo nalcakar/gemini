@@ -252,7 +252,7 @@ async function loadQuestionsByTitleName(titleName) {
       block.setAttribute("data-id", q.id);
       block.dataset.selected = "true"; // ✅ Mark as selected for flashcards
       block.dataset.source = q.source || "mcq"; // ✅ add this line
-      
+
       const question = q.question || "";
       const options = q.options || [];
       const explanation = q.explanation || "";
@@ -296,6 +296,8 @@ async function loadQuestionsByTitleName(titleName) {
   }
 
   // ✅ AFTER questions, create Recent Texts container
+  // ✅ Show Select All button
+document.getElementById("selectAllWrapper").style.display = "block";
   const recentTextsContainer = document.createElement("div");
   recentTextsContainer.id = "recentTextsContainer";
   recentTextsContainer.style = "margin-top:40px;";
@@ -1171,4 +1173,78 @@ function showToast(message = "✅ Action completed!") {
   setTimeout(() => {
     toast.style.opacity = "0";
   }, 2000); // Hide after 2 seconds
+}
+
+
+
+function toggleFlashcardSelection(checkbox) {
+  const block = checkbox.closest("details");
+  if (!block) return;
+
+  if (checkbox.checked) {
+    block.dataset.selected = "true";
+    block.classList.remove("unselected");
+  } else {
+    delete block.dataset.selected;
+    block.classList.add("unselected");
+  }
+
+  // 🔄 Check if all are selected
+  const checkboxes = document.querySelectorAll("#modalQuestionList input[type='checkbox']");
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  const selectBtn = document.getElementById("toggleSelectAll");
+
+  if (selectBtn) {
+    selectBtn.textContent = allChecked ? "🔲 Deselect All" : "☑️ Select All";
+    allSelected = allChecked;
+  }
+
+  if (typeof updateStats === "function") updateStats();
+}
+
+function openFlashcardMode() {
+  const toggle = document.getElementById("flashcardFlipToggle");
+  if (toggle) {
+    toggle.checked = localStorage.getItem("flashcardFlipMode") === "answerFirst";
+  }
+
+  const blocks = document.querySelectorAll("#modalQuestionList .question-card");
+
+  // Safely filter selected
+  const selected = Array.from(blocks).filter(block => {
+    const checkbox = block.querySelector("input[type='checkbox']");
+    return checkbox?.checked;
+  });
+
+  if (selected.length === 0) {
+    alert("⚠️ No flashcards selected. Please check at least one.");
+    return;
+  }
+
+  const isAnswerFirst = toggle?.checked;
+  localStorage.setItem("flashcardFlipMode", isAnswerFirst ? "answerFirst" : "questionFirst");
+
+  flashcards = selected.map((block, i) => {
+    const questionSpan = block.querySelector("summary .q[data-key='question']");
+    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent?.replace(/^✅ Answer:\s*/, "").trim() || "Answer not found.";
+
+    return isAnswerFirst
+      ? {
+          front: `<strong>✅ Answer:</strong> ${answerText}`,
+          back: questionSpan?.textContent?.trim() || `Q${i + 1}`,
+          isAnswered: false
+        }
+      : {
+          front: questionSpan?.textContent?.trim() || `Q${i + 1}`,
+          back: `<strong>✅ Answer:</strong> ${answerText}`,
+          isAnswered: false
+        };
+  });
+
+  currentFlashcardIndex = 0;
+  knownCount = 0;
+  answeredCount = 0;
+
+  document.getElementById("flashcardModal").style.display = "block";
+  renderFlashcard();
 }

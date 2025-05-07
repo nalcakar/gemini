@@ -9,16 +9,19 @@ async function exportAsTXT() {
   const container = document.getElementById("modalQuestionList");
   if (!container) return alert("⚠️ No questions loaded.");
 
-  const questionBlocks = container.querySelectorAll("details");
-  if (questionBlocks.length === 0) {
-    alert("⚠️ No questions found to export.");
+  const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
+    block.querySelector("input[type='checkbox']")?.checked
+  );
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ No flashcards or questions selected.");
     return;
   }
 
   let questionsPart = "=== QUESTIONS ===\n\n";
   let answersPart = "=== ANSWERS ===\n\n";
 
-  questionBlocks.forEach((block, index) => {
+  selectedBlocks.forEach((block, index) => {
     const qNumber = index + 1;
     const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
     const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
@@ -65,15 +68,18 @@ async function exportAsWord() {
   const container = document.getElementById("modalQuestionList");
   if (!container) return alert("⚠️ No questions loaded.");
 
-  const questionBlocks = container.querySelectorAll("details");
-  if (questionBlocks.length === 0) {
-    alert("⚠️ No questions found to export.");
+  const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
+    block.querySelector("input[type='checkbox']")?.checked
+  );
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ No flashcards or questions selected.");
     return;
   }
 
   const questions = [];
 
-  questionBlocks.forEach((block, index) => {
+  selectedBlocks.forEach((block, index) => {
     const source = block.dataset.source || "mcq";
     const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
     const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
@@ -91,9 +97,6 @@ async function exportAsWord() {
       c = options[2] || "";
       d = options[3] || "";
     }
-
-    // ✅ Debug check
-    console.log(`📝 Q${index + 1} source: ${source} | Text: ${questionText}`);
 
     questions.push({
       index: index + 1,
@@ -134,6 +137,7 @@ async function exportAsWord() {
 
 
 
+
   /// flashcards:
 
  // === FLASHCARD SYSTEM - FINAL WITH CORRECT RESTART ===
@@ -151,7 +155,6 @@ function shuffleArray(array) {
 }
 
 function openFlashcardMode() {
-  // Load saved preference from localStorage
   const toggle = document.getElementById("flashcardFlipToggle");
   if (toggle) {
     toggle.checked = localStorage.getItem("flashcardFlipMode") === "answerFirst";
@@ -159,47 +162,41 @@ function openFlashcardMode() {
 
   const blocks = document.querySelectorAll("#modalQuestionList .question-card");
 
-  // ✅ Select all if none are checked
-  const noneSelected = !Array.from(blocks).some(block =>
-    block.querySelector("input[type='checkbox']")?.checked
-  );
-  if (noneSelected) {
-    blocks.forEach(block => {
-      const checkbox = block.querySelector("input[type='checkbox']");
-      if (checkbox) checkbox.checked = true;
-    });
-  }
+  const selected = Array.from(blocks).filter(block => {
+    const checkbox = block.querySelector("input[type='checkbox']");
+    return checkbox?.checked;
+  });
 
-  // Determine flip mode
-  const isAnswerFirst = toggle?.checked;
-
-  // Save current setting
-  localStorage.setItem("flashcardFlipMode", isAnswerFirst ? "answerFirst" : "questionFirst");
-
-  // Build flashcards
-  flashcards = Array.from(blocks)
-    .filter(block => block.querySelector("input[type='checkbox']")?.checked)
-    .map((block, i) => {
-      const questionSpan = block.querySelector("summary .q[data-key='question']");
-      const answerText = block.querySelector("p:nth-of-type(1)")?.textContent?.replace(/^✅ Answer:\s*/, "").trim() || "Answer not found.";
-
-      return isAnswerFirst
-        ? {
-            front: `<strong>✅ Answer:</strong> ${answerText}`,
-            back: questionSpan?.textContent?.trim() || `Q${i + 1}`,
-            isAnswered: false
-          }
-        : {
-            front: questionSpan?.textContent?.trim() || `Q${i + 1}`,
-            back: `<strong>✅ Answer:</strong> ${answerText}`,
-            isAnswered: false
-          };
-    });
-
-  if (flashcards.length === 0) {
-    alert("⚠️ No selected flashcards to show.");
+  if (selected.length === 0) {
+    alert("⚠️ No flashcards selected. Please check at least one.");
     return;
   }
+
+  const isAnswerFirst = toggle?.checked;
+  localStorage.setItem("flashcardFlipMode", isAnswerFirst ? "answerFirst" : "questionFirst");
+
+  flashcards = selected.map((block, i) => {
+    const source = block.dataset.source || "mcq";
+    const questionText = block.querySelector("summary .q[data-key='question']")?.textContent.trim() || `Q${i + 1}`;
+    const rawAnswer = block.querySelector("p:nth-of-type(1)")?.textContent || "Answer not found.";
+
+    // Remove "✅ Answer:" or "Answer:" prefix
+    const answerText = rawAnswer.replace(/^✅?\s*Answer:\s*/i, "").trim();
+
+    if (source === "keyword") {
+      return {
+        front: answerText,
+        back: questionText,
+        isAnswered: false
+      };
+    } else {
+      return {
+        front: questionText,
+        back: answerText,
+        isAnswered: false
+      };
+    }
+  });
 
   currentFlashcardIndex = 0;
   knownCount = 0;
@@ -208,6 +205,8 @@ function openFlashcardMode() {
   document.getElementById("flashcardModal").style.display = "block";
   renderFlashcard();
 }
+
+
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -388,4 +387,79 @@ function renderFlashcard() {
 
   updateScore();
   if (window.MathJax) MathJax.typesetPromise();
+}
+
+
+let allSelected = true; // <-- Start with true so the first click deselects
+
+function toggleAllQuestions() {
+  const checkboxes = document.querySelectorAll("#modalQuestionList input[type='checkbox']");
+  allSelected = !allSelected;
+
+  checkboxes.forEach(cb => {
+    cb.checked = allSelected;
+
+    const block = cb.closest("details");
+    if (block) {
+      if (allSelected) {
+        block.dataset.selected = "true";
+        block.classList.remove("unselected");
+      } else {
+        delete block.dataset.selected;
+        block.classList.add("unselected");
+      }
+    }
+  });
+
+  const toggleBtn = document.getElementById("toggleSelectAll");
+  toggleBtn.textContent = allSelected ? "🔲 Deselect All" : "☑️ Select All";
+}
+
+
+
+function showPreviewModal(type) {
+  const container = document.getElementById("modalQuestionList");
+  const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
+    block.querySelector("input[type='checkbox']")?.checked
+  );
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ No questions selected.");
+    return;
+  }
+
+  let preview = "";
+  selectedBlocks.forEach((block, index) => {
+    const qNum = index + 1;
+    const question = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNum}`;
+    const source = block.dataset.source || "";
+    const answer = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+
+    preview += `${qNum}. ${question}\n`;
+
+    if (source === "keyword") {
+      preview += `______________________\nAnswer: ${answer}\n\n`;
+    } else {
+      const options = Array.from(block.querySelectorAll("ul li")).map((li, i) => {
+        let text = li.textContent.trim();
+        return `${String.fromCharCode(65 + i)}) ${text}`;
+      }).join("\n");
+      preview += `${options}\nAnswer: ${answer}\n\n`;
+    }
+  });
+
+  document.getElementById("previewContent").textContent = preview;
+  document.getElementById("exportPreviewModal").style.display = "block";
+  window.pendingExportType = type; // store pending type
+}
+
+function closePreviewModal() {
+  document.getElementById("exportPreviewModal").style.display = "none";
+  window.pendingExportType = null;
+}
+
+function confirmExport(type) {
+  closePreviewModal();
+  if (type === "txt") exportAsTXT();
+  else if (type === "docx") exportAsWord();
 }
