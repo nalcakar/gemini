@@ -1,17 +1,15 @@
+// redis.js
+require('dotenv').config();
 const redis = require("redis");
 
 const redisClient = redis.createClient({
   url: process.env.REDIS_URL,
-  legacyMode: true,
+  legacyMode: true
 });
 
-redisClient.connect().catch(console.error);
-
-// ✅ Prevent crash on Redis error
 redisClient.on("error", (err) => {
   console.error("❌ Redis bağlantı hatası:", err.message);
 });
-
 
 redisClient.connect().catch(console.error);
 
@@ -21,7 +19,7 @@ async function visitorLimitMiddleware(req, res, next) {
   const token = req.headers.authorization || "";
   const isLoggedIn = token && token.startsWith("Bearer ");
 
-  if (isLoggedIn) return next(); // logged-in users skip
+  if (isLoggedIn) return next();
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.connection.remoteAddress;
   const today = new Date().toISOString().split("T")[0];
@@ -49,6 +47,12 @@ async function incrementVisitorUsage(req, count = 1) {
   }
 }
 
+module.exports = {
+  redisClient,
+  visitorLimitMiddleware,
+  incrementVisitorUsage
+};
+
 
 const pool = require("./pool");
 const express = require("express");
@@ -61,7 +65,7 @@ const upload = multer({ dest: "uploads/" });
 const FormData = require("form-data");
 const fs = require("fs");
 const axios = require("axios");
-
+const { redisClient, visitorLimitMiddleware, incrementVisitorUsage } = require("./redis");
 const { franc } = require("franc");
 
 require("dotenv").config();
