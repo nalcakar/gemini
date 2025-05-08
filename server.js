@@ -1,10 +1,17 @@
-require('dotenv').config(); // 👈 Load .env for REDIS_URL
 const redis = require("redis");
 
 const redisClient = redis.createClient({
-  url: process.env.REDIS_URL,   // 👈 Use .env-based URL
-  legacyMode: true
+  url: process.env.REDIS_URL,
+  legacyMode: true,
 });
+
+redisClient.connect().catch(console.error);
+
+// ✅ Prevent crash on Redis error
+redisClient.on("error", (err) => {
+  console.error("❌ Redis bağlantı hatası:", err.message);
+});
+
 
 redisClient.connect().catch(console.error);
 
