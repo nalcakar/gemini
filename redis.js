@@ -4,7 +4,7 @@ const redis = require("redis");
 
 const redisClient = redis.createClient({
   url: process.env.REDIS_URL,
-  legacyMode: true,
+  legacyMode: true
 });
 
 redisClient.on("error", (err) => {
@@ -45,12 +45,12 @@ async function visitorLimitMiddleware(req, res, next) {
 async function incrementVisitorUsage(req, count = 1) {
   if (!req.user && req.visitorKey) {
     await redisClient.incrBy(req.visitorKey, count);
-    await redisClient.expire(req.visitorKey, 86400); // 1 day
+    await redisClient.expire(req.visitorKey, 86400);
   }
 }
 
 module.exports = {
   redisClient,
   visitorLimitMiddleware,
-  incrementVisitorUsage,
+  incrementVisitorUsage
 };
