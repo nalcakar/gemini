@@ -1,5 +1,11 @@
+require('dotenv').config(); // 👈 Load .env for REDIS_URL
 const redis = require("redis");
-const redisClient = redis.createClient({ legacyMode: true });
+
+const redisClient = redis.createClient({
+  url: process.env.REDIS_URL,   // 👈 Use .env-based URL
+  legacyMode: true
+});
+
 redisClient.connect().catch(console.error);
 
 const MAX_DAILY_LIMIT = 20;
@@ -32,9 +38,10 @@ async function visitorLimitMiddleware(req, res, next) {
 async function incrementVisitorUsage(req, count = 1) {
   if (!req.user && req.visitorKey) {
     await redisClient.incrBy(req.visitorKey, count);
-    await redisClient.expire(req.visitorKey, 86400);
+    await redisClient.expire(req.visitorKey, 86400); // 24 hours
   }
 }
+
 
 const pool = require("./pool");
 const express = require("express");
