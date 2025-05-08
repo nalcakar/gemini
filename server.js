@@ -3,13 +3,12 @@ const redisClient = redis.createClient({ legacyMode: true });
 redisClient.connect().catch(console.error);
 
 const MAX_DAILY_LIMIT = 20;
-const DEFAULT_EXPECTED = 5;
 
 async function visitorLimitMiddleware(req, res, next) {
   const token = req.headers.authorization || "";
   const isLoggedIn = token && token.startsWith("Bearer ");
 
-  if (isLoggedIn) return next(); // skip for members
+  if (isLoggedIn) return next(); // logged-in users skip
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.connection.remoteAddress;
   const today = new Date().toISOString().split("T")[0];
@@ -17,25 +16,186 @@ async function visitorLimitMiddleware(req, res, next) {
 
   try {
     const usage = parseInt(await redisClient.get(redisKey)) || 0;
-    const projected = usage + DEFAULT_EXPECTED;
-
-    if (projected > MAX_DAILY_LIMIT) {
+    if (usage >= MAX_DAILY_LIMIT) {
       return res.status(429).json({ error: "🚫 Daily visitor limit reached. Please log in to continue." });
     }
 
-    await redisClient.incrBy(redisKey, DEFAULT_EXPECTED);
-    await redisClient.expire(redisKey, 86400); // reset daily
-
     req.visitorKey = redisKey;
-    req.visitorCount = projected;
+    req.visitorCount = usage;
     next();
-
   } catch (err) {
     console.error("Redis error:", err);
     res.status(500).json({ error: "Server error" });
   }
 }
 
+async function incrementVisitorUsage(req, count = 1) {
+  if (!req.user && req.visitorKey) {
+    await redisClient.incrBy(req.visitorKey, count);
+    await redisClient.expire(req.visitorKey, 86400);
+  }
+}
+
+const pool = require("./pool");
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const rateLimit = require("express-rate-limit");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+const FormData = require("form-data");
+const fs = require("fs");
+const axios = require("axios");
+
+const { franc } = require("franc");
+
+require("dotenv").config();
+
+const PizZip = require("pizzip");
+const Docxtemplater = require("docxtemplater");
+const app = express();
+
+app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const fetch = require("node-fetch");
+
+// ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
+const allowedOrigins = ["https://doitwithai.org", "http://localhost:3001"];
+const authMiddleware = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
+
+  const accessToken = authHeader.split(" ")[1];
+  if (!accessToken) return next();
+
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const data = await response.json();
+    const email = data.data?.attributes?.email;
+    const name = data.data?.attributes?.full_name;
+    const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
+
+    const TIER_MAP = {
+      "25539224": "Bronze",
+      "25296810": "Silver",
+      "25669215": "Gold"
+    };
+
+    let tier = "free";
+    for (const t of tiers) {
+      if (TIER_MAP[t.id]) {
+        tier = t.id;
+        break;
+      }
+    }
+
+    if (email) {
+      req.user = { email, name, tier };
+    }
+  } catch (err) {
+    console.error("❌ Kullanıcı doğrulama hatası:", err.message);
+  }
+
+  next();
+};
+
+app.use(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
+
+  const accessToken = authHeader.split(" ")[1];
+  if (!accessToken) return next();
+
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    const data = await response.json();
+
+    const email = data.data?.attributes?.email;
+    const name = data.data?.attributes?.full_name;
+
+    const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
+
+    // ID'lere göre eşleştirme
+    const TIER_MAP = {
+      "25539224": "Bronze",
+      "25296810": "Silver",
+      "25669215": "Gold"
+    };
+
+    let tier = "free"; // default
+
+    for (const t of tiers) {
+      if (TIER_MAP[t.id]) {
+        tier = t.id; // numeric ID olarak kullanıyoruz
+        break;
+      }
+    }
+
+    if (email) {
+      req.user = {
+        email,
+        name,
+        tier // örnek: "25539224"
+      };
+    }
+  } catch (err) {
+    console.error("❌ Kullanıcı doğrulama hatası:", err.message);
+  }
+
+  next();
+});
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+}));
+
+
+
+
+// ✅ JSON parse işlemi
+app.use(express.json());
+
+// ✅ Patreon token'ı doğrulayan fonksiyon
+async function verifyPatreonToken(token) {
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const user = data.data.attributes;
+    return {
+      email: user.email,
+      name: user.full_name
+    };
+  } catch (err) {
+    console.error("Patreon token doğrulama hatası:", err.message);
+    return null;
+  }
+}
+
+// ✅ /patreon-me endpoint’i — Token ile giriş yapan kullanıcıyı döner
 app.post("/patreon-me", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(400).json({ error: "Token eksik" });
@@ -206,7 +366,11 @@ Rules:
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await model.generateContent(prompt);
+    const estimatedCount = questionCount; // You may adjust if you have better logic
+
+// ⏱️ Increment before calling AI
+await incrementVisitorUsage(req, estimatedCount);
+const result = await model.generateContent(prompt);
     const raw = await result.response.text();
 
     // Parse and map Gemini text to structured questions
@@ -332,6 +496,7 @@ app.post("/generate-keywords", visitorLimitMiddleware, async (req, res) => {
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    await incrementVisitorUsage(req, keywordCount);
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
     res.json({ keywords: text });
