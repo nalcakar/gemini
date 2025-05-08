@@ -1,163 +1,41 @@
-const pool = require("./pool");
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-const rateLimit = require("express-rate-limit");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const multer = require("multer");
-const upload = multer({ dest: "uploads/" });
-const FormData = require("form-data");
-const fs = require("fs");
-const axios = require("axios");
+const redis = require("redis");
+const redisClient = redis.createClient({ legacyMode: true });
+redisClient.connect().catch(console.error);
 
-const { franc } = require("franc");
+const MAX_DAILY_LIMIT = 20;
+const DEFAULT_EXPECTED = 5;
 
-require("dotenv").config();
+async function visitorLimitMiddleware(req, res, next) {
+  const token = req.headers.authorization || "";
+  const isLoggedIn = token && token.startsWith("Bearer ");
 
-const PizZip = require("pizzip");
-const Docxtemplater = require("docxtemplater");
-const app = express();
+  if (isLoggedIn) return next(); // skip for members
 
-app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const fetch = require("node-fetch");
-
-// ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
-const allowedOrigins = ["https://doitwithai.org", "http://localhost:3001"];
-const authMiddleware = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
-
-  const accessToken = authHeader.split(" ")[1];
-  if (!accessToken) return next();
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.connection.remoteAddress;
+  const today = new Date().toISOString().split("T")[0];
+  const redisKey = `visitor:${ip}:${today}`;
 
   try {
-    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name", {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
+    const usage = parseInt(await redisClient.get(redisKey)) || 0;
+    const projected = usage + DEFAULT_EXPECTED;
 
-    const data = await response.json();
-    const email = data.data?.attributes?.email;
-    const name = data.data?.attributes?.full_name;
-    const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
-
-    const TIER_MAP = {
-      "25539224": "Bronze",
-      "25296810": "Silver",
-      "25669215": "Gold"
-    };
-
-    let tier = "free";
-    for (const t of tiers) {
-      if (TIER_MAP[t.id]) {
-        tier = t.id;
-        break;
-      }
+    if (projected > MAX_DAILY_LIMIT) {
+      return res.status(429).json({ error: "🚫 Daily visitor limit reached. Please log in to continue." });
     }
 
-    if (email) {
-      req.user = { email, name, tier };
-    }
+    await redisClient.incrBy(redisKey, DEFAULT_EXPECTED);
+    await redisClient.expire(redisKey, 86400); // reset daily
+
+    req.visitorKey = redisKey;
+    req.visitorCount = projected;
+    next();
+
   } catch (err) {
-    console.error("❌ Kullanıcı doğrulama hatası:", err.message);
-  }
-
-  next();
-};
-
-app.use(async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
-
-  const accessToken = authHeader.split(" ")[1];
-  if (!accessToken) return next();
-
-  try {
-    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-
-    const data = await response.json();
-
-    const email = data.data?.attributes?.email;
-    const name = data.data?.attributes?.full_name;
-
-    const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
-
-    // ID'lere göre eşleştirme
-    const TIER_MAP = {
-      "25539224": "Bronze",
-      "25296810": "Silver",
-      "25669215": "Gold"
-    };
-
-    let tier = "free"; // default
-
-    for (const t of tiers) {
-      if (TIER_MAP[t.id]) {
-        tier = t.id; // numeric ID olarak kullanıyoruz
-        break;
-      }
-    }
-
-    if (email) {
-      req.user = {
-        email,
-        name,
-        tier // örnek: "25539224"
-      };
-    }
-  } catch (err) {
-    console.error("❌ Kullanıcı doğrulama hatası:", err.message);
-  }
-
-  next();
-});
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
-}));
-
-
-
-
-// ✅ JSON parse işlemi
-app.use(express.json());
-
-// ✅ Patreon token'ı doğrulayan fonksiyon
-async function verifyPatreonToken(token) {
-  try {
-    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?fields[user]=email,full_name", {
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const user = data.data.attributes;
-    return {
-      email: user.email,
-      name: user.full_name
-    };
-  } catch (err) {
-    console.error("Patreon token doğrulama hatası:", err.message);
-    return null;
+    console.error("Redis error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 }
 
-// ✅ /patreon-me endpoint’i — Token ile giriş yapan kullanıcıyı döner
 app.post("/patreon-me", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(400).json({ error: "Token eksik" });
@@ -213,7 +91,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
-app.post("/generate-questions", async (req, res) => {
+app.post("/generate-questions", visitorLimitMiddleware, async (req, res) => {
   const { mycontent, userLanguage, userFocus, difficulty } = req.body;
   const user = req.user || {};
 
@@ -375,7 +253,7 @@ Rules:
 
 
 // === ANAHTAR KELİME ÜRETME ===
-app.post("/generate-keywords", async (req, res) => {
+app.post("/generate-keywords", visitorLimitMiddleware, async (req, res) => {
   const { mycontent, userLanguage, difficulty } = req.body;
   const user = req.user || {};
 
@@ -386,7 +264,7 @@ app.post("/generate-keywords", async (req, res) => {
   };
 
   const userTier = user.tier;
-  const keywordCount = tierKeywordCounts[userTier] || 8;
+  const keywordCount = tierKeywordCounts[userTier] || 5;
 
   // 🌐 Language detection and mapping
   const langCode = franc(mycontent || "");
@@ -535,7 +413,7 @@ Instructions:
 - List each translated keyword on a new line, starting with a dash (-).
 - After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
 - Explain how the keyword contributes to comprehension or application.
-- Don't include keyword in the explanation.
+- Don't include keyword in the explanation."1 
 - Do not include the original (non-translated) keywords.
 
 Format:

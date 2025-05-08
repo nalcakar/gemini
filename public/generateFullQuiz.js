@@ -1,4 +1,6 @@
 
+
+
 function getCurrentSectionText() {
   const lastSection = localStorage.getItem("lastSection");
 
@@ -50,6 +52,41 @@ function expandAllDetails(open = true) {
   document.querySelectorAll(".quiz-preview").forEach(d => d.open = open);
 }
 
+
+function showVisitorSaveUI(containerId, questions, isKeyword = false) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const saveUI = document.createElement("div");
+  saveUI.style = "margin-top: 30px; text-align: center;";
+
+  saveUI.innerHTML = `
+    <div style="margin-bottom: 10px;">
+      <input id="visitorTitleInput" type="text" placeholder="Enter a title to save..." 
+        style="padding: 10px; width: 80%; max-width: 400px; border-radius: 8px; border: 1px solid #ccc; font-size: 15px;" />
+    </div>
+    <button id="visitorSaveButton" style="padding: 10px 20px; font-size: 15px; border-radius: 6px; background: #2563eb; color: white; border: none; cursor: pointer;">
+      💾 Save Title
+    </button>
+  `;
+
+  container.appendChild(saveUI);
+
+  document.getElementById("visitorSaveButton").onclick = () => {
+    const title = document.getElementById("visitorTitleInput").value.trim();
+    if (!title) return alert("⚠️ Please enter a title.");
+
+    const saved = saveCurrentVisitorQuestions(title, questions, isKeyword);
+    if (saved) {
+      renderVisitorSavedContent();
+      saveUI.innerHTML = `<p style="color:green; font-weight:500;">✅ Saved as "<b>${title}</b>"</p>`;
+    } else {
+      alert("⚠️ You’ve reached your daily visitor limit (4 titles).");
+    }
+  };
+}
+
+
 async function generateFullQuiz() {
   const output = document.getElementById("quizOutput");
   if (output) output.innerHTML = "";
@@ -75,7 +112,6 @@ async function generateFullQuiz() {
 
   try {
     const accessToken = localStorage.getItem("accessToken") || "";
-    const userEmail = localStorage.getItem("userEmail") || "";
     const isLoggedIn = !!accessToken;
 
     const selectedLang = document.getElementById("languageSelect")?.value || "";
@@ -83,6 +119,12 @@ async function generateFullQuiz() {
     const difficulty = document.getElementById("difficultySelect")?.value || "";
 
     localStorage.setItem("questionLangPref", selectedLang);
+
+    // ✅ PRE-check: block generation if over limit
+    if (!isLoggedIn && !canVisitorGenerate(5)) {
+      disableGenerateUIForVisitors();
+      return;
+    }
 
     const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
       method: "POST",
@@ -107,6 +149,21 @@ async function generateFullQuiz() {
 
     const parsedQuestions = data.questions;
 
+    // ✅ POST-check: revalidate actual count returned
+    if (!isLoggedIn && !canVisitorGenerate(parsedQuestions.length)) {
+      disableGenerateUIForVisitors();
+      return;
+    }
+
+    // ✅ Visitor count tracking
+    if (!isLoggedIn) {
+      incrementVisitorGeneratedCount(parsedQuestions.length);
+      setTimeout(() => {
+        showVisitorSaveUI("quizOutput", parsedQuestions, false);
+      }, 300);
+    }
+
+    // 🧠 Render Questions
     const createControls = () => {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
@@ -197,8 +254,176 @@ async function generateFullQuiz() {
 
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
+
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
+  }
+  if (typeof showVisitorUsageBadge === "function") {
+    showVisitorUsageBadge(); // 👈 refresh badge after generation
+  }
+}
+
+
+
+
+// keywords***********
+async function generateKeywords() {
+  const output = document.getElementById("quizOutput");
+  if (output) output.innerHTML = "";
+
+  const saveBox = document.getElementById("saveQuizSection");
+  if (saveBox) {
+    saveBox.style.display = "none";
+    saveBox.style.opacity = "0";
+    saveBox.dataset.loaded = "";
+  }
+
+  const button = document.getElementById("generateKeywordsButton");
+  button.disabled = true;
+  button.textContent = "⏳ Generating Keywords...";
+
+  let extractedText = getCurrentSectionText();
+  if (!extractedText || extractedText.trim().length < 2) {
+    alert("⚠️ Please paste or upload some text first.");
+    button.disabled = false;
+    button.textContent = "✨ Generate Keywords and Explanations";
+    return;
+  }
+
+  try {
+    const accessToken = localStorage.getItem("accessToken") || "";
+    const isLoggedIn = !!accessToken;
+    const selectedLang = document.getElementById("languageSelect")?.value || "";
+
+    localStorage.setItem("questionLangPref", selectedLang);
+
+    // ✅ PRE-check: block before fetch if already at limit
+    if (!isLoggedIn && !canVisitorGenerate(5)) {
+      disableGenerateUIForVisitors();
+      return;
+    }
+
+    const res = await fetch("https://gemini-j8xd.onrender.com/generate-keywords", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        mycontent: extractedText,
+        userLanguage: selectedLang
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+
+    if (!data.keywords || typeof data.keywords !== "string") {
+      throw new Error("Invalid response from AI");
+    }
+
+    const keywordsRaw = data.keywords;
+    const keywordEntries = keywordsRaw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.startsWith("-"))
+      .map(line => {
+        const [keyword, ...explanationParts] = line.substring(1).split(":");
+        return {
+          question: (keyword || "").trim(),
+          answer: (explanationParts.join(":") || "").trim()
+        };
+      });
+
+    // ✅ POST-check: revalidate count after parsing
+    if (!isLoggedIn && !canVisitorGenerate(keywordEntries.length)) {
+      disableGenerateUIForVisitors();
+      return;
+    }
+
+    // ✅ Increment count
+    if (!isLoggedIn) {
+      incrementVisitorGeneratedCount(keywordEntries.length);
+      setTimeout(() => {
+        showVisitorSaveUI("quizOutput", keywordEntries, true);
+      }, 300);
+    }
+
+    output.innerHTML = `<h3 style="text-align:center;">🔑 Generated Keywords:</h3>`;
+
+    const createControls = () => {
+      const box = document.createElement("div");
+      box.style = "margin: 10px 0; text-align: center;";
+      box.innerHTML = `
+        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
+        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+      `;
+      return box;
+    };
+
+    const topControls = createControls();
+    output.appendChild(topControls);
+
+    keywordEntries.forEach((item, i) => {
+      const details = document.createElement("details");
+      details.className = "quiz-preview";
+      details.style.maxWidth = "700px";
+      details.style.margin = "15px auto";
+      details.dataset.index = i;
+
+      details.innerHTML = `
+        <summary style="display: flex; justify-content: space-between; align-items: center;">
+          <div><b>Keyword ${i + 1}:</b> ${item.question}</div>
+          <label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>
+        </summary>
+        <div style="margin-top: 8px; padding: 8px;">
+          <p><strong>💬 Explanation:</strong> ${item.answer}</p>
+        </div>
+      `;
+
+      output.appendChild(details);
+    });
+
+    const bottomControls = createControls();
+    output.appendChild(bottomControls);
+
+    if (window.MathJax?.typesetPromise) {
+      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+    }
+
+    if (saveBox && isLoggedIn) {
+      saveBox.style.display = "block";
+      saveBox.style.opacity = "1";
+
+      if (!document.getElementById("saveInstructions")) {
+        const msg = document.createElement("p");
+        msg.id = "saveInstructions";
+        msg.textContent = "🎯 Select the keywords you want to save.";
+        msg.style = "font-weight: 500; font-size: 14px;";
+        saveBox.insertBefore(msg, saveBox.firstChild);
+      }
+
+      if (!saveBox.dataset.loaded) {
+        await loadMainTopics();
+        saveBox.dataset.loaded = "true";
+      }
+    }
+
+  } catch (err) {
+    console.error("❌ Error:", err);
+    alert(`❌ Failed to generate keywords.\n${err.message}`);
+  }
+
+  button.disabled = false;
+  button.textContent = "✨ Generate Keywords and Explanations";
+
+  if (typeof updateFloatingButtonVisibility === "function") {
+    updateFloatingButtonVisibility();
+  }
+  if (typeof showVisitorUsageBadge === "function") {
+    showVisitorUsageBadge(); // 👈 refresh badge after generation
   }
 }
 
@@ -1504,141 +1729,7 @@ async function saveModalRecentText() {
   }
 }
 
-// keywords***********
-async function generateKeywords() {
-  const output = document.getElementById("quizOutput");
-  if (output) output.innerHTML = "";
 
-  const saveBox = document.getElementById("saveQuizSection");
-  if (saveBox) {
-    saveBox.style.display = "none";
-    saveBox.style.opacity = "0";
-    saveBox.dataset.loaded = "";
-  }
-
-  const button = document.getElementById("generateKeywordsButton");
-  button.disabled = true;
-  button.textContent = "⏳ Generating Keywords...";
-
-  let extractedText = getCurrentSectionText();
-  if (!extractedText || extractedText.trim().length < 2) {
-    alert("⚠️ Please paste or upload some text first.");
-    button.disabled = false;
-    button.textContent = "✨ Generate Keywords and Explanations";
-    return;
-  }
-
-  try {
-    const accessToken = localStorage.getItem("accessToken") || "";
-    const selectedLang = document.getElementById("languageSelect")?.value || "";
-    localStorage.setItem("questionLangPref", selectedLang);  // ✅ remember language
-
-    const res = await fetch("https://gemini-j8xd.onrender.com/generate-keywords", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({
-        mycontent: extractedText,
-        userLanguage: selectedLang
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
-    const data = await res.json();
-
-    if (!data.keywords || typeof data.keywords !== "string") {
-      throw new Error("Invalid response from AI");
-    }
-
-    const keywordsRaw = data.keywords;
-    const keywordEntries = keywordsRaw
-      .split("\n")
-      .map(line => line.trim())
-      .filter(line => line.startsWith("-"))
-      .map(line => {
-        const [keyword, ...explanationParts] = line.substring(1).split(":");
-        return {
-          keyword: (keyword || "").trim(),
-          explanation: (explanationParts.join(":") || "").trim()
-        };
-      });
-
-    output.innerHTML = `<h3 style="text-align:center;">🔑 Generated Keywords:</h3>`;
-
-    const createControls = () => {
-      const box = document.createElement("div");
-      box.style = "margin: 10px 0; text-align: center;";
-      box.innerHTML = `
-        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
-        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
-        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
-        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
-      `;
-      return box;
-    };
-
-    const topControls = createControls();
-    output.appendChild(topControls);
-
-    keywordEntries.forEach((item, i) => {
-      const details = document.createElement("details");
-      details.className = "quiz-preview";
-      details.style.maxWidth = "700px";
-      details.style.margin = "15px auto";
-      details.dataset.index = i;
-
-      details.innerHTML = `
-        <summary style="display: flex; justify-content: space-between; align-items: center;">
-          <div><b>Keyword ${i + 1}:</b> ${item.keyword}</div>
-          <label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>
-        </summary>
-        <div style="margin-top: 8px; padding: 8px;">
-          <p><strong>💬 Explanation:</strong> ${item.explanation}</p>
-        </div>
-      `;
-
-      output.appendChild(details);
-    });
-
-    const bottomControls = createControls();
-    output.appendChild(bottomControls);
-
-    if (window.MathJax?.typesetPromise) {
-      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
-    }
-
-    if (saveBox && accessToken) {
-      saveBox.style.display = "block";
-      saveBox.style.opacity = "1";
-
-      if (!document.getElementById("saveInstructions")) {
-        const msg = document.createElement("p");
-        msg.id = "saveInstructions";
-        msg.textContent = "🎯 Select the keywords you want to save.";
-        msg.style = "font-weight: 500; font-size: 14px;";
-        saveBox.insertBefore(msg, saveBox.firstChild);
-      }
-
-      if (!saveBox.dataset.loaded) {
-        await loadMainTopics();
-        saveBox.dataset.loaded = "true";
-      }
-    }
-
-  } catch (err) {
-    console.error("❌ Error:", err);
-    alert(`❌ Failed to generate keywords.\n${err.message}`);
-  }
-
-  button.disabled = false;
-  button.textContent = "✨ Generate Keywords and Explanations";
-
-  if (typeof updateFloatingButtonVisibility === "function") {
-    updateFloatingButtonVisibility();
-  }
-}
 
 
 ///keywordsssss
