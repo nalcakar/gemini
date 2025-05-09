@@ -201,24 +201,18 @@ app.post("/transcribe", upload.any(), async (req, res) => {
 });
 
 
+const { getVisitorIP } = require("./utils");
+
 app.get("/visitor-usage", async (req, res) => {
-  let ip =
-    req.headers["x-forwarded-for"]?.split(",")[0] ||
-    req.socket?.remoteAddress || "unknown";
-
-  // fallback to local dev IP if invalid
-  if (!ip || ip === "::1" || ip === "127.0.0.1") ip = "localtest";
-
+  const ip = getVisitorIP(req);
   const today = new Date().toISOString().split("T")[0];
   const redisKey = `visitor:${ip}:${today}`;
 
   try {
     const raw = await redisClient.get(redisKey);
-    console.log("🔍 Visitor usage key value for", redisKey, "=", raw);
     const usage = parseInt(raw) || 0;
     res.json({ used: usage, max: 20 });
   } catch (err) {
-    console.error("❌ Redis fetch error:", err);
     res.status(500).json({ error: "Redis error" });
   }
 });
@@ -494,7 +488,7 @@ app.post("/generate-keywords", visitorLimitMiddleware, async (req, res) => {
   }
 });
 
-app.post("/generate-keywords-topic", async (req, res) => {
+app.post("/generate-keywords-topic", visitorLimitMiddleware, async (req, res) => {
   const { topic, focus, userLanguage, difficulty } = req.body;
   const user = req.user || {};
 
@@ -550,7 +544,6 @@ app.post("/generate-keywords-topic", async (req, res) => {
 
   const promptLanguage = isoMap[questionLanguage] || "English";
 
-  // 🧠 Topic-based prompt
   const prompt = `
 You are an expert educator.
 
@@ -566,24 +559,26 @@ Instructions:
 - List each translated keyword on a new line, starting with a dash (-).
 - After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
 - Explain how the keyword contributes to comprehension or application.
-- Don't include keyword in the explanation."1 
+- Don't include keyword in the explanation.
 - Do not include the original (non-translated) keywords.
 
 Format:
 - [Translated Keyword]: [Explanation in ${promptLanguage}]
 `;
 
-
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
-    res.json({ keywords: text });
+
+    res.json({ keywords: text, usage: req.visitorCount || 0 });
+
   } catch (err) {
     console.error("Gemini Keyword Topic hata:", err.message);
     res.status(500).json({ error: "Topic tabanlı anahtar kelimeler üretilemedi" });
   }
 });
+
 
 
 

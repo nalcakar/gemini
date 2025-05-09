@@ -1,13 +1,14 @@
 const MAX_DAILY_LIMIT = 20;
 const DEFAULT_EXPECTED = 5;
 
+const { getVisitorIP } = require("./utils");
+
 async function visitorLimitMiddleware(req, res, next) {
   const token = req.headers.authorization || "";
   const isLoggedIn = token && token.startsWith("Bearer ");
-
   if (isLoggedIn) return next();
 
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.connection.remoteAddress;
+  const ip = getVisitorIP(req);
   const today = new Date().toISOString().split("T")[0];
   const redisKey = `visitor:${ip}:${today}`;
 
@@ -20,8 +21,7 @@ async function visitorLimitMiddleware(req, res, next) {
     }
 
     await redisClient.incrBy(redisKey, DEFAULT_EXPECTED);
-    await redisClient.expire(redisKey, 86400); // 24h expiry
-
+    await redisClient.expire(redisKey, 86400);
     req.visitorKey = redisKey;
     req.visitorCount = projected;
     next();
@@ -31,6 +31,7 @@ async function visitorLimitMiddleware(req, res, next) {
     res.status(500).json({ error: "Server error" });
   }
 }
+
 
 const MAX_TITLES = 4;
 const MAX_ITEMS = 20;

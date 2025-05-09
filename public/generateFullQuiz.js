@@ -120,9 +120,6 @@ async function generateFullQuiz() {
 
     localStorage.setItem("questionLangPref", selectedLang);
 
-    // ✅ PRE-check: block generation if over limit
-  
-
     const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
       method: "POST",
       headers: {
@@ -139,9 +136,6 @@ async function generateFullQuiz() {
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
-    if (!isLoggedIn && typeof updateVisitorBadgeWithValue === "function") {
-      updateVisitorBadgeWithValue(data.usage || 0, 20);
-    }
 
     if (!Array.isArray(data.questions)) {
       throw new Error("Invalid response from AI");
@@ -149,13 +143,6 @@ async function generateFullQuiz() {
 
     const parsedQuestions = data.questions;
 
-    // ✅ POST-check: revalidate actual count returned
-  
-
-    // ✅ Visitor count tracking
-
-
-    // 🧠 Render Questions
     const createControls = () => {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
@@ -208,17 +195,19 @@ async function generateFullQuiz() {
           </div>
         </div>
       `;
-
       output.appendChild(details);
     });
-
-    const newTitleInput = document.getElementById("newTitleInput");
-    if (newTitleInput) newTitleInput.style.display = "none";
 
     output.appendChild(bottomControls);
 
     if (window.MathJax?.typesetPromise) {
       window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+    }
+
+    if (!isLoggedIn) {
+      setTimeout(() => {
+        showVisitorSaveUI("quizOutput", parsedQuestions, false);
+      }, 300);
     }
 
     if (saveBox && isLoggedIn) {
@@ -250,10 +239,13 @@ async function generateFullQuiz() {
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
+
   if (typeof showVisitorUsageBadge === "function") {
-    showVisitorUsageBadge(); // 👈 refresh badge after generation
+    showVisitorUsageBadge();
   }
 }
+
+
 
 
 
@@ -312,11 +304,6 @@ async function generateKeywords() {
 
     if (!data.keywords || typeof data.keywords !== "string") {
       throw new Error("Invalid response from AI");
-    }
-
-    // ✅ Live badge update from server
-    if (!isLoggedIn && typeof updateVisitorBadgeWithValue === "function") {
-      updateVisitorBadgeWithValue(data.usage || 0, 20);
     }
 
     const keywordsRaw = data.keywords;
@@ -415,7 +402,12 @@ async function generateKeywords() {
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
+
+  if (typeof showVisitorUsageBadge === "function") {
+    showVisitorUsageBadge();
+  }
 }
+
 
 
 
