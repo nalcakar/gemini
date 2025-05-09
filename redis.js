@@ -40,7 +40,8 @@ async function visitorLimitMiddleware(req, res, next) {
     }
 
     await redisClient.incrBy(redisKey, DEFAULT_EXPECTED);
-    await redisClient.expire(redisKey, 86400); // 24 hours
+    await redisClient.expireAt(redisKey, Math.floor(Date.now() / 1000) + 86400); // ✅ Always reset TTL
+    // 24 hours
 
     req.visitorKey = redisKey;
     req.visitorCount = projected;

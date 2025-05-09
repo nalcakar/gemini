@@ -46,25 +46,7 @@ function resetDailyVisitorDataIfNewDay() {
   }
 }
 
-function getVisitorData() {
-  resetDailyVisitorDataIfNewDay();
-  return JSON.parse(localStorage.getItem("visitorData"));
-}
 
-function getTotalVisitorItemsToday() {
-  const data = getVisitorData();
-  return data.generatedCount || 0;
-}
-
-function canVisitorGenerate(countNeeded = 1) {
-  const data = getVisitorData();
-  const totalItems = getTotalVisitorItemsToday();
-
-  const withinTitleLimit = data.titles.length < MAX_TITLES;
-  const withinItemLimit = totalItems + countNeeded <= MAX_ITEMS;
-
-  return withinTitleLimit && withinItemLimit;
-}
 
 
 function saveCurrentVisitorQuestions(titleName, questions, isKeyword = false) {
@@ -155,11 +137,7 @@ function disableGenerateUIForVisitors() {
 document.addEventListener("DOMContentLoaded", renderVisitorSavedContent);
 document.addEventListener("DOMContentLoaded", showVisitorUsageBadge);
 
-function incrementVisitorGeneratedCount(count = 1) {
-  const data = getVisitorData();
-  data.generatedCount = (data.generatedCount || 0) + count;
-  localStorage.setItem("visitorData", JSON.stringify(data));
-}
+
 
 
 async function showVisitorUsageBadge() {
@@ -189,9 +167,24 @@ async function showVisitorUsageBadge() {
     const parent = document.getElementById("quizOutput") || document.body;
     if (!document.getElementById("visitorUsageBadge")) {
       parent.prepend(badge);
+    } else {
+      document.getElementById("visitorUsageBadge").innerHTML = badge.innerHTML; // ✅ update content
     }
+    
   } catch (err) {
     console.warn("❌ Could not show visitor usage badge.");
   }
 }
 
+
+function getVisitorData() {
+  const raw = localStorage.getItem("visitorData");
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      console.error("Failed to parse visitorData", err);
+    }
+  }
+  return { date: "", titles: [], generatedCount: 0 };
+}

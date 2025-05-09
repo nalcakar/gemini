@@ -207,13 +207,16 @@ app.get("/visitor-usage", async (req, res) => {
   const redisKey = `visitor:${ip}:${today}`;
 
   try {
-    const usage = parseInt(await redisClient.get(redisKey)) || 0;
+    const raw = await redisClient.get(redisKey);
+    console.log("🔍 Visitor usage key value:", raw); // log live usage
+    const usage = parseInt(raw) || 0;
     res.json({ used: usage, max: 20 });
   } catch (err) {
     console.error("❌ Redis fetch error:", err);
     res.status(500).json({ error: "Redis error" });
   }
 });
+
 
 
 // === RATE LIMIT (Dakikada en fazla 10 istek) *****===
@@ -348,7 +351,7 @@ Rules:
     const estimatedCount = questionCount; // You may adjust if you have better logic
 
 // ⏱️ Increment before calling AI
-await incrementVisitorUsage(req, estimatedCount);
+
 const result = await model.generateContent(prompt);
     const raw = await result.response.text();
 
@@ -475,7 +478,7 @@ app.post("/generate-keywords", visitorLimitMiddleware, async (req, res) => {
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    await incrementVisitorUsage(req, keywordCount);
+   
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
     res.json({ keywords: text });
