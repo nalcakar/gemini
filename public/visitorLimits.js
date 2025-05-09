@@ -162,30 +162,36 @@ function incrementVisitorGeneratedCount(count = 1) {
 }
 
 
-function showVisitorUsageBadge() {
+async function showVisitorUsageBadge() {
   const isLoggedIn = !!localStorage.getItem("accessToken");
-  if (isLoggedIn) return; // Don't show for members
+  if (isLoggedIn) return;
 
-  const badge = document.getElementById("visitorUsageBadge") || document.createElement("div");
-  badge.id = "visitorUsageBadge";
+  try {
+    const res = await fetch("/visitor-usage");
+    if (!res.ok) throw new Error("Failed");
 
-  const used = getTotalVisitorItemsToday();
-  const remaining = Math.max(0, 20 - used);
+    const { used, max } = await res.json();
+    const badge = document.getElementById("visitorUsageBadge") || document.createElement("div");
+    badge.id = "visitorUsageBadge";
 
-  badge.innerHTML = `🎯 Visitor Usage: <strong>${used} / 20</strong> items today`;
-  badge.style = `
-    background: #fef3c7;
-    border: 1px solid #fcd34d;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-size: 15px;
-    text-align: center;
-    margin: 12px auto;
-    max-width: 400px;
-  `;
+    badge.innerHTML = `🎯 Visitor Usage: <strong>${used} / ${max}</strong> items today`;
+    badge.style = `
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      text-align: center;
+      margin: 12px auto;
+      max-width: 400px;
+    `;
 
-  const parent = document.getElementById("quizOutput") || document.body;
-  if (!document.getElementById("visitorUsageBadge")) {
-    parent.prepend(badge);
+    const parent = document.getElementById("quizOutput") || document.body;
+    if (!document.getElementById("visitorUsageBadge")) {
+      parent.prepend(badge);
+    }
+  } catch (err) {
+    console.warn("❌ Could not show visitor usage badge.");
   }
 }
+

@@ -156,12 +156,7 @@ async function generateFullQuiz() {
     }
 
     // ✅ Visitor count tracking
-    if (!isLoggedIn) {
-      incrementVisitorGeneratedCount(parsedQuestions.length);
-      setTimeout(() => {
-        showVisitorSaveUI("quizOutput", parsedQuestions, false);
-      }, 300);
-    }
+
 
     // 🧠 Render Questions
     const createControls = () => {
@@ -342,12 +337,7 @@ async function generateKeywords() {
     }
 
     // ✅ Increment count
-    if (!isLoggedIn) {
-      incrementVisitorGeneratedCount(keywordEntries.length);
-      setTimeout(() => {
-        showVisitorSaveUI("quizOutput", keywordEntries, true);
-      }, 300);
-    }
+  
 
     output.innerHTML = `<h3 style="text-align:center;">🔑 Generated Keywords:</h3>`;
 

@@ -201,6 +201,20 @@ app.post("/transcribe", upload.any(), async (req, res) => {
 });
 
 
+app.get("/visitor-usage", async (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.connection.remoteAddress;
+  const today = new Date().toISOString().split("T")[0];
+  const redisKey = `visitor:${ip}:${today}`;
+
+  try {
+    const usage = parseInt(await redisClient.get(redisKey)) || 0;
+    res.json({ used: usage, max: 20 });
+  } catch (err) {
+    console.error("❌ Redis fetch error:", err);
+    res.status(500).json({ error: "Redis error" });
+  }
+});
+
 
 // === RATE LIMIT (Dakikada en fazla 10 istek) *****===
 const limiter = rateLimit({
