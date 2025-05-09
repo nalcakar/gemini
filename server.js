@@ -202,13 +202,19 @@ app.post("/transcribe", upload.any(), async (req, res) => {
 
 
 app.get("/visitor-usage", async (req, res) => {
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.connection.remoteAddress;
+  let ip =
+    req.headers["x-forwarded-for"]?.split(",")[0] ||
+    req.socket?.remoteAddress || "unknown";
+
+  // fallback to local dev IP if invalid
+  if (!ip || ip === "::1" || ip === "127.0.0.1") ip = "localtest";
+
   const today = new Date().toISOString().split("T")[0];
   const redisKey = `visitor:${ip}:${today}`;
 
   try {
     const raw = await redisClient.get(redisKey);
-    console.log("🔍 Visitor usage key value:", raw); // log live usage
+    console.log("🔍 Visitor usage key value for", redisKey, "=", raw);
     const usage = parseInt(raw) || 0;
     res.json({ used: usage, max: 20 });
   } catch (err) {

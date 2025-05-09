@@ -149,6 +149,7 @@ async function showVisitorUsageBadge() {
     if (!res.ok) throw new Error("Failed");
 
     const { used, max } = await res.json();
+    console.log("📡 Visitor usage response:", used, "/", max);
     const badge = document.getElementById("visitorUsageBadge") || document.createElement("div");
     badge.id = "visitorUsageBadge";
 
