@@ -392,7 +392,7 @@ const result = await model.generateContent(prompt);
       };
     });
     
-    res.json({ questions: parsed });
+    res.json({ questions: parsed, usage: req.visitorCount || 0 });
     
   } catch (err) {
     console.error("Gemini Error:", err.message);
@@ -487,7 +487,7 @@ app.post("/generate-keywords", visitorLimitMiddleware, async (req, res) => {
    
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
-    res.json({ keywords: text });
+    res.json({ keywords: text, usage: req.visitorCount || 0 });
   } catch (err) {
     console.error("Gemini Keyword hata:", err.message);
     res.status(500).json({ error: "Anahtar kelimeler üretilemedi" });

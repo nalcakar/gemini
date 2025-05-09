@@ -139,6 +139,9 @@ async function generateFullQuiz() {
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
+    if (!isLoggedIn && typeof updateVisitorBadgeWithValue === "function") {
+      updateVisitorBadgeWithValue(data.usage || 0, 20);
+    }
 
     if (!Array.isArray(data.questions)) {
       throw new Error("Invalid response from AI");
@@ -256,7 +259,7 @@ async function generateFullQuiz() {
 
 
 // keywords***********
-async function generateFullQuiz() {
+async function generateKeywords() {
   const output = document.getElementById("quizOutput");
   if (output) output.innerHTML = "";
 
@@ -267,29 +270,32 @@ async function generateFullQuiz() {
     saveBox.dataset.loaded = "";
   }
 
-  let extractedText = getCurrentSectionText();
-  const lastSection = localStorage.getItem("lastSection");
+  const button = document.getElementById("generateKeywordsButton");
+  button.disabled = true;
+  button.textContent = "⏳ Generating Keywords...";
 
-  if (!extractedText || (lastSection !== "topic" && extractedText.trim().length < 10)) {
+  let extractedText = getCurrentSectionText();
+  if (!extractedText || extractedText.trim().length < 2) {
     alert("⚠️ Please paste or upload some text first.");
+    button.disabled = false;
+    button.textContent = "✨ Generate Keywords and Explanations";
     return;
   }
-
-  const button = event?.target || document.querySelector("#generateQuizButton");
-  button.disabled = true;
-  button.textContent = "⏳ Generating...";
 
   try {
     const accessToken = localStorage.getItem("accessToken") || "";
     const isLoggedIn = !!accessToken;
-
     const selectedLang = document.getElementById("languageSelect")?.value || "";
-    const topicFocus = document.getElementById("topicFocus")?.value.trim() || "";
-    const difficulty = document.getElementById("difficultySelect")?.value || "";
 
     localStorage.setItem("questionLangPref", selectedLang);
 
-    const res = await fetch("https://gemini-j8xd.onrender.com/generate-questions", {
+    // ✅ PRE-check: block before fetch if already at limit
+    if (!isLoggedIn && !canVisitorGenerate(5)) {
+      disableGenerateUIForVisitors();
+      return;
+    }
+
+    const res = await fetch("https://gemini-j8xd.onrender.com/generate-keywords", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -297,23 +303,48 @@ async function generateFullQuiz() {
       },
       body: JSON.stringify({
         mycontent: extractedText,
-        userLanguage: selectedLang,
-        userFocus: topicFocus,
-        difficulty
+        userLanguage: selectedLang
       }),
     });
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
 
-    if (!Array.isArray(data.questions)) {
+    if (!data.keywords || typeof data.keywords !== "string") {
       throw new Error("Invalid response from AI");
     }
 
-    const parsedQuestions = data.questions;
+    // ✅ Live badge update from server
+    if (!isLoggedIn && typeof updateVisitorBadgeWithValue === "function") {
+      updateVisitorBadgeWithValue(data.usage || 0, 20);
+    }
 
-    // === UI render ===
-    output.innerHTML = `<h3 style="text-align:center;">🎯 Generated Questions:</h3>`;
+    const keywordsRaw = data.keywords;
+    const keywordEntries = keywordsRaw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.startsWith("-"))
+      .map(line => {
+        const [keyword, ...explanationParts] = line.substring(1).split(":");
+        return {
+          question: (keyword || "").trim(),
+          answer: (explanationParts.join(":") || "").trim()
+        };
+      });
+
+    if (!isLoggedIn && !canVisitorGenerate(keywordEntries.length)) {
+      disableGenerateUIForVisitors();
+      return;
+    }
+
+    if (!isLoggedIn) {
+      incrementVisitorGeneratedCount(keywordEntries.length);
+      setTimeout(() => {
+        showVisitorSaveUI("quizOutput", keywordEntries, true);
+      }, 300);
+    }
+
+    output.innerHTML = `<h3 style="text-align:center;">🔑 Generated Keywords:</h3>`;
 
     const createControls = () => {
       const box = document.createElement("div");
@@ -327,95 +358,65 @@ async function generateFullQuiz() {
       return box;
     };
 
-    const topControls = createControls();
-    output.appendChild(topControls);
+    output.appendChild(createControls());
 
-    parsedQuestions.forEach((q, i) => {
+    keywordEntries.forEach((item, i) => {
       const details = document.createElement("details");
       details.className = "quiz-preview";
       details.style.maxWidth = "700px";
       details.style.margin = "15px auto";
       details.dataset.index = i;
-      details.dataset.difficulty = q.difficulty;
-
-      const badge = q.difficulty === "easy" ? "🟢 Easy"
-                  : q.difficulty === "hard" ? "🔴 Hard"
-                  : "🟡 Medium";
-
-      const questionHTML = `<span class="q" data-key="question" data-latex="${q.question.replace(/"/g, '&quot;')}">${q.question}</span>`;
-      const optionsHTML = q.options.map((opt, j) =>
-        `<li class="q" data-key="option${j + 1}" data-latex="${opt.replace(/"/g, '&quot;')}">${opt}</li>`
-      ).join("");
-      const answerHTML = `<span class="q" data-key="answer" data-latex="${q.answer.replace(/"/g, '&quot;')}">${q.answer}</span>`;
-      const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
 
       details.innerHTML = `
         <summary style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
-          ${isLoggedIn ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
+          <div><b>Keyword ${i + 1}:</b> ${item.question}</div>
+          <label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>
         </summary>
         <div style="margin-top: 8px; padding: 8px;">
-          <ul>${optionsHTML}</ul>
-          <p><strong>✅ Answer:</strong> ${answerHTML}</p>
-          <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
-          <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
-          <div style="margin-top: 8px;">
-            <button onclick="editQuestion(this)">✏️ Edit</button>
-            <button onclick="deleteQuestion(this)">🗑️ Delete</button>
-          </div>
+          <p><strong>💬 Explanation:</strong> ${item.answer}</p>
         </div>
       `;
 
       output.appendChild(details);
     });
 
-    const bottomControls = createControls();
-    output.appendChild(bottomControls);
-
-    const newTitleInput = document.getElementById("newTitleInput");
-    if (newTitleInput) newTitleInput.style.display = "none";
+    output.appendChild(createControls());
 
     if (window.MathJax?.typesetPromise) {
       window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
     }
 
-    if (isLoggedIn) {
-      if (saveBox) {
-        saveBox.style.display = "block";
-        saveBox.style.opacity = "1";
+    if (saveBox && isLoggedIn) {
+      saveBox.style.display = "block";
+      saveBox.style.opacity = "1";
 
-        if (!document.getElementById("saveInstructions")) {
-          const msg = document.createElement("p");
-          msg.id = "saveInstructions";
-          msg.textContent = "🎉 Continue to save the questions you selected below.";
-          msg.style = "font-weight: 500; font-size: 14px;";
-          saveBox.insertBefore(msg, saveBox.firstChild);
-        }
-
-        if (!saveBox.dataset.loaded) {
-          await loadMainTopics();
-          saveBox.dataset.loaded = "true";
-        }
+      if (!document.getElementById("saveInstructions")) {
+        const msg = document.createElement("p");
+        msg.id = "saveInstructions";
+        msg.textContent = "🎯 Select the keywords you want to save.";
+        msg.style = "font-weight: 500; font-size: 14px;";
+        saveBox.insertBefore(msg, saveBox.firstChild);
       }
-    } else {
-      showVisitorSaveUI("quizOutput", parsedQuestions, false); // ✅ re-enable visitor save input
+
+      if (!saveBox.dataset.loaded) {
+        await loadMainTopics();
+        saveBox.dataset.loaded = "true";
+      }
     }
 
   } catch (err) {
     console.error("❌ Error:", err);
-    alert(`❌ Failed to generate questions.\n${err.message}`);
+    alert(`❌ Failed to generate keywords.\n${err.message}`);
   }
 
   button.disabled = false;
-  button.textContent = "Generate Multiple Choice Questions";
+  button.textContent = "✨ Generate Keywords and Explanations";
 
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
-  if (typeof showVisitorUsageBadge === "function") {
-    showVisitorUsageBadge(); // ✅ refresh badge every time
-  }
 }
+
 
 
 
@@ -1792,6 +1793,11 @@ async function generateTopicKeywords() {
     });
 
     const data = await res.json();
+
+    const isLoggedIn = !!localStorage.getItem("accessToken");
+if (!isLoggedIn && typeof updateVisitorBadgeWithValue === "function") {
+  updateVisitorBadgeWithValue(data.usage || 0, 20);
+}
     if (!res.ok || !data.keywords || typeof data.keywords !== "string") {
       throw new Error("❌ Invalid response from AI");
     }
@@ -1881,5 +1887,30 @@ async function generateTopicKeywords() {
 
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
+  }
+}
+
+
+function updateVisitorBadgeWithValue(used, max) {
+  const badge = document.getElementById("visitorUsageBadge") || document.createElement("div");
+  badge.id = "visitorUsageBadge";
+
+  badge.innerHTML = `🎯 Visitor Usage: <strong>${used} / ${max}</strong> items today`;
+  badge.style = `
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 15px;
+    text-align: center;
+    margin: 12px auto;
+    max-width: 400px;
+  `;
+
+  const parent = document.getElementById("quizOutput") || document.body;
+  if (!document.getElementById("visitorUsageBadge")) {
+    parent.prepend(badge);
+  } else {
+    document.getElementById("visitorUsageBadge").innerHTML = badge.innerHTML;
   }
 }
