@@ -1,77 +1,12 @@
-const MAX_DAILY_LIMIT = 20;
-const DEFAULT_EXPECTED = 5;
-
-const { getVisitorIP } = require("./utils");
-
-async function visitorLimitMiddleware(req, res, next) {
-  const token = req.headers.authorization || "";
-  const isLoggedIn = token && token.startsWith("Bearer ");
-  if (isLoggedIn) return next();
-
-  const ip = getVisitorIP(req);
-  const today = new Date().toISOString().split("T")[0];
-  const redisKey = `visitor:${ip}:${today}`;
-
-  try {
-    const usage = parseInt(await redisClient.get(redisKey)) || 0;
-    const projected = usage + DEFAULT_EXPECTED;
-
-    if (projected > MAX_DAILY_LIMIT) {
-      return res.status(429).json({ error: "🚫 Daily visitor limit reached. Please log in to continue." });
-    }
-
-    await redisClient.incrBy(redisKey, DEFAULT_EXPECTED);
-    await redisClient.expire(redisKey, 86400);
-    req.visitorKey = redisKey;
-    req.visitorCount = projected;
-    next();
-
-  } catch (err) {
-    console.error("Redis error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-}
-
-
-const MAX_TITLES = 4;
-const MAX_ITEMS = 20;
-
-function resetDailyVisitorDataIfNewDay() {
-  const today = new Date().toISOString().split("T")[0];
-  const data = JSON.parse(localStorage.getItem("visitorData"));
-  if (!data || data.date !== today) {
-    localStorage.setItem("visitorData", JSON.stringify({ date: today, titles: [], generatedCount: 0 }));
-  } else if (!("generatedCount" in data)) {
-    data.generatedCount = data.titles.reduce((sum, t) => sum + t.questions.length, 0);
-    localStorage.setItem("visitorData", JSON.stringify(data));
-  }
-}
-
-
-
-
-function saveCurrentVisitorQuestions(titleName, questions, isKeyword = false) {
-  const data = getVisitorData();
-  if (data.titles.length >= MAX_TITLES) return false;
-
-  const trimmed = questions.slice(0, 5).map(q => ({
-    q: q.question,
-    a: q.answer,
-    explanation: q.explanation || "",
-    options: q.options || [],
-    difficulty: q.difficulty || ""
-  }));
-
-  data.titles.push({ name: titleName, questions: trimmed, isKeyword });
-  localStorage.setItem("visitorData", JSON.stringify(data));
-  return true;
-}
+// visitorLimits.js — Cleaned version without limits or badges
 
 function renderVisitorSavedContent() {
   const container = document.getElementById("visitorSavedSection");
-  const data = getVisitorData();
+  const raw = localStorage.getItem("visitorData");
+  if (!raw) return (container.innerHTML = "");
 
-  if (!data || !data.titles.length) {
+  const data = JSON.parse(raw);
+  if (!data || !data.titles?.length) {
     container.innerHTML = "";
     return;
   }
@@ -116,77 +51,29 @@ function renderVisitorSavedContent() {
     }).join("");
 }
 
-function disableGenerateUIForVisitors() {
-  const generateBtn = document.getElementById("generateQuizButton");
-  const keywordBtn = document.getElementById("generateKeywordsButton");
-  const note = document.getElementById("visitorLimitNote");
-
-  if (generateBtn) generateBtn.style.display = "none";
-  if (keywordBtn) keywordBtn.style.display = "none";
-
-  if (!note) {
-    const warning = document.createElement("div");
-    warning.id = "visitorLimitNote";
-    warning.style = "margin-top: 20px; padding: 14px; text-align:center; background:#fff3cd; border:1px solid #ffeeba; border-radius: 8px; font-size: 16px;";
-    warning.innerHTML = `⚠️ You’ve reached your daily visitor limit (4 titles / 20 questions or keywords).<br>🎁 <b><a href="/join" style="color:#0c63e4;">Join now</a></b> to unlock unlimited access.`;
-
-    const container = document.getElementById("quizOutput") || document.body;
-    container.appendChild(warning);
-  }
-}
-
 document.addEventListener("DOMContentLoaded", renderVisitorSavedContent);
-document.addEventListener("DOMContentLoaded", showVisitorUsageBadge);
 
 
+function saveCurrentVisitorQuestions(titleName, questions, isKeyword = false) {
+  const raw = localStorage.getItem("visitorData") || "{}";
+  const data = JSON.parse(raw);
+  const titles = data.titles || [];
 
+  if (titles.length >= 4) return false;
 
-async function showVisitorUsageBadge() {
-  const isLoggedIn = !!localStorage.getItem("accessToken");
-  if (isLoggedIn) return;
+  const trimmed = questions.slice(0, 5).map(q => ({
+    q: q.question,
+    a: q.answer,
+    explanation: q.explanation || "",
+    options: q.options || [],
+    difficulty: q.difficulty || ""
+  }));
 
-  try {
-    const res = await fetch("/visitor-usage");
-    if (!res.ok) throw new Error("Failed");
+  const updated = {
+    date: new Date().toISOString().split("T")[0],
+    titles: [...titles, { name: titleName, questions: trimmed, isKeyword }]
+  };
 
-    const { used, max } = await res.json();
-    console.log("📡 Visitor usage response:", used, "/", max);
-    const badge = document.getElementById("visitorUsageBadge") || document.createElement("div");
-    badge.id = "visitorUsageBadge";
-
-    badge.innerHTML = `🎯 Visitor Usage: <strong>${used} / ${max}</strong> items today`;
-    badge.style = `
-      background: #fef3c7;
-      border: 1px solid #fcd34d;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 15px;
-      text-align: center;
-      margin: 12px auto;
-      max-width: 400px;
-    `;
-
-    const parent = document.getElementById("quizOutput") || document.body;
-    if (!document.getElementById("visitorUsageBadge")) {
-      parent.prepend(badge);
-    } else {
-      document.getElementById("visitorUsageBadge").innerHTML = badge.innerHTML; // ✅ update content
-    }
-    
-  } catch (err) {
-    console.warn("❌ Could not show visitor usage badge.");
-  }
-}
-
-
-function getVisitorData() {
-  const raw = localStorage.getItem("visitorData");
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch (err) {
-      console.error("Failed to parse visitorData", err);
-    }
-  }
-  return { date: "", titles: [], generatedCount: 0 };
+  localStorage.setItem("visitorData", JSON.stringify(updated));
+  return true;
 }

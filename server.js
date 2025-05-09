@@ -1,6 +1,3 @@
-
-
-
 const pool = require("./pool");
 const express = require("express");
 const cors = require("cors");
@@ -12,7 +9,7 @@ const upload = multer({ dest: "uploads/" });
 const FormData = require("form-data");
 const fs = require("fs");
 const axios = require("axios");
-const { redisClient, visitorLimitMiddleware, incrementVisitorUsage } = require("./redis");
+
 const { franc } = require("franc");
 
 require("dotenv").config();
@@ -201,28 +198,11 @@ app.post("/transcribe", upload.any(), async (req, res) => {
 });
 
 
-const { getVisitorIP } = require("./utils");
-
-app.get("/visitor-usage", async (req, res) => {
-  const ip = getVisitorIP(req);
-  const today = new Date().toISOString().split("T")[0];
-  const redisKey = `visitor:${ip}:${today}`;
-
-  try {
-    const raw = await redisClient.get(redisKey);
-    const usage = parseInt(raw) || 0;
-    res.json({ used: usage, max: 20 });
-  } catch (err) {
-    res.status(500).json({ error: "Redis error" });
-  }
-});
-
-
 
 // === RATE LIMIT (Dakikada en fazla 10 istek) *****===
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 dakika
-  max: 30, // Dakikada 10 istek
+  max: 10, // Dakikada 10 istek
   message: { error: "Çok fazla istek gönderildi. Lütfen 1 dakika sonra tekrar deneyin." }
 });
 app.use("/generate-questions", limiter);
@@ -233,7 +213,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
-app.post("/generate-questions", visitorLimitMiddleware, async (req, res) => {
+app.post("/generate-questions", async (req, res) => {
   const { mycontent, userLanguage, userFocus, difficulty } = req.body;
   const user = req.user || {};
 
@@ -348,11 +328,7 @@ Rules:
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const estimatedCount = questionCount; // You may adjust if you have better logic
-
-// ⏱️ Increment before calling AI
-
-const result = await model.generateContent(prompt);
+    const result = await model.generateContent(prompt);
     const raw = await result.response.text();
 
     // Parse and map Gemini text to structured questions
@@ -386,7 +362,7 @@ const result = await model.generateContent(prompt);
       };
     });
     
-    res.json({ questions: parsed, usage: req.visitorCount || 0 });
+    res.json({ questions: parsed });
     
   } catch (err) {
     console.error("Gemini Error:", err.message);
@@ -399,7 +375,7 @@ const result = await model.generateContent(prompt);
 
 
 // === ANAHTAR KELİME ÜRETME ===
-app.post("/generate-keywords", visitorLimitMiddleware, async (req, res) => {
+app.post("/generate-keywords", async (req, res) => {
   const { mycontent, userLanguage, difficulty } = req.body;
   const user = req.user || {};
 
@@ -478,17 +454,16 @@ app.post("/generate-keywords", visitorLimitMiddleware, async (req, res) => {
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-   
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
-    res.json({ keywords: text, usage: req.visitorCount || 0 });
+    res.json({ keywords: text });
   } catch (err) {
     console.error("Gemini Keyword hata:", err.message);
     res.status(500).json({ error: "Anahtar kelimeler üretilemedi" });
   }
 });
 
-app.post("/generate-keywords-topic", visitorLimitMiddleware, async (req, res) => {
+app.post("/generate-keywords-topic", async (req, res) => {
   const { topic, focus, userLanguage, difficulty } = req.body;
   const user = req.user || {};
 
@@ -544,6 +519,7 @@ app.post("/generate-keywords-topic", visitorLimitMiddleware, async (req, res) =>
 
   const promptLanguage = isoMap[questionLanguage] || "English";
 
+  // 🧠 Topic-based prompt
   const prompt = `
 You are an expert educator.
 
@@ -559,26 +535,24 @@ Instructions:
 - List each translated keyword on a new line, starting with a dash (-).
 - After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
 - Explain how the keyword contributes to comprehension or application.
-- Don't include keyword in the explanation.
+- Don't include keyword in the explanation."1 
 - Do not include the original (non-translated) keywords.
 
 Format:
 - [Translated Keyword]: [Explanation in ${promptLanguage}]
 `;
 
+
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
-
-    res.json({ keywords: text, usage: req.visitorCount || 0 });
-
+    res.json({ keywords: text });
   } catch (err) {
     console.error("Gemini Keyword Topic hata:", err.message);
     res.status(500).json({ error: "Topic tabanlı anahtar kelimeler üretilemedi" });
   }
 });
-
 
 
 

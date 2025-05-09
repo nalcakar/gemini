@@ -136,10 +136,7 @@ async function generateFullQuiz() {
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
-
-    if (!Array.isArray(data.questions)) {
-      throw new Error("Invalid response from AI");
-    }
+    if (!Array.isArray(data.questions)) throw new Error("Invalid response from AI");
 
     const parsedQuestions = data.questions;
 
@@ -147,10 +144,10 @@ async function generateFullQuiz() {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
       box.innerHTML = `
-        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
-        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
-        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
-        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+        <button onclick="selectAllQuestions(true)">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)">📖 Show All</button>
+        <button onclick="expandAllDetails(false)">🔽 Collapse All</button>
       `;
       return box;
     };
@@ -168,49 +165,38 @@ async function generateFullQuiz() {
       details.dataset.index = i;
       details.dataset.difficulty = q.difficulty;
 
-      const badge = q.difficulty === "easy" ? "🟢 Easy"
-                  : q.difficulty === "hard" ? "🔴 Hard"
-                  : "🟡 Medium";
-
-      const questionHTML = `<span class="q" data-key="question" data-latex="${q.question.replace(/"/g, '&quot;')}">${q.question}</span>`;
-      const optionsHTML = q.options.map((opt, j) =>
-        `<li class="q" data-key="option${j + 1}" data-latex="${opt.replace(/"/g, '&quot;')}">${opt}</li>`
-      ).join("");
-      const answerHTML = `<span class="q" data-key="answer" data-latex="${q.answer.replace(/"/g, '&quot;')}">${q.answer}</span>`;
-      const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
+      const badge = q.difficulty === "easy" ? "🟢 Easy" : q.difficulty === "hard" ? "🔴 Hard" : "🟡 Medium";
 
       details.innerHTML = `
-        <summary style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
-          ${isLoggedIn ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
+        <summary style="display: flex; justify-content: space-between;">
+          <div><b>Q${i + 1}:</b> ${q.question}</div>
+          ${isLoggedIn ? `<label><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
         </summary>
-        <div style="margin-top: 8px; padding: 8px;">
-          <ul>${optionsHTML}</ul>
-          <p><strong>✅ Answer:</strong> ${answerHTML}</p>
-          <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
-          <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
-          <div style="margin-top: 8px;">
+        <div style="padding: 8px;">
+          <ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>
+          <p><strong>✅ Answer:</strong> ${q.answer}</p>
+          <p><strong>💡 Explanation:</strong> ${q.explanation}</p>
+          <p><strong>Difficulty:</strong> ${badge}</p>
+          <div>
             <button onclick="editQuestion(this)">✏️ Edit</button>
             <button onclick="deleteQuestion(this)">🗑️ Delete</button>
           </div>
         </div>
       `;
+
       output.appendChild(details);
     });
+
+    const newTitleInput = document.getElementById("newTitleInput");
+    if (newTitleInput) newTitleInput.style.display = "none";
 
     output.appendChild(bottomControls);
 
     if (window.MathJax?.typesetPromise) {
-      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+      window.MathJax.typesetPromise().catch(console.error);
     }
 
-    if (!isLoggedIn) {
-      setTimeout(() => {
-        showVisitorSaveUI("quizOutput", parsedQuestions, false);
-      }, 300);
-    }
-
-    if (saveBox && isLoggedIn) {
+    if (isLoggedIn && saveBox) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
 
@@ -228,23 +214,20 @@ async function generateFullQuiz() {
       }
     }
 
+    // ✅ Always show save input/button for visitors
+    if (!isLoggedIn) {
+      setTimeout(() => showVisitorSaveUI("quizOutput", parsedQuestions, false), 300);
+    }
+
   } catch (err) {
     console.error("❌ Error:", err);
-    alert(`❌ Failed to generate questions.\n${err.message}`);
+    alert(`❌ Failed to generate questions.\\n${err.message}`);
   }
 
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
-
-  if (typeof updateFloatingButtonVisibility === "function") {
-    updateFloatingButtonVisibility();
-  }
-
-  if (typeof showVisitorUsageBadge === "function") {
-    showVisitorUsageBadge();
-  }
+  if (typeof updateFloatingButtonVisibility === "function") updateFloatingButtonVisibility();
 }
-
 
 
 
@@ -281,33 +264,19 @@ async function generateKeywords() {
 
     localStorage.setItem("questionLangPref", selectedLang);
 
-    // ✅ PRE-check: block before fetch if already at limit
-    if (!isLoggedIn && !canVisitorGenerate(5)) {
-      disableGenerateUIForVisitors();
-      return;
-    }
-
     const res = await fetch("https://gemini-j8xd.onrender.com/generate-keywords", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify({
-        mycontent: extractedText,
-        userLanguage: selectedLang
-      }),
+      body: JSON.stringify({ mycontent: extractedText, userLanguage: selectedLang }),
     });
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
 
-    if (!data.keywords || typeof data.keywords !== "string") {
-      throw new Error("Invalid response from AI");
-    }
-
-    const keywordsRaw = data.keywords;
-    const keywordEntries = keywordsRaw
+    const keywordEntries = (data.keywords || "")
       .split("\n")
       .map(line => line.trim())
       .filter(line => line.startsWith("-"))
@@ -319,28 +288,16 @@ async function generateKeywords() {
         };
       });
 
-    if (!isLoggedIn && !canVisitorGenerate(keywordEntries.length)) {
-      disableGenerateUIForVisitors();
-      return;
-    }
-
-    if (!isLoggedIn) {
-      incrementVisitorGeneratedCount(keywordEntries.length);
-      setTimeout(() => {
-        showVisitorSaveUI("quizOutput", keywordEntries, true);
-      }, 300);
-    }
-
     output.innerHTML = `<h3 style="text-align:center;">🔑 Generated Keywords:</h3>`;
 
     const createControls = () => {
       const box = document.createElement("div");
       box.style = "margin: 10px 0; text-align: center;";
       box.innerHTML = `
-        <button onclick="selectAllQuestions(true)" style="margin:4px; padding:6px 12px;">✅ Select All</button>
-        <button onclick="selectAllQuestions(false)" style="margin:4px; padding:6px 12px;">❌ Clear Selections</button>
-        <button onclick="expandAllDetails(true)" style="margin:4px; padding:6px 12px;">📖 Show All</button>
-        <button onclick="expandAllDetails(false)" style="margin:4px; padding:6px 12px;">🔽 Collapse All</button>
+        <button onclick="selectAllQuestions(true)">✅ Select All</button>
+        <button onclick="selectAllQuestions(false)">❌ Clear Selections</button>
+        <button onclick="expandAllDetails(true)">📖 Show All</button>
+        <button onclick="expandAllDetails(false)">🔽 Collapse All</button>
       `;
       return box;
     };
@@ -355,25 +312,21 @@ async function generateKeywords() {
       details.dataset.index = i;
 
       details.innerHTML = `
-        <summary style="display: flex; justify-content: space-between; align-items: center;">
-          <div><b>Keyword ${i + 1}:</b> ${item.question}</div>
-          <label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>
-        </summary>
-        <div style="margin-top: 8px; padding: 8px;">
+        <summary><b>Keyword ${i + 1}:</b> ${item.question}</summary>
+        <div style="padding: 8px;">
           <p><strong>💬 Explanation:</strong> ${item.answer}</p>
         </div>
       `;
-
       output.appendChild(details);
     });
 
     output.appendChild(createControls());
 
     if (window.MathJax?.typesetPromise) {
-      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+      window.MathJax.typesetPromise().catch(console.error);
     }
 
-    if (saveBox && isLoggedIn) {
+    if (isLoggedIn && saveBox) {
       saveBox.style.display = "block";
       saveBox.style.opacity = "1";
 
@@ -391,23 +344,20 @@ async function generateKeywords() {
       }
     }
 
+    // ✅ Always show save input/button for visitors
+    if (!isLoggedIn) {
+      setTimeout(() => showVisitorSaveUI("quizOutput", keywordEntries, true), 300);
+    }
+
   } catch (err) {
     console.error("❌ Error:", err);
-    alert(`❌ Failed to generate keywords.\n${err.message}`);
+    alert(`❌ Failed to generate keywords.\\n${err.message}`);
   }
 
   button.disabled = false;
   button.textContent = "✨ Generate Keywords and Explanations";
-
-  if (typeof updateFloatingButtonVisibility === "function") {
-    updateFloatingButtonVisibility();
-  }
-
-  if (typeof showVisitorUsageBadge === "function") {
-    showVisitorUsageBadge();
-  }
+  if (typeof updateFloatingButtonVisibility === "function") updateFloatingButtonVisibility();
 }
-
 
 
 
@@ -1785,11 +1735,6 @@ async function generateTopicKeywords() {
     });
 
     const data = await res.json();
-
-    const isLoggedIn = !!localStorage.getItem("accessToken");
-if (!isLoggedIn && typeof updateVisitorBadgeWithValue === "function") {
-  updateVisitorBadgeWithValue(data.usage || 0, 20);
-}
     if (!res.ok || !data.keywords || typeof data.keywords !== "string") {
       throw new Error("❌ Invalid response from AI");
     }
@@ -1883,26 +1828,33 @@ if (!isLoggedIn && typeof updateVisitorBadgeWithValue === "function") {
 }
 
 
-function updateVisitorBadgeWithValue(used, max) {
-  const badge = document.getElementById("visitorUsageBadge") || document.createElement("div");
-  badge.id = "visitorUsageBadge";
+function showVisitorSaveUI(containerId, questions, isKeyword = false) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
 
-  badge.innerHTML = `🎯 Visitor Usage: <strong>${used} / ${max}</strong> items today`;
-  badge.style = `
-    background: #fef3c7;
-    border: 1px solid #fcd34d;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-size: 15px;
-    text-align: center;
-    margin: 12px auto;
-    max-width: 400px;
+  const saveUI = document.createElement("div");
+  saveUI.style = "margin-top: 30px; text-align: center;";
+
+  saveUI.innerHTML = `
+    <div style="margin-bottom: 10px;">
+      <input id="visitorTitleInput" type="text" placeholder="Enter a title to save..." 
+        style="padding: 10px; width: 80%; max-width: 400px; border-radius: 8px; border: 1px solid #ccc; font-size: 15px;" />
+    </div>
+    <button id="visitorSaveButton" style="padding: 10px 20px; font-size: 15px; border-radius: 6px; background: #2563eb; color: white; border: none; cursor: pointer;">
+      💾 Save Title
+    </button>
   `;
 
-  const parent = document.getElementById("quizOutput") || document.body;
-  if (!document.getElementById("visitorUsageBadge")) {
-    parent.prepend(badge);
-  } else {
-    document.getElementById("visitorUsageBadge").innerHTML = badge.innerHTML;
-  }
+  container.appendChild(saveUI);
+
+  document.getElementById("visitorSaveButton").onclick = () => {
+    const title = document.getElementById("visitorTitleInput").value.trim();
+    if (!title) return alert("⚠️ Please enter a title.");
+
+    // ✅ Save without checking limit
+    saveCurrentVisitorQuestions(title, questions, isKeyword);
+    renderVisitorSavedContent();
+
+    saveUI.innerHTML = `<p style="color:green; font-weight:500;">✅ Saved as "<b>${title}</b>"</p>`;
+  };
 }

@@ -23,8 +23,7 @@
     "passport": "^0.7.0",
     "passport-oauth2": "^1.8.0",
     "pg": "^8.14.1",
-    "pizzip": "^3.1.8",
-    "redis": "^5.0.1"
+    "pizzip": "^3.1.8"
   },
   "keywords": [],
   "author": "",
