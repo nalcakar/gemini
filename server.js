@@ -128,6 +128,24 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 }));
 
+// ✅ Route: /get-titles — Return titles for the logged-in user
+app.get("/get-titles", authMiddleware, async (req, res) => {
+  const user = req.user;
+  if (!user || !user.email) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, name FROM titles WHERE user_email = $1 ORDER BY id DESC",
+      [user.email]
+    );
+    res.json(rows); // ✅ Must be a pure JSON array
+  } catch (err) {
+    console.error("❌ /get-titles error:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 
 

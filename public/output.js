@@ -28,11 +28,9 @@ async function exportAsTXT() {
     const source = block.dataset.source || "";
 
     if (source === "keyword") {
-      // ✅ CEVAP sonra boşluk
       questionsPart += `${qNumber}. ✅ ${answerText}\n    __________\n\n`;
       answersPart += `${qNumber}. 🔄 ${questionText}\n   ✅ Answer: ${answerText}\n\n`;
     } else {
-      // MCQ normal biçim
       questionsPart += `${qNumber}. ${questionText}\n`;
       const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
         let cleanText = li.textContent.trim().replace(/^[A-D]\)\s*/, '');
@@ -51,100 +49,77 @@ async function exportAsTXT() {
   const blob = new Blob([finalText], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
+
+  // Clean up filename
+  const fileTitle = (currentTitleName || "questions").replace(/[\\/:*?"<>|]+/g, "_");
   a.href = url;
-  a.download = (currentTitleName || "questions") + ".txt";
+  a.download = fileTitle + ".txt";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
 
 
+
 async function exportAsWord() {
-  if (!currentTitleId) {
+  const container = document.getElementById("modalQuestionList");
+  if (!container) {
+    alert("⚠️ No questions loaded.");
+    return;
+  }
+
+  // ✅ Allow visitor titles using name only
+  if (!currentTitleId && (!currentTitleName || !currentTitleName.includes("Visitor"))) {
     alert("⚠️ Please select a Title first.");
     return;
   }
 
-  const container = document.getElementById("modalQuestionList");
-  if (!container) return alert("⚠️ No questions loaded.");
-
-  const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
-    block.querySelector("input[type='checkbox']")?.checked
-  );
-
-  if (selectedBlocks.length === 0) {
-    alert("⚠️ No flashcards or questions selected.");
+  const questionBlocks = container.querySelectorAll("details");
+  if (questionBlocks.length === 0) {
+    alert("⚠️ No questions found to export.");
     return;
   }
 
-  const questions = [];
+  let content = "=== QUESTIONS ===\n\n";
+  let answers = "=== ANSWERS ===\n\n";
 
-  selectedBlocks.forEach((block, index) => {
-    const source = block.dataset.source || "mcq";
-    const isKeyword = source === "keyword";
+  questionBlocks.forEach((block, index) => {
+    const qNumber = index + 1;
+    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
+    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+    const explanationText = block.querySelector("p:nth-of-type(2)")?.textContent.replace(/^💡 Explanation:\s*/, "").trim() || "";
+    const source = block.dataset.source || "";
 
-    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
-    const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
-    const answerText = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
-    const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
-    const explanationText = explanationSpan?.textContent.trim() || "";
+    content += `${qNumber}. ${questionText}\n`;
 
-    let a = "", b = "", c = "", d = "";
-
-    if (!isKeyword) {
-      const options = Array.from(block.querySelectorAll("ul li")).map((li) => li.textContent.trim());
-      a = options[0] || "";
-      b = options[1] || "";
-      c = options[2] || "";
-      d = options[3] || "";
-    }
-
-    if (isKeyword) {
-      questions.push({
-        index: index + 1,
-        question: `${answerText}`,
-        a: "", b: "", c: "", d: "",
-        answer: questionText,
-        explanation: explanationText,
-        is_keyword: true
-      });
+    if (source === "keyword") {
+      content += `______________________\n\n`;
+      answers += `${qNumber}. Correct Answer: ${answerText}\n\n`;
     } else {
-      questions.push({
-        index: index + 1,
-        question: questionText,
-        a, b, c, d,
-        answer: answerText,
-        explanation: explanationText,
-        is_keyword: false
-      });
+      const options = Array.from(block.querySelectorAll("ul li")).map((li, i) => {
+        const letter = String.fromCharCode(97 + i); // a, b, c...
+        return `${letter}) ${li.textContent}`;
+      }).join("\n");
+
+      content += options + "\n\n";
+      answers += `${qNumber}. Correct Answer: ${answerText}\nExplanation: ${explanationText}\n\n`;
     }
   });
 
-  try {
-    const response = await fetch("https://gemini-j8xd.onrender.com/generate-docx", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questions,
-        title: currentTitleName || "Quiz"
-      })
-    });
+  const fullDoc = content + "\n\n" + answers;
+  const blob = new Blob([fullDoc], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
 
-    if (!response.ok) throw new Error("❌ Failed to generate DOCX.");
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${currentTitleName || "quiz"}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch (err) {
-    console.error("Export error:", err);
-    alert("❌ Failed to generate Word file.");
-  }
+  const fileTitle = (currentTitleName || "Exported_Questions").replace(/[\\/:*?"<>|]+/g, "_");
+  a.href = url;
+  a.download = `${fileTitle}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
+
 
 
 

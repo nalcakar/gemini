@@ -27,6 +27,16 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+document.addEventListener("DOMContentLoaded", () => {
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
+
+  if (!token || !email) {
+    // 🧳 Not logged in → load visitor titles
+    loadTitles();
+  }
+});
+
 
 // editMode fonksiyonu dışarıda kalmalı
 function toggleEditMode() {
@@ -133,39 +143,119 @@ async function loadCategories(mainTopicId) {
 
 
 // 📝 3. Load Titles
-async function loadTitles(categoryId) {
-  const container = document.getElementById("titles");
-  container.innerHTML = "<h3>📝 Titles</h3><p>Loading...</p>";
+function loadTitles() {
+  const memberContainer = document.getElementById("titleList");
+  const visitorContainer = document.getElementById("visitorTitleList");
 
-  const res = await fetch(`${API}/list-titles?category_id=${categoryId}&email=${email}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  if (memberContainer) memberContainer.innerHTML = "";
+  if (visitorContainer) visitorContainer.innerHTML = "";
 
-  const data = await res.json();
-  const titles = Array.isArray(data) ? data : data.titles || [];
+  const token = localStorage.getItem("accessToken");
+  const email = localStorage.getItem("userEmail");
 
-  container.innerHTML = "<h3>📝 Titles</h3>";
+  // 🧳 Visitor mode: load only localStorage
+  if (!token || !email) {
+    loadVisitorOnlyTitles();
+    return;
+  }
 
-  // 🔥 Hide Categories, Show Titles
+  // 👤 Member mode: fetch from server
+  fetch("/get-titles", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then(async res => {
+      // 🔒 Unauthorized – logout and fallback to visitor mode
+      if (res.status === 401) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("userEmail");
+        alert("⚠️ Session expired. Switching to visitor mode.");
+        loadVisitorOnlyTitles();
+        return [];
+      }
 
+      // ❌ Any other non-OK status
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Status ${res.status}: ${text.slice(0, 100)}`);
+      }
 
+      // ❌ HTML instead of JSON
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        throw new Error(`Expected JSON but got HTML:\n${text.slice(0, 100)}`);
+      }
 
+      return res.json();
+    })
+    .then(data => {
+      if (!Array.isArray(data) || data.length === 0) {
+        if (memberContainer) {
+          memberContainer.innerHTML = "<p style='text-align:center;'>❌ No titles found.</p>";
+        }
+      } else {
+        data.forEach(title => {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.textContent = title.name;
+          div.onclick = () => {
+            currentTitleId = title.id;
+            currentTitleName = title.name;
+            highlightSelected(div, "titles");
+            loadQuestionsByTitleName(title.name);
+          };
+          memberContainer.appendChild(div);
+        });
+      }
 
-  titles.forEach(title => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.textContent = title.name;
-    div.onclick = () => {
-      currentTitleId = title.id;
-      currentTitleName = title.name; // ✅ add this!
-      highlightSelected(div, "titles");
-      loadQuestionsByTitleName(title.name);
-    };
-    container.appendChild(div);
-  });
-
-  if (editMode) renderEditControls();
+      // 🔄 Show visitor titles alongside member ones
+      loadVisitorOnlyTitles();
+    })
+    .catch(err => {
+      console.error("❌ Error loading titles:", err.message || err);
+      if (memberContainer) {
+        memberContainer.innerHTML = `
+          <p style='text-align:center; color:red;'>
+            ❌ Failed to load titles.<br>${err.message || "Unknown error"}
+          </p>`;
+      }
+    });
 }
+
+
+
+function loadVisitorOnlyTitles() {
+  const visitorContainer = document.getElementById("visitorTitleList");
+  if (!visitorContainer) return;
+  visitorContainer.innerHTML = "";
+
+  const visitorRaw = localStorage.getItem("visitorData");
+  if (!visitorRaw) return;
+
+  try {
+    const visitorData = JSON.parse(visitorRaw);
+    if (visitorData?.titles?.length) {
+      visitorData.titles.forEach((vt, i) => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.textContent = vt.name + " (Visitor)";
+        div.onclick = () => {
+          currentTitleId = null;
+          currentTitleName = vt.name + " (Visitor)";
+          highlightSelected(div, "titles");
+          loadVisitorQuestions(vt);
+        };
+        visitorContainer.appendChild(div);
+      });
+    }
+  } catch (e) {
+    console.warn("⚠️ Visitor titles parse error:", e);
+  }
+}
+
+
 
 async function renameMainTopic() {
   if (!currentMainTopicId) return alert("⚠️ Select a main topic first.");
@@ -322,6 +412,74 @@ document.getElementById("selectAllWrapper").style.display = "block";
   loadRecentTexts(currentTitleId);
 }
 
+function loadVisitorQuestions(visitorTitleObj) {
+  const container = document.getElementById("modalQuestionList");
+  container.innerHTML = "";
+
+  const statsBox = document.createElement("div");
+  statsBox.id = "statsBox";
+  statsBox.style = "margin-bottom:12px; font-weight:500; text-align:center;";
+  container.appendChild(statsBox);
+
+  const questions = visitorTitleObj.questions || [];
+  const isKeyword = visitorTitleObj.isKeyword || false;
+  const total = questions.length;
+  statsBox.innerHTML = `📊 Total Questions: <strong>${total}</strong>`;
+
+  const createControls = () => {
+    const box = document.createElement("div");
+    box.style = "margin: 10px 0; text-align: center;";
+    box.innerHTML = `
+      <button onclick="selectAllQuestions(true)">✅ Select All</button>
+      <button onclick="selectAllQuestions(false)">❌ Clear Selections</button>
+      <button onclick="expandAllDetails(true)">📖 Show All</button>
+      <button onclick="expandAllDetails(false)">🔽 Collapse All</button>
+    `;
+    return box;
+  };
+
+  container.appendChild(createControls());
+
+  questions.forEach((q, i) => {
+    const block = document.createElement("details");
+    block.className = "question-card";
+    block.dataset.index = i;
+    block.dataset.source = isKeyword ? "keyword" : "mcq";
+    block.dataset.selected = "true";
+
+    const badge = q.difficulty === "easy" ? "🟢 Easy"
+                : q.difficulty === "hard" ? "🔴 Hard"
+                : "🟡 Medium";
+
+    block.innerHTML = `
+      <summary>
+        Q${i + 1}. <span class="q" data-key="question">${q.q}</span>
+        <label style="float:right;">
+          <input type="checkbox" class="qcheck" checked onchange="toggleHighlight(this)"> ✅
+        </label>
+      </summary>
+      <div style="margin-top: 8px; padding: 8px;">
+        ${
+          isKeyword
+            ? `<p><strong>💬 Explanation:</strong> ${q.a}</p>`
+            : `
+          <ul>${(q.options || []).map(opt => `<li>${opt}</li>`).join("")}</ul>
+          <p><strong>✅ Answer:</strong> ${q.a}</p>
+          <p><strong>💡 Explanation:</strong> ${q.explanation}</p>
+          <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>`
+        }
+      </div>
+    `;
+
+    container.appendChild(block);
+  });
+
+  container.appendChild(createControls());
+
+  if (window.MathJax?.typesetPromise) {
+    MathJax.typesetPromise().catch(console.error);
+  }
+}
 
 
 

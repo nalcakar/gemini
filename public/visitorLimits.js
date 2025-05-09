@@ -1,7 +1,15 @@
 // visitorLimits.js — Cleaned version without limits or badges
 
 function renderVisitorSavedContent() {
+  const isLoggedIn = !!localStorage.getItem("accessToken");
   const container = document.getElementById("visitorSavedSection");
+
+  // 🔒 If user is logged in, hide visitor section
+  if (isLoggedIn) {
+    if (container) container.style.display = "none";
+    return;
+  }
+
   const raw = localStorage.getItem("visitorData");
   if (!raw) return (container.innerHTML = "");
 
@@ -11,29 +19,28 @@ function renderVisitorSavedContent() {
     return;
   }
 
+  container.style.display = "block"; // 👈 re-show if previously hidden
+
   container.innerHTML = `<h3 style="text-align:center; margin-bottom:20px;">📘 Your Saved Titles (Visitor)</h3>` +
     data.titles.map((t, i) => {
       const questionsHTML = t.questions.map((q, index) => {
         if (t.isKeyword) {
           return `
-          <details class="quiz-preview" style="max-width:700px; margin:15px auto;">
+          <details class="quiz-preview">
             <summary><b>Keyword ${index + 1}:</b> ${q.q}</summary>
-            <div style="padding: 8px;">
-              <p><strong>💬 Explanation:</strong> ${q.a}</p>
-            </div>
+            <div><p><strong>💬 Explanation:</strong> ${q.a}</p></div>
           </details>`;
         } else {
           const badge = q.difficulty === "easy" ? "🟢 Easy"
                       : q.difficulty === "hard" ? "🔴 Hard"
                       : "🟡 Medium";
           const options = q.options?.length
-            ? `<ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>`
-            : "";
+            ? `<ul>${q.options.map(opt => `<li>${opt}</li>`).join("")}</ul>` : "";
 
           return `
-          <details class="quiz-preview" style="max-width:700px; margin:15px auto;">
+          <details class="quiz-preview">
             <summary><b>Q${index + 1}:</b> ${q.q}</summary>
-            <div style="padding: 8px;">
+            <div>
               ${options}
               <p><strong>✅ Answer:</strong> ${q.a}</p>
               <p><strong>💡 Explanation:</strong> ${q.explanation}</p>
@@ -50,6 +57,7 @@ function renderVisitorSavedContent() {
         </div>`;
     }).join("");
 }
+
 
 document.addEventListener("DOMContentLoaded", renderVisitorSavedContent);
 
