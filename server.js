@@ -205,7 +205,7 @@ app.post("/transcribe", upload.any(), async (req, res) => {
 // === RATE LIMIT (Dakikada en fazla 10 istek) *****===
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 dakika
-  max: 10, // Dakikada 10 istek
+  max: 30, // Dakikada 10 istek
   message: { error: "Çok fazla istek gönderildi. Lütfen 1 dakika sonra tekrar deneyin." }
 });
 app.use("/generate-questions", limiter);
