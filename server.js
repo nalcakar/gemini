@@ -386,7 +386,7 @@ app.post("/generate-keywords", async (req, res) => {
   };
 
   const userTier = user.tier;
-  const keywordCount = tierKeywordCounts[userTier] || 5;
+  const keywordCount = tierKeywordCounts[userTier] || 8;
 
   // 🌐 Language detection and mapping
   const langCode = franc(mycontent || "");
@@ -439,7 +439,7 @@ app.post("/generate-keywords", async (req, res) => {
   Instructions:
   - Translate the keywords and explanations into ${promptLanguage}.
   - List each keyword on a new line, starting with a dash (-).
-  - After the translated keyword, write a colon and give a 2–3 sentence explanation about its meaning in the context of the passage.
+  - After the translated keyword, write a colon and give a 2–3 sentence explanation about its meaning **in the context of the passage**.
   - Do not include the original (source language) keyword.
   - Avoid dictionary definitions — explain how the keyword is used in this specific text.
   
@@ -533,9 +533,8 @@ Instructions:
 - Translate the keywords and explanations into ${promptLanguage}.
 - Each keyword must be significant for learners to grasp the subject well.
 - List each translated keyword on a new line, starting with a dash (-).
-- After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
-- Explain how the keyword contributes to comprehension or application.
-- Don't include keyword in the explanation."1 
+- After the keyword, add a colon and give a **2–3 sentence educational explanation** that highlights why it is important in the context of the topic.
+- Avoid dictionary definitions. Instead, explain how the keyword contributes to comprehension or application.
 - Do not include the original (non-translated) keywords.
 
 Format:
