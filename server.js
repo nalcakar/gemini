@@ -147,7 +147,7 @@ async function generateWithAI({ mycontent, userLanguage, userFocus, difficulty, 
   const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
   const promptLanguage = isoMap[questionLanguage] || "English";
 
-  const count = 10; // default for visitor
+  const count = 5; // default for visitor
 
   let prompt = "";
 
