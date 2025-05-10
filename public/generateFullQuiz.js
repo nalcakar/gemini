@@ -1801,3 +1801,33 @@ async function generateTopicKeywords() {
     updateFloatingButtonVisibility();
   }
 }
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const isVisitor = !localStorage.getItem("accessToken");
+
+  const quizBtn = document.getElementById("generateQuizButton");
+  const keywordBtn = document.getElementById("generateKeywordsButton");
+
+  if (isVisitor) {
+    quizBtn.onclick = generateVisitorQuestions;
+    keywordBtn.onclick = () => {
+      const lastSection = localStorage.getItem("lastSection");
+      if (lastSection === "topic") {
+        generateVisitorKeywords(); // reuse same for topic and general
+      } else {
+        generateVisitorKeywords();
+      }
+    };
+  } else {
+    quizBtn.onclick = generateFullQuiz;
+    keywordBtn.onclick = () => {
+      const lastSection = localStorage.getItem("lastSection");
+      if (lastSection === "topic") {
+        generateTopicKeywords();
+      } else {
+        generateKeywords();
+      }
+    };
+  }
+});

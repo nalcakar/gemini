@@ -438,18 +438,19 @@ details summary {
     </select>
   </div>
   
-  <button id="generateQuizButton" onclick="generateFullQuiz()" class="generate-btn">
-    Generate Multiple Choice Questions
-  </button>
-  <button id="generateKeywordsButton"
-  onclick="localStorage.getItem('lastSection') === 'topic' ? generateTopicKeywords() : generateKeywords()"
-  class="generate-btn"
-  style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-top: 12px;">
-✨ Generate Keywords and Explanations
+<!-- Question Generation Button -->
+<button id="generateQuizButton" class="generate-btn">
+  Generate Multiple Choice Questions
+</button>
+
+<!-- Keyword Generation Button -->
+<button id="generateKeywordsButton" class="generate-btn" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); margin-top: 12px;">
+  ✨ Generate Keywords and Explanations
 </button>
 
   
 </div>
+<div id="visitorUsageBadge" style="text-align:center; font-weight:bold; margin-top:10px; color:#dc2626;"></div>
 
 <!-- Soruların çıktısı -->
 <div id="quizOutput" style="margin-top: 20px;"></div>
@@ -507,7 +508,7 @@ details summary {
 <script src="imageReader.js"></script>
 <script src="generateFullQuiz.js"></script>
 <script src="questionEditor.js"></script>
-
+<script src="visitorFunctions.js"></script>
 <script>
 
 

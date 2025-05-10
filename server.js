@@ -2,7 +2,7 @@ const pool = require("./pool");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const rateLimit = require("express-rate-limit");
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
