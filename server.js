@@ -18,6 +18,59 @@ const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const app = express();
 
+const rateLimit = require("express-rate-limit");
+const Redis = require("ioredis");
+const redis = new Redis(); // Adjust config if needed
+
+const VISITOR_LIMIT = 30;
+
+// Middleware to count visitor usage based on IP
+async function checkVisitorLimit(req, res, next) {
+  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const today = new Date().toISOString().split("T")[0];
+  const key = `visitor:${ip}:${today}`;
+
+  const count = await redis.incr(key);
+  if (count === 1) {
+    await redis.expire(key, 86400); // 24 hours
+  }
+
+  req.visitorUsage = { count, max: VISITOR_LIMIT };
+
+  if (count > VISITOR_LIMIT) {
+    return res.status(429).json({ error: "Daily limit reached.", usage: req.visitorUsage });
+  }
+
+  next();
+}
+
+// New visitor route for questions
+app.post("/visitor/generate-questions", checkVisitorLimit, async (req, res) => {
+  const { mycontent, userLanguage, userFocus, difficulty } = req.body;
+
+  try {
+    // AI call logic here...
+    const questions = await generateWithAI({ mycontent, userLanguage, userFocus, difficulty, type: "mcq" });
+
+    return res.json({ questions, usage: req.visitorUsage });
+  } catch (err) {
+    return res.status(500).json({ error: "AI generation failed", usage: req.visitorUsage });
+  }
+});
+
+// New visitor route for keywords
+app.post("/visitor/generate-keywords", checkVisitorLimit, async (req, res) => {
+  const { mycontent, userLanguage, difficulty } = req.body;
+
+  try {
+    const keywords = await generateWithAI({ mycontent, userLanguage, difficulty, type: "keyword" });
+
+    return res.json({ keywords, usage: req.visitorUsage });
+  } catch (err) {
+    return res.status(500).json({ error: "AI keyword generation failed", usage: req.visitorUsage });
+  }
+});
+
 app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const fetch = require("node-fetch");

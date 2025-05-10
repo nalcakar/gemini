@@ -23,16 +23,32 @@ async function exportAsTXT() {
 
   selectedBlocks.forEach((block, index) => {
     const qNumber = index + 1;
-    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNumber}`;
-    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
     const source = block.dataset.source || "";
 
+    const questionSpan = block.querySelector("summary .q[data-key='question']") || block.querySelector("summary");
+    const questionText = questionSpan?.textContent.replace(/^Q\d+\.\s*/, "").trim() || `Question ${qNumber}`;
+
+    const answerText = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+
+    let explanationText = "No explanation.";
+    const explanationEl = block.querySelector("p:nth-of-type(2)") || block.querySelector(".q[data-key='explanation']");
+    if (explanationEl) {
+      explanationText = explanationEl.textContent.replace(/^💡 Explanation:\s*/, "").trim();
+    }
+
+    let answerLetter = "";
+    if (source !== "keyword") {
+      const options = Array.from(block.querySelectorAll("ul li"));
+      const foundIndex = options.findIndex(li => li.textContent.trim() === answerText);
+      if (foundIndex >= 0) {
+        answerLetter = ` (${String.fromCharCode(65 + foundIndex)})`;
+      }
+    }
+
     if (source === "keyword") {
-      // ✅ CEVAP sonra boşluk
-      questionsPart += `${qNumber}. ✅ ${answerText}\n    __________\n\n`;
-      answersPart += `${qNumber}. 🔄 ${questionText}\n   ✅ Answer: ${answerText}\n\n`;
+      questionsPart += `${qNumber}. ${questionText}\n______________________\n\n`;
+      answersPart += `${qNumber}. ✅ Answer: ${answerText}\n💡 ${explanationText}\n\n`;
     } else {
-      // MCQ normal biçim
       questionsPart += `${qNumber}. ${questionText}\n`;
       const options = Array.from(block.querySelectorAll("ul li")).map((li, idx) => {
         let cleanText = li.textContent.trim().replace(/^[A-D]\)\s*/, '');
@@ -40,9 +56,7 @@ async function exportAsTXT() {
       }).join("\n");
       questionsPart += `${options}\n\n`;
 
-      const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
-      const explanationText = explanationSpan?.textContent.trim() || "No explanation.";
-      answersPart += `${qNumber}. ✅ Correct Answer: ${answerText}\n💡 Explanation: ${explanationText}\n\n`;
+      answersPart += `${qNumber}. ✅ Correct Answer: ${answerText}${answerLetter}\n💡 Explanation: ${explanationText}\n\n`;
     }
   });
 
@@ -57,6 +71,7 @@ async function exportAsTXT() {
   a.click();
   document.body.removeChild(a);
 }
+
 
 
 async function exportAsWord() {
@@ -83,13 +98,20 @@ async function exportAsWord() {
     const source = block.dataset.source || "mcq";
     const isKeyword = source === "keyword";
 
-    const questionText = block.querySelector("summary .q")?.textContent.trim() || `Question ${index + 1}`;
+    const questionSpan = block.querySelector("summary .q[data-key='question']") || block.querySelector("summary");
+    const questionText = questionSpan?.textContent.replace(/^Q\d+\.\s*/, "").trim() || `Question ${index + 1}`;
+
     const answerParagraph = Array.from(block.querySelectorAll("p")).find(p => p.textContent.includes("Answer"));
-    const answerText = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
-    const explanationSpan = block.querySelector(".q[data-key='explanation']") || block.querySelector("p:nth-of-type(2) span");
-    const explanationText = explanationSpan?.textContent.trim() || "";
+    const answerTextRaw = answerParagraph?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
+
+    let explanationText = "";
+    const explanationEl = block.querySelector("p:nth-of-type(2)") || block.querySelector(".q[data-key='explanation']");
+    if (explanationEl) {
+      explanationText = explanationEl.textContent.replace(/^💡 Explanation:\s*/, "").trim();
+    }
 
     let a = "", b = "", c = "", d = "";
+    let answerLetter = "";
 
     if (!isKeyword) {
       const options = Array.from(block.querySelectorAll("ul li")).map((li) => li.textContent.trim());
@@ -97,12 +119,19 @@ async function exportAsWord() {
       b = options[1] || "";
       c = options[2] || "";
       d = options[3] || "";
+
+      const foundIndex = options.findIndex(opt => opt === answerTextRaw);
+      if (foundIndex >= 0) {
+        answerLetter = ` (${String.fromCharCode(65 + foundIndex)})`;
+      }
     }
+
+    const answerFinal = answerTextRaw + answerLetter;
 
     if (isKeyword) {
       questions.push({
         index: index + 1,
-        question: `${answerText}`,
+        question: `${answerTextRaw}`,
         a: "", b: "", c: "", d: "",
         answer: questionText,
         explanation: explanationText,
@@ -113,7 +142,7 @@ async function exportAsWord() {
         index: index + 1,
         question: questionText,
         a, b, c, d,
-        answer: answerText,
+        answer: answerFinal,
         explanation: explanationText,
         is_keyword: false
       });
@@ -145,6 +174,7 @@ async function exportAsWord() {
     alert("❌ Failed to generate Word file.");
   }
 }
+
 
 
 
@@ -444,20 +474,28 @@ function showPreviewModal(type) {
   let preview = "";
   selectedBlocks.forEach((block, index) => {
     const qNum = index + 1;
-    const question = block.querySelector("summary .q")?.textContent.trim() || `Question ${qNum}`;
     const source = block.dataset.source || "";
+    
+    const questionSpan = block.querySelector("summary .q[data-key='question']") || block.querySelector("summary");
+    const questionText = questionSpan?.textContent.replace(/^Q\d+\.\s*/, "").trim() || `Question ${qNum}`;
+
     const answer = block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() || "No answer";
 
-    preview += `${qNum}. ${answer}\n`;
+    let explanation = "No explanation.";
+    const explanationEl = block.querySelector("p:nth-of-type(2)") || block.querySelector(".q[data-key='explanation']");
+    if (explanationEl) {
+      explanation = explanationEl.textContent.replace(/^💡 Explanation:\s*/, "").trim();
+    }
 
     if (source === "keyword") {
-      preview += `______________________\nAnswer: ${question}\n\n`;
+      preview += `${qNum}. ${questionText}\n______________________\n✅ Answer: ${answer}\n💡 ${explanation}\n\n`;
     } else {
       const options = Array.from(block.querySelectorAll("ul li")).map((li, i) => {
         let text = li.textContent.trim();
         return `${String.fromCharCode(65 + i)}) ${text}`;
       }).join("\n");
-      preview += `${options}\nAnswer: ${answer}\n\n`;
+
+      preview += `${qNum}. ${questionText}\n${options}\n✅ Answer: ${answer}\n💡 ${explanation}\n\n`;
     }
   });
 
@@ -465,6 +503,7 @@ function showPreviewModal(type) {
   document.getElementById("exportPreviewModal").style.display = "block";
   window.pendingExportType = type; // store pending type
 }
+
 
 function closePreviewModal() {
   document.getElementById("exportPreviewModal").style.display = "none";
