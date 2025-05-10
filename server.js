@@ -17,7 +17,17 @@ require("dotenv").config();
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const app = express();
-
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+}));
 const rateLimit = require("express-rate-limit");
 const Redis = require("ioredis");
 const redis = new Redis(process.env.REDIS_URL); // ✅ secure and dynamic
@@ -282,17 +292,7 @@ app.use(async (req, res, next) => {
   next();
 });
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
-}));
+
 
 
 
