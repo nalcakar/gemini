@@ -20,7 +20,8 @@ const app = express();
 
 const rateLimit = require("express-rate-limit");
 const Redis = require("ioredis");
-const redis = new Redis(); // Adjust config if needed
+const redis = new Redis(process.env.REDIS_URL); // ✅ secure and dynamic
+
 
 const VISITOR_LIMIT = 30;
 
