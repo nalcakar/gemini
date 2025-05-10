@@ -38,21 +38,26 @@ const redis = new Redis(process.env.REDIS_URL); // ✅ secure and dynamic
 
 const VISITOR_LIMIT = 30;
 
-// Middleware to count visitor usage based on IP
+// 🎯 Track how many questions a visitor has generated today
 async function checkVisitorLimit(req, res, next) {
   const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
   const today = new Date().toISOString().split("T")[0];
-  const key = `visitor:${ip}:${today}`;
+  const key = `visitor:count:${ip}:${today}`;
 
-  const count = await redis.incr(key);
-  if (count === 1) {
-    await redis.expire(key, 86400); // 24 hours
-  }
+  let currentCount = await redis.get(key);
+  currentCount = parseInt(currentCount || "0", 10);
 
-  req.visitorUsage = { count, max: VISITOR_LIMIT };
+  req.visitorUsage = { count: currentCount, max: VISITOR_LIMIT };
+  req.visitorKey = key;
+  req.visitorCount = currentCount;
 
-  if (count > VISITOR_LIMIT) {
-    return res.status(429).json({ error: "Daily limit reached.", usage: req.visitorUsage });
+  if (currentCount >= VISITOR_LIMIT) {
+    return res.status(429).json({
+      error: "❌ Daily limit of 30 questions reached.",
+      usage: req.visitorUsage
+      
+    });
+    console.log("🔍 Visitor usage key:", key, "→", currentCount);
   }
 
   next();
@@ -63,13 +68,29 @@ app.post("/visitor/generate-questions", checkVisitorLimit, async (req, res) => {
   const { mycontent, userLanguage, userFocus, difficulty } = req.body;
 
   try {
-    const questions = await generateWithAI({ mycontent, userLanguage, userFocus, difficulty, type: "mcq" });
+    const questions = await generateWithAI({
+      mycontent,
+      userLanguage,
+      userFocus,
+      difficulty,
+      type: "mcq"
+    });
 
-    return res.json({ questions, usage: req.visitorUsage }); // ✅ PATCHED
+    const added = questions.length;
+    const newCount = req.visitorCount + added;
+
+    await redis.set(req.visitorKey, newCount, "EX", 86400); // expire in 1 day
+    req.visitorUsage.count = newCount;
+
+    return res.json({ questions, usage: req.visitorUsage });
   } catch (err) {
-    return res.status(500).json({ error: "AI generation failed", usage: req.visitorUsage });
+    return res.status(500).json({
+      error: "AI generation failed",
+      usage: req.visitorUsage
+    });
   }
 });
+
 
 
 // New visitor route for keywords
@@ -77,13 +98,29 @@ app.post("/visitor/generate-keywords", checkVisitorLimit, async (req, res) => {
   const { mycontent, userLanguage, difficulty } = req.body;
 
   try {
-    const keywords = await generateWithAI({ mycontent, userLanguage, difficulty, type: "keyword" });
+    const keywords = await generateWithAI({
+      mycontent,
+      userLanguage,
+      difficulty,
+      type: "keyword"
+    });
 
-    return res.json({ keywords, usage: req.visitorUsage }); // ✅ PATCHED
+    const keywordLines = keywords.split("\n").filter(line => line.trim().startsWith("-"));
+    const added = keywordLines.length;
+    const newCount = req.visitorCount + added;
+
+    await redis.set(req.visitorKey, newCount, "EX", 86400); // expire in 1 day
+    req.visitorUsage.count = newCount;
+
+    return res.json({ keywords, usage: req.visitorUsage });
   } catch (err) {
-    return res.status(500).json({ error: "AI keyword generation failed", usage: req.visitorUsage });
+    return res.status(500).json({
+      error: "AI keyword generation failed",
+      usage: req.visitorUsage
+    });
   }
 });
+
 
 async function generateWithAI({ mycontent, userLanguage, userFocus, difficulty, type = "mcq" }) {
   const langCode = franc(mycontent || "");
