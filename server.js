@@ -17,6 +17,8 @@ require("dotenv").config();
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const app = express();
+// ✅ JSON parse işlemi
+app.use(express.json());
 const allowedOrigins = ["https://doitwithai.org", "http://localhost:3001"];
 app.use(cors({
   origin: function (origin, callback) {
@@ -298,8 +300,7 @@ app.use(async (req, res, next) => {
 
 
 
-// ✅ JSON parse işlemi
-app.use(express.json());
+
 
 // ✅ Patreon token'ı doğrulayan fonksiyon
 async function verifyPatreonToken(token) {
