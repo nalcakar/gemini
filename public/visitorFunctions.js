@@ -1,5 +1,12 @@
 
-// 🎯 Visitor Limit = 30 per day (tracked via Redis)
+
+// 🧠 Ensure a stable anonymous visitor ID is created and stored
+if (!localStorage.getItem("visitorId")) {
+  const id = "v_" + Math.random().toString(36).substring(2, 12);
+  localStorage.setItem("visitorId", id);
+}
+const VISITOR_ID = localStorage.getItem("visitorId");
+
 
 async function generateVisitorQuestions() {
   const extractedText = getCurrentSectionText();
@@ -13,11 +20,15 @@ async function generateVisitorQuestions() {
   const difficulty = document.getElementById("difficultySelect")?.value || "";
 
   try {
-    const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-questions", {
+     const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-questions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Visitor-ID": VISITOR_ID
+      },
       body: JSON.stringify({ mycontent: extractedText, userLanguage: lang, userFocus: focus, difficulty })
     });
+
 
     const data = await res.json();
 
@@ -41,11 +52,15 @@ async function generateVisitorKeywords() {
   const difficulty = document.getElementById("difficultySelect")?.value || "";
 
   try {
-    const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-keywords", {
+        const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-keywords", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Visitor-ID": VISITOR_ID
+      },
       body: JSON.stringify({ mycontent: extractedText, userLanguage: lang, difficulty })
     });
+
 
     const data = await res.json();
 

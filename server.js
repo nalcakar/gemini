@@ -40,12 +40,16 @@ const VISITOR_LIMIT = 30;
 
 // 🎯 Track how many questions a visitor has generated today
 async function checkVisitorLimit(req, res, next) {
-  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const visitorId = req.headers["x-visitor-id"];
+  if (!visitorId) {
+    return res.status(400).json({ error: "Missing visitor ID" });
+  }
+
   const today = new Date().toISOString().split("T")[0];
-  const key = `visitor:count:${ip}:${today}`;
+  const key = `visitor:count:${visitorId}:${today}`;
 
   let currentCount = await redis.get(key);
-  currentCount = parseInt(currentCount || "0", 10);
+  currentCount = parseInt(currentCount?.result || currentCount || "0", 10);
 
   req.visitorUsage = { count: currentCount, max: VISITOR_LIMIT };
   req.visitorKey = key;
@@ -55,9 +59,7 @@ async function checkVisitorLimit(req, res, next) {
     return res.status(429).json({
       error: "❌ Daily limit of 30 questions reached.",
       usage: req.visitorUsage
-      
     });
-    console.log("🔍 Visitor usage key:", key, "→", currentCount);
   }
 
   next();
@@ -79,7 +81,7 @@ app.post("/visitor/generate-questions", checkVisitorLimit, async (req, res) => {
     const added = questions.length;
     const newCount = req.visitorCount + added;
 
-    await redis.set(req.visitorKey, newCount, "EX", 86400); // expire in 1 day
+ await redis.set(req.visitorKey, newCount, { ex: 86400 });
     req.visitorUsage.count = newCount;
 
     return res.json({ questions, usage: req.visitorUsage });
