@@ -1017,7 +1017,7 @@ if (included && Array.isArray(included)) {
 
   for (const id of tierIds) {
     if (TIER_MAP[id]) {
-      membershipType = TIER_MAP[id];
+     membershipType = id; 
       break;
     }
   }

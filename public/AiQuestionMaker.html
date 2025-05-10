@@ -365,12 +365,19 @@ details summary {
   z-index: 10001;
 }
 
-
+#visitorUsageBadge a:hover {
+  background: #db2777;
+}
+#flashcardInner {
+  transition: transform 0.8s ease;
+  transform-style: preserve-3d;
+}
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+
   <script>
     window.MathJax = {
       tex: {
@@ -454,6 +461,14 @@ details summary {
 
 <!-- Soruların çıktısı -->
 <div id="quizOutput" style="margin-top: 20px;"></div>
+<!-- 🎯 Export + Flashcard Options for Visitors -->
+<div id="visitorOutputOptions" style="margin: 40px auto 20px auto; padding: 20px; max-width: 700px; background: #f9fafb; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: none;">
+  <h3 style="text-align:center; margin-bottom: 20px;">📤 Export or Practice</h3>
+  <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px;">
+   <button onclick="showVisitorPreviewModal('txt')">📜 Export as TXT</button>
+<button onclick="handleDocxExport()">📄 Export as DOCX</button> <!-- replace with exportVisitorAsWord() if you want -->
+<button onclick="openVisitorFlashcards()">🎴 Flashcards</button>  </div>
+</div>
 
 <div id="saveQuizSection" style="display: none; margin-top: 40px; text-align: center;">
   <div style="max-width: 700px; margin: auto; background: #f9fafb; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
@@ -508,27 +523,38 @@ details summary {
 <script src="imageReader.js"></script>
 <script src="generateFullQuiz.js"></script>
 <script src="questionEditor.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/docx@8.3.1/build/index.umd.min.js"></script>
 <script src="visitorFunctions.js"></script>
 <script>
 
 
 function renderUserBox() {
   const name = localStorage.getItem("userName");
-  const membership = localStorage.getItem("membershipType") || "Free";
+  const tierId = localStorage.getItem("membershipType") || "";
   const accessToken = localStorage.getItem("accessToken");
+
+  const tierLabels = {
+    "25539224": "Bronze",
+    "25296810": "Silver",
+    "25669215": "Gold"
+  };
+
+  const label = tierLabels[tierId] || "Free";
+  const cssClass = (label || "free").toLowerCase();
 
   const container = document.getElementById("user-box");
 
   const currentPage = encodeURIComponent(window.location.href);
-  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  container.innerHTML = accessToken && name
+  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;
+
+  container.innerHTML = accessToken && name
     ? `<div class="user-box-inner">
         <span class="user-name">${name}</span>
-        <span class="badge ${membership.toLowerCase()}">${membership}</span>
+        <span class="badge ${cssClass}">${label}</span>
         <button class="logout-btn">Logout</button>
       </div>`
     : `<div class="user-box-inner">
         <a class="login-btn" href="${loginUrl}">Login with Patreon</a>
-       
       </div>`;
 
   const logoutBtn = document.querySelector(".logout-btn");
@@ -538,11 +564,15 @@ function renderUserBox() {
   };
 }
 
+function isProUser() {
+  const tier = localStorage.getItem("membershipType");
+  return ["25539224", "25296810", "25669215"].includes(tier); // Bronze, Silver, Gold
+}
 
 window.showSection = function(type) {
   localStorage.setItem("lastSection", type);
   const content = document.getElementById('section-content');
-  const isProUser = localStorage.getItem("membershipType") === "Pro";
+  const pro = isProUser();
   let html = "";
 
   const lockedOverlay = (msg = "Pro only") => `
@@ -573,109 +603,50 @@ window.showSection = function(type) {
   switch(type) {
     case 'document':
       html = `
-        <h2><i class="fas fa-file-alt" style="color:#3b82f6;"></i> Upload File (.pdf, .docx, .txt)</h2>
-        <p>You can upload a document below. Extracted content will appear below.</p>
+        <h2>📑 Upload File (.pdf, .docx, .txt)</h2>
         <input type="file" id="fileInput" accept=".pdf,.docx,.txt" />
-        <div style="position:relative;">
-          <input type="file" id="fileInput" accept=".pdf,.docx,.txt" ${!isProUser ? "disabled" : ""} />
-          <textarea id="textOutput" placeholder="Extracted text will appear here..." style="margin-top:12px; height:160px;"></textarea>
-          ${!isProUser ? lockedOverlay("Pro required to upload") : ""}
-        </div>
+        <textarea id="textOutput" placeholder="📄 Extracted content will appear here..." readonly></textarea>
+        ${!pro ? lockedOverlay("💎 DOCX/PDF support is Pro Only") : ""}
       `;
       break;
-
     case 'text':
-    html = `
-  <h2>✏️ Paste Your Text</h2>
-  <p>Paste your notes and click Generate Quiz.</p>
-  <textarea id="textManualInput" placeholder="Your content here..."></textarea>
-`;
+      html = `
+        <h2>✏️ Paste or Type Text</h2>
+        <textarea id="textManualInput" placeholder="Paste your text here..."></textarea>
+      `;
       break;
-
     case 'image':
       html = `
-        <h2>🖼️ Upload Image</h2>
-        <p>We'll extract content from the image and create a quiz.</p>
+        <h2>🖼️ Upload Image (Text Recognition)</h2>
         <input type="file" id="imageInput" accept="image/*" />
-        <textarea id="imageTextOutput" placeholder="Text from image will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+        <textarea id="imageTextOutput" placeholder="🧾 Extracted text from image will appear here..." readonly></textarea>
+        ${!pro ? lockedOverlay("🖼️ OCR image scanning is Pro Only") : ""}
       `;
       break;
-      case 'audio':
-  html = `
-    <h2>🎧 Upload Audio File</h2>
-<p>Upload your file in <b>MP3</b>, <b>MP4</b>, or <b>WAV</b> format. It will be transcribed automatically.</p>
-<input type="file" id="audioInput" accept=".mp3,.mp4,.wav" />
-
-    <progress id="uploadProgress" value="0" max="100" style="width: 100%; margin-top: 10px;"></progress>
-    <div id="loadingSpinner" style="display: none; text-align: center; margin-top: 10px;">
-      <div class="spinner" style="
-        width: 30px;
-        height: 30px;
-        border: 4px solid #ddd;
-        border-top-color: #4f46e5;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: auto;">
-      </div>
-    </div>
-    <div id="audioStatus" style="margin-top:10px; color:#333;"></div>
-    <textarea id="audioTextOutput" placeholder="Text will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
-  `;
-  break;
-
-
+    case 'audio':
+      html = `
+        <h2>🎧 Upload Audio (Speech Recognition)</h2>
+        <input type="file" id="audioInput" accept="audio/*" />
+        <textarea id="audioTextOutput" placeholder="🗣️ Transcribed text will appear here..." readonly></textarea>
+        ${!pro ? lockedOverlay("🎙️ Audio transcription is Pro Only") : ""}
+      `;
+      break;
     case 'topic':
       html = `
-        <h2>🧠 Enter a Topic</h2>
-        <input id="topicInput" type="text" placeholder="e.g. Hamlet, Photosynthesis, World War II"
-               style="padding: 12px; width: 100%; border-radius: 10px; font-size: 16px; border: 1px solid #ddd;" />
-
-        <div style="margin-top: 10px;">
-          <label for="topicFocus"><strong>🔍 Want to focus on something specific?</strong> (optional)</label><br />
-          <input id="topicFocus" type="text" placeholder="e.g. main characters, key impacts, experiments"
-                 style="padding: 10px; width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid #ccc;" />
-        </div>
-
-        <div id="focusSuggestions" style="margin-top: 12px;">
-          <button id="clearFocusButton"
-  style="margin-top: 10px; background: #f87171; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
-  🧹 Clear All
-</button>
-
-          <strong>🧭 Suggestions:</strong>
-          <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
-        </div>
-
-        <div style="font-size: 14px; color: #555; margin-top: 10px;">
-          💡 Tip: Try short topics like “Electricity”, “Photosynthesis”, “Shakespeare”<br/>
-          You can narrow it down: “Photosynthesis — role in ecosystems”
-        </div>
+        <h2>🧠 Topic-Based Generation</h2>
+        <input id="topicInput" placeholder="Enter a topic..." style="width:100%; padding:12px; font-size:16px; border-radius:10px; border:1px solid #ccc;" />
+        <textarea id="topicFocus" placeholder="Optional focus (e.g., important concepts)..."
+                  style="margin-top:12px; min-height:80px;"></textarea>
       `;
       break;
-      case 'recent':
-  html = `
-    <h2>🕒 Recent Texts</h2>
-    <textarea id="recentTextInput" placeholder="📝 Your restored or new text here..." 
-              style="width:100%; min-height:140px; margin-top:10px; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc;"></textarea>
-    <div id="recentTextsList" style="margin-top: 20px;"></div>
-  `;
-  break;
-
+    case 'recent':
+      html = `<div id="recentTextContainer"></div>`;
+      break;
   }
 
   content.innerHTML = html;
   content.style.display = "block";
-  window.scrollTo({ top: content.offsetTop - 20, behavior: 'smooth' });
-  if (type === 'recent') {
-    loadLatestRecentTexts(); // 🆕 load latest recent texts
-}
 
-  // ✅ 🌍 Dil tercihini localStorage'dan tekrar dropdown'a uygula
-  const savedLang = localStorage.getItem("questionLangPref");
-  const langSelect = document.getElementById("languageSelect");
-  if (savedLang && langSelect) {
-    langSelect.value = savedLang;
-  }
 };
 
 
@@ -690,36 +661,34 @@ window.showSection = function(type) {
   }
 
   // === AUTH + AUTO TAB RENDER ===
-  document.addEventListener("DOMContentLoaded", () => {
-    
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("accessToken")) {
-      localStorage.setItem("accessToken", params.get("accessToken"));
-      localStorage.setItem("userEmail", params.get("userEmail"));
-      localStorage.setItem("userName", params.get("userName"));
-      localStorage.setItem("membershipType", params.get("membershipType") || "Free");
-
-      const last = localStorage.getItem("lastSection");
-      if (last && typeof window.showSection === "function") {
-        setTimeout(() => window.showSection(last), 100);
-      }
-
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    renderUserBox();
-  });
-
+document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
-  if (params.has("accessToken")) {
+
+  if (params.get("accessToken")) {
     localStorage.setItem("accessToken", params.get("accessToken"));
     localStorage.setItem("userEmail", params.get("userEmail"));
     localStorage.setItem("userName", params.get("userName"));
-    localStorage.setItem("membershipType", params.get("membershipType"));
+  const rawTier = params.get("membershipType") || "Free";
+const allowedTiers = ["25539224", "25296810", "25669215"];
+const tierToStore = allowedTiers.includes(rawTier) ? rawTier : "Free";
+localStorage.setItem("membershipType", tierToStore);
+
+
     window.history.replaceState({}, document.title, window.location.pathname);
-    location.reload();
   }
+
+  renderUserBox();
+
+  const last = localStorage.getItem("lastSection");
+  if (last && typeof window.showSection === "function") {
+    setTimeout(() => {
+      console.log("💡 Detected Pro?", isProUser());
+      console.log("💎 Tier ID:", localStorage.getItem("membershipType"));
+      window.showSection(last);
+    }, 150); // Give time for storage to apply
+  }
+});
+
   window.openModal = openModal;
   window.closeModal = closeModal;
 </script>
@@ -777,6 +746,67 @@ window.showSection = function(type) {
     </div>
   </div>
 </div>
+
+<div id="exportPreviewModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+  <div style="background:white; padding:20px; border-radius:12px; width:90%; max-width:800px; max-height:90%; overflow:auto; position:relative;">
+    <button onclick="document.getElementById('exportPreviewModal').style.display='none'" style="position:absolute; top:10px; right:10px; background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:6px;">✖️ Close</button>
+    <h3 style="margin-bottom:12px;">👁️ Preview Export</h3>
+    <pre id="previewContent" style="white-space:pre-wrap; font-size:14px; border:1px solid #ccc; padding:10px; border-radius:8px; max-height:400px; overflow:auto;"></pre>
+    <div style="margin-top:12px; text-align:center;">
+      <button onclick="confirmExport(window.pendingExportType)" style="padding:10px 20px; background:#10b981; color:white; border:none; border-radius:8px;">✅ Confirm Export</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Flashcard Modal -->
+<!-- 🔥 Full Flashcard Modal -->
+<div id="flashcardModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:95%; max-width:700px; background:white; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); padding:20px; z-index:10000;">
+  <div style="text-align:right;">
+    <button onclick="closeFlashcardModal()" style="background:red; color:white; border:none; padding:8px 14px; border-radius:8px; font-size:16px; cursor:pointer;">✖️ Exit</button>
+  </div>
+
+  <div id="flashcardGameSection" style="text-align:center;">
+    <h3 id="flashcardCounter" style="margin-bottom:20px;">Flashcard 1/10</h3>
+
+    <!-- ✅ Flip card -->
+    <div id="flashcardCard" onclick="flipFlashcard()" style="margin:20px auto; perspective:1000px; width:100%; max-width:600px; min-height:200px; cursor:pointer;">
+      <div id="flashcardInner" style="width:100%; height:200px; transition:transform 0.8s; transform-style:preserve-3d; position:relative;">
+        <div id="flashcardFront" style="backface-visibility:hidden; background:#f0f0f0; width:100%; height:100%; padding:20px; border-radius:12px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:20px; position:absolute; top:0; left:0;">
+          <div id="flashcardFrontContent" style="max-height:100%; overflow:auto; padding:4px; line-height:1.4;"></div>
+        </div>
+        <div id="flashcardBack" style="backface-visibility:hidden; background:#e0ffe0; width:100%; height:100%; padding:20px; border-radius:12px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:20px; position:absolute; transform:rotateY(180deg); top:0; left:0;">
+          <div id="flashcardBackContent" style="max-height:100%; overflow:auto; padding:4px; line-height:1.4;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="flashcardControls" style="margin-top:40px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">
+      <button onclick="markKnown(true)" style="background:#22c55e; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">✅ I Knew</button>
+      <button onclick="markKnown(false)" style="background:#ef4444; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">❌ I Didn't Know</button>
+      <button onclick="prevFlashcard()" style="background:#3b82f6; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">⬅️ Prev</button>
+      <button onclick="nextFlashcard()" style="background:#3b82f6; color:white; padding:10px 16px; border:none; border-radius:8px; font-size:16px; cursor:pointer;">➡️ Next</button>
+    </div>
+
+    <div id="flashcardScore" style="margin-top:20px; font-weight:bold; font-size:18px;">✅ Knew: 0 / Answered: 0</div>
+  </div>
+</div>
+
+<!-- 💎 Patreon Join Modal -->
+<div id="patreonJoinModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+  <div style="background:white; padding:24px; border-radius:12px; width:90%; max-width:400px; text-align:center; position:relative;">
+    <button onclick="document.getElementById('patreonJoinModal').style.display='none'"
+            style="position:absolute; top:10px; right:10px; background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:6px;">✖️</button>
+    <h3 style="margin-bottom:12px;">💎 DOCX Export is Pro Only</h3>
+    <p style="margin-bottom:20px;">Unlock unlimited DOCX export and more with Patreon support.</p>
+    <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
+       style="display:inline-block; background:#3b82f6; color:white; padding:10px 20px; border-radius:8px; font-weight:bold; text-decoration:none;">
+       🚀 Join Now
+    </a>
+  </div>
+</div>
+
+
 <div id="user-toast">✅ Saved successfully!</div>
 </body>
 </html>
