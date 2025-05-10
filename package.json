@@ -18,6 +18,7 @@
     "express-session": "^1.18.1",
     "form-data": "^4.0.2",
     "franc": "^6.2.0",
+    "ioredis": "^5.6.1",
     "multer": "^1.4.5-lts.2",
     "node-fetch": "^2.7.0",
     "passport": "^0.7.0",
