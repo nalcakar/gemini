@@ -63,14 +63,14 @@ app.post("/visitor/generate-questions", checkVisitorLimit, async (req, res) => {
   const { mycontent, userLanguage, userFocus, difficulty } = req.body;
 
   try {
-    // AI call logic here...
     const questions = await generateWithAI({ mycontent, userLanguage, userFocus, difficulty, type: "mcq" });
 
-    return res.json({ questions, usage: req.visitorUsage });
+    return res.json({ questions, usage: req.visitorUsage }); // ✅ PATCHED
   } catch (err) {
     return res.status(500).json({ error: "AI generation failed", usage: req.visitorUsage });
   }
 });
+
 
 // New visitor route for keywords
 app.post("/visitor/generate-keywords", checkVisitorLimit, async (req, res) => {
@@ -79,11 +79,12 @@ app.post("/visitor/generate-keywords", checkVisitorLimit, async (req, res) => {
   try {
     const keywords = await generateWithAI({ mycontent, userLanguage, difficulty, type: "keyword" });
 
-    return res.json({ keywords, usage: req.visitorUsage });
+    return res.json({ keywords, usage: req.visitorUsage }); // ✅ PATCHED
   } catch (err) {
     return res.status(500).json({ error: "AI keyword generation failed", usage: req.visitorUsage });
   }
 });
+
 async function generateWithAI({ mycontent, userLanguage, userFocus, difficulty, type = "mcq" }) {
   const langCode = franc(mycontent || "");
   const languageMap = {
