@@ -81,7 +81,8 @@ app.post("/visitor/generate-questions", checkVisitorLimit, async (req, res) => {
     const added = questions.length;
     const newCount = req.visitorCount + added;
 
- await redis.set(req.visitorKey, newCount, { ex: 86400 });
+ await redis.set(req.visitorKey, newCount);
+await redis.expire(req.visitorKey, 86400);
     req.visitorUsage.count = newCount;
 
     return res.json({ questions, usage: req.visitorUsage });
@@ -111,7 +112,8 @@ app.post("/visitor/generate-keywords", checkVisitorLimit, async (req, res) => {
     const added = keywordLines.length;
     const newCount = req.visitorCount + added;
 
-    await redis.set(req.visitorKey, newCount, "EX", 86400); // expire in 1 day
+ await redis.set(req.visitorKey, newCount);
+await redis.expire(req.visitorKey, 86400);
     req.visitorUsage.count = newCount;
 
     return res.json({ keywords, usage: req.visitorUsage });
