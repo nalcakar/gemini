@@ -17,6 +17,7 @@ require("dotenv").config();
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const app = express();
+const allowedOrigins = ["https://doitwithai.org", "http://localhost:3001"];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -199,7 +200,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const fetch = require("node-fetch");
 
 // ✅ CORS MIDDLEWARE — en üste yerleştirilmeli!
-const allowedOrigins = ["https://doitwithai.org", "http://localhost:3001"];
+
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
