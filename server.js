@@ -71,6 +71,118 @@ app.post("/visitor/generate-keywords", checkVisitorLimit, async (req, res) => {
     return res.status(500).json({ error: "AI keyword generation failed", usage: req.visitorUsage });
   }
 });
+async function generateWithAI({ mycontent, userLanguage, userFocus, difficulty, type = "mcq" }) {
+  const langCode = franc(mycontent || "");
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+
+  const isoMap = {
+    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
+    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
+    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
+    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
+  };
+
+  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
+  const promptLanguage = isoMap[questionLanguage] || "English";
+
+  const count = 10; // default for visitor
+
+  let prompt = "";
+
+  if (type === "keyword") {
+    prompt = `
+You are an expert in content analysis and translation.
+
+Your task is to extract exactly ${count} important keywords from the following text.
+
+Instructions:
+- Translate the keywords and explanations into ${promptLanguage}.
+- List each keyword on a new line, starting with a dash (-).
+- After the translated keyword, write a 2–3 sentence explanation about its meaning **in the context of the passage**.
+- Do not include the original (source language) keyword.
+- Avoid dictionary definitions — explain how the keyword is used in this specific text.
+
+Format:
+- [Translated Keyword]: [Explanation in ${promptLanguage}]
+
+Text:
+"""
+${mycontent}
+"""`;
+  } else {
+    const isShort = mycontent.length < 80;
+    prompt = isShort
+      ? `
+You are an expert question generator.
+
+Your task is to generate exactly ${count} multiple-choice questions based on the topic: "${mycontent}".
+
+${userFocus ? `Focus specifically on: "${userFocus}".` : ""}
+${difficulty ? `Target difficulty level: ${difficulty}.` : ""}
+
+All output must be written in ${promptLanguage}.
+
+Format:
+***[Question text]
+/// A) Option 1
+/// B) Option 2
+/// C) Option 3
+/// D) Option 4
+~~Cevap: [Correct Option] 
+&&Açıklama: [Short Explanation]
+`
+      : `
+You are an expert quiz generator.
+
+Based on the following content (in ${promptLanguage}), generate exactly ${count} multiple-choice questions:
+
+"${mycontent}"
+
+Format:
+***[Question text]
+/// A) Option 1
+/// B) Option 2
+/// C) Option 3
+/// D) Option 4
+~~Cevap: [Correct Option] 
+&&Açıklama: [Short Explanation]
+`;
+  }
+
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+  const result = await model.generateContent(prompt);
+  const raw = await result.response.text();
+
+  if (type === "keyword") return raw;
+
+  const blocks = raw.split("***").filter(Boolean);
+  return blocks.map(block => {
+    const lines = block.trim().split("\n").map(line => line.trim());
+    const question = lines[0];
+    const options = lines
+      .filter(l => l.startsWith("///"))
+      .map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
+
+    const optionMap = {};
+    ["A", "B", "C", "D"].forEach(key => {
+      const rawLine = lines.find(l => l.startsWith(`/// ${key})`));
+      if (rawLine) optionMap[key] = rawLine.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
+    });
+
+    let answerRaw = (lines.find(l => l.startsWith("~~Cevap:")) || "").replace(/^~~Cevap:\s*/, "").trim();
+    let explanation = (lines.find(l => l.startsWith("&&Açıklama:")) || "").replace(/^&&Açıklama:\s*/, "").trim();
+    if (/^[A-D]$/.test(answerRaw)) answerRaw = optionMap[answerRaw] || answerRaw;
+
+    return { question, options, answer: answerRaw, explanation };
+  });
+}
 
 app.set("trust proxy", 1); // Bu satırı mutlaka ekle!
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
