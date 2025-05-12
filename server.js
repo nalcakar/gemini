@@ -161,8 +161,8 @@ Instructions:
 - Translate the keywords and explanations into ${promptLanguage}.
 - List each keyword on a new line, starting with a dash (-).
 - After the translated keyword, write a 2–3 sentence explanation about its meaning in the context of the passage.
-- Do not include the original keyword.
-
+- Do not include the original (source language) keyword.
+- Avoid dictionary definitions — explain how the keyword is used in this specific text.
 
 Format:
 - [Translated Keyword]: [Explanation in ${promptLanguage}]
@@ -739,13 +739,12 @@ Topic: "${topic}"
 ${focus ? `Focus: "${focus}"` : ""}
 
 Instructions:
-- Select keywords that are **important for understanding and teaching** this topic.
+- Select keywords that are important for understanding and teaching this topic.
 - Translate the keywords and explanations into ${promptLanguage}.
 - Each keyword must be significant for learners to grasp the subject well.
 - List each translated keyword on a new line, starting with a dash (-).
-- After the keyword, add a colon and give a **2–3 sentence educational explanation** that highlights why it is important in the context of the topic.
-- Avoid dictionary definitions. Instead, explain how the keyword contributes to comprehension or application.
-- Do not include the original (non-translated) keywords.
+- After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
+- Do not include the original keywords in the explanation.
 
 Format:
 - [Translated Keyword]: [Explanation in ${promptLanguage}]
