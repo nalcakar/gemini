@@ -45,6 +45,7 @@ if (!res.ok) throw new Error(data.error || "Unknown error");
     alert("❌ " + err.message);
   }
   document.getElementById("visitorOutputOptions").style.display = "block";
+document.getElementById("visitorAdvantages").style.display = "block";
 
 }
 
@@ -566,16 +567,17 @@ function closeFlashcardModal() {
 window.closeFlashcardModal = closeFlashcardModal;
 
 function handleDocxExport() {
-  const userTier = localStorage.getItem("membershipType");
-  const paidTiers = ["25539224", "25296810", "25669215"];
-  const isProUser = paidTiers.includes(userTier);
+  const tier = localStorage.getItem("membershipType");
+  const isVisitor = !localStorage.getItem("accessToken");
 
-  if (isProUser) {
-    exportVisitorAsWord(); // already defined
-  } else {
-    const modal = document.getElementById("patreonJoinModal");
-    if (modal) modal.style.display = "flex";
+  // ❌ Block if visitor or Bronze or Free
+  if (isVisitor || tier === "Free" || tier === "25539224") {
+    showSilverPromptModal(); // show the modal defined above
+    return;
   }
+
+  // ✅ Allow Silver and Gold
+  exportVisitorAsWord();
 }
 
 
@@ -596,3 +598,14 @@ function triggerPremiumFeature(fileInputId) {
 
 
 window.triggerPremiumFeature = triggerPremiumFeature;
+
+
+function showSilverPromptModal() {
+  const modal = document.getElementById("silverUpgradeModal");
+  if (modal) modal.style.display = "flex";
+}
+
+function closeSilverPromptModal() {
+  const modal = document.getElementById("silverUpgradeModal");
+  if (modal) modal.style.display = "none";
+}

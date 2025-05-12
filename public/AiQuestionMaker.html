@@ -396,10 +396,10 @@ details summary {
 
 
 <div class="section-grid">
-  <div class="card" onclick="showSection('document')"><span>📑</span>PDF</div>
+  <div class="card" onclick="showSection('document')"><span>📑</span>PDF, DOCX...</div>
   <div class="card" onclick="showSection('text')"><span>✏️</span>Text</div>
   <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
-  <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Audio</div>
+  <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Video - Audio</div>
   <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
   <div class="card" onclick="showSection('recent')"><span>🕒</span>Recent</div>
 </div>
@@ -461,6 +461,25 @@ details summary {
 
 <!-- Soruların çıktısı -->
 <div id="quizOutput" style="margin-top: 20px;"></div>
+
+<div id="visitorAdvantages" style="display:none; margin-top: 30px; padding: 24px; background: #ecfdf5; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); max-width: 700px; margin-left: auto; margin-right: auto;">
+  <h3 style="text-align:center; color: #065f46; margin-bottom: 16px;">✨ Why Upgrade to Pro?</h3>
+  <ul style="list-style: none; padding-left: 0; font-size: 15px; color: #065f46; margin-bottom: 20px;">
+    <li>🔓 Unlock DOCX, Flashcards, Audio & Image modes</li>
+    <li>💡 Smarter, detailed AI explanations</li>
+    <li>📤 Clean export of questions with answer logic</li>
+    <li>🧠 Keyword-based focused question generation</li>
+    <li>🎯 Boost your learning experience with quizzes</li>
+  </ul>
+  <div style="text-align:center;">
+    <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
+       style="padding: 12px 24px; background: #7c3aed; color: white; font-weight: bold; border-radius: 8px; text-decoration: none; font-size: 15px;">
+      💠 Join Pro on Patreon
+    </a>
+  </div>
+</div>
+
+
 <!-- 🎯 Export + Flashcard Options for Visitors -->
 <div id="visitorOutputOptions" style="margin: 40px auto 20px auto; padding: 20px; max-width: 700px; background: #f9fafb; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: none;">
   <h3 style="text-align:center; margin-bottom: 20px;">📤 Export or Practice</h3>
@@ -566,13 +585,15 @@ function renderUserBox() {
 
 function isProUser() {
   const tier = localStorage.getItem("membershipType");
-  return ["25539224", "25296810", "25669215"].includes(tier); // Bronze, Silver, Gold
+  const paidTiers = ["25539224", "25296810", "25669215"];
+  return paidTiers.includes(tier);
 }
 
 window.showSection = function(type) {
   localStorage.setItem("lastSection", type);
   const content = document.getElementById('section-content');
-  const pro = isProUser();
+  const isPro = isProUser();
+  const isVisitor = !localStorage.getItem("accessToken");
   let html = "";
 
   const lockedOverlay = (msg = "Pro only") => `
@@ -591,12 +612,13 @@ window.showSection = function(type) {
       text-align:center;
       border-radius:8px;
       padding: 10px;
+      z-index: 20;
     ">
       🔒 ${msg}<br>
       <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
          style="margin-top:8px; background:#1e40af; color:white; padding:6px 14px; border-radius:8px;
                 text-decoration:none; font-size:13px;">
-        🌟 Upgrade to Pro
+        🌟 Unlock Pro Features
       </a>
     </div>`;
 
@@ -606,49 +628,110 @@ window.showSection = function(type) {
         <h2>📑 Upload File (.pdf, .docx, .txt)</h2>
         <input type="file" id="fileInput" accept=".pdf,.docx,.txt" />
         <textarea id="textOutput" placeholder="📄 Extracted content will appear here..." readonly></textarea>
-        ${!pro ? lockedOverlay("💎 DOCX/PDF support is Pro Only") : ""}
+        
       `;
       break;
+
     case 'text':
       html = `
         <h2>✏️ Paste or Type Text</h2>
         <textarea id="textManualInput" placeholder="Paste your text here..."></textarea>
+        ${!hasTierAccess("25296810") ? lockedOverlay("🎙️ Audio transcription is Silver Tier Only") : ""}
       `;
       break;
+
     case 'image':
       html = `
         <h2>🖼️ Upload Image (Text Recognition)</h2>
         <input type="file" id="imageInput" accept="image/*" />
         <textarea id="imageTextOutput" placeholder="🧾 Extracted text from image will appear here..." readonly></textarea>
-        ${!pro ? lockedOverlay("🖼️ OCR image scanning is Pro Only") : ""}
+     ${!hasTierAccess("25539224") ? lockedOverlay("🖼️ OCR image scanning is Bronze Tier Only") : ""}
+
       `;
       break;
-    case 'audio':
+case 'audio':
+  html = `
+    <h2>🎧 Upload Audio File</h2>
+<p>Upload your file in <b>MP3</b>, <b>MP4</b>, or <b>WAV</b> format. It will be transcribed automatically.</p>
+<input type="file" id="audioInput" accept=".mp3,.mp4,.wav" />
+
+    <progress id="uploadProgress" value="0" max="100" style="width: 100%; margin-top: 10px;"></progress>
+    <div id="loadingSpinner" style="display: none; text-align: center; margin-top: 10px;">
+      <div class="spinner" style="
+        width: 30px;
+        height: 30px;
+        border: 4px solid #ddd;
+        border-top-color: #4f46e5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: auto;">
+      </div>
+    </div>
+    <div id="audioStatus" style="margin-top:10px; color:#333;"></div>
+    <textarea id="audioTextOutput" placeholder="Text will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
+      ${!hasTierAccess("25669215") ? lockedOverlay("📄 DOCX Export is Gold Tier Only") : ""}
+  `;
+  break;
+
+  
+
+   case 'topic':
       html = `
-        <h2>🎧 Upload Audio (Speech Recognition)</h2>
-        <input type="file" id="audioInput" accept="audio/*" />
-        <textarea id="audioTextOutput" placeholder="🗣️ Transcribed text will appear here..." readonly></textarea>
-        ${!pro ? lockedOverlay("🎙️ Audio transcription is Pro Only") : ""}
+        <h2>🧠 Enter a Topic</h2>
+        <input id="topicInput" type="text" placeholder="e.g. Hamlet, Photosynthesis, World War II"
+               style="padding: 12px; width: 100%; border-radius: 10px; font-size: 16px; border: 1px solid #ddd;" />
+
+        <div style="margin-top: 10px;">
+          <label for="topicFocus"><strong>🔍 Want to focus on something specific?</strong> (optional)</label><br />
+          <input id="topicFocus" type="text" placeholder="e.g. main characters, key impacts, experiments"
+                 style="padding: 10px; width: 100%; border-radius: 8px; margin-top: 6px; border: 1px solid #ccc;" />
+        </div>
+
+        <div id="focusSuggestions" style="margin-top: 12px;">
+          <button id="clearFocusButton"
+  style="margin-top: 10px; background: #f87171; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+  🧹 Clear All
+</button>
+
+          <strong>🧭 Suggestions:</strong>
+          <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+
+        <div style="font-size: 14px; color: #555; margin-top: 10px;">
+          💡 Tip: Try short topics like “Electricity”, “Photosynthesis”, “Shakespeare”<br/>
+          You can narrow it down: “Photosynthesis — role in ecosystems”
+        </div>
       `;
       break;
-    case 'topic':
-      html = `
-        <h2>🧠 Topic-Based Generation</h2>
-        <input id="topicInput" placeholder="Enter a topic..." style="width:100%; padding:12px; font-size:16px; border-radius:10px; border:1px solid #ccc;" />
-        <textarea id="topicFocus" placeholder="Optional focus (e.g., important concepts)..."
-                  style="margin-top:12px; min-height:80px;"></textarea>
-      `;
-      break;
-    case 'recent':
-      html = `<div id="recentTextContainer"></div>`;
-      break;
+      case 'recent':
+  html = `
+    <h2>🕒 Recent Texts</h2>
+    <textarea id="recentTextInput" placeholder="📝 Your restored or new text here..." 
+              style="width:100%; min-height:140px; margin-top:10px; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc;"></textarea>
+    <div id="recentTextsList" style="margin-top: 20px;"></div>
+  `;
+  break;
+
   }
 
-  content.innerHTML = html;
+  content.innerHTML = `<div style="position: relative;">${html}</div>`;
   content.style.display = "block";
-
 };
 
+
+
+const TIER_RANKS = {
+  "25539224": 1, // Bronze
+  "25296810": 2, // Silver
+  "25669215": 3  // Gold
+};
+
+function hasTierAccess(requiredTierId) {
+  const userTier = localStorage.getItem("membershipType");
+  const userRank = TIER_RANKS[userTier] || 0;
+  const requiredRank = TIER_RANKS[requiredTierId] || 99;
+  return userRank >= requiredRank;
+}
 
   function generateQuiz() {
     const input = document.getElementById("textInput")?.value || "";
@@ -668,11 +751,12 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("accessToken", params.get("accessToken"));
     localStorage.setItem("userEmail", params.get("userEmail"));
     localStorage.setItem("userName", params.get("userName"));
-  const rawTier = params.get("membershipType") || "Free";
-const allowedTiers = ["25539224", "25296810", "25669215"];
-const tierToStore = allowedTiers.includes(rawTier) ? rawTier : "Free";
-localStorage.setItem("membershipType", tierToStore);
 
+    // ✅ Store only valid tier IDs
+    const rawTier = params.get("membershipType") || "Free";
+    const allowedTiers = ["25539224", "25296810", "25669215"];
+    const tierToStore = allowedTiers.includes(rawTier) ? rawTier : "Free";
+    localStorage.setItem("membershipType", tierToStore);
 
     window.history.replaceState({}, document.title, window.location.pathname);
   }
@@ -681,13 +765,15 @@ localStorage.setItem("membershipType", tierToStore);
 
   const last = localStorage.getItem("lastSection");
   if (last && typeof window.showSection === "function") {
+    // Slight delay to ensure storage is ready
     setTimeout(() => {
       console.log("💡 Detected Pro?", isProUser());
       console.log("💎 Tier ID:", localStorage.getItem("membershipType"));
       window.showSection(last);
-    }, 150); // Give time for storage to apply
+    }, 150);
   }
 });
+
 
   window.openModal = openModal;
   window.closeModal = closeModal;
@@ -792,19 +878,20 @@ localStorage.setItem("membershipType", tierToStore);
   </div>
 </div>
 
-<!-- 💎 Patreon Join Modal -->
-<div id="patreonJoinModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+<!-- 💠 Silver Tier Required Modal -->
+<div id="silverUpgradeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:24px; border-radius:12px; width:90%; max-width:400px; text-align:center; position:relative;">
-    <button onclick="document.getElementById('patreonJoinModal').style.display='none'"
+    <button onclick="closeSilverPromptModal()"
             style="position:absolute; top:10px; right:10px; background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:6px;">✖️</button>
-    <h3 style="margin-bottom:12px;">💎 DOCX Export is Pro Only</h3>
-    <p style="margin-bottom:20px;">Unlock unlimited DOCX export and more with Patreon support.</p>
+    <h3 style="margin-bottom:12px;">💠 DOCX Export Requires Silver</h3>
+    <p style="margin-bottom:20px;">This feature is available to Silver or upper members .</p>
     <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
-       style="display:inline-block; background:#3b82f6; color:white; padding:10px 20px; border-radius:8px; font-weight:bold; text-decoration:none;">
-       🚀 Join Now
+       style="display:inline-block; background:#7c3aed; color:white; padding:10px 20px; border-radius:8px; font-weight:bold; text-decoration:none;">
+       🌟 Upgrade to Silver
     </a>
   </div>
 </div>
+
 
 
 <div id="user-toast">✅ Saved successfully!</div>

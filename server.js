@@ -160,9 +160,9 @@ Your task is to extract exactly ${count} important keywords from the following t
 Instructions:
 - Translate the keywords and explanations into ${promptLanguage}.
 - List each keyword on a new line, starting with a dash (-).
-- After the translated keyword, write a 2–3 sentence explanation about its meaning **in the context of the passage**.
-- Do not include the original (source language) keyword.
-- Avoid dictionary definitions — explain how the keyword is used in this specific text.
+- After the translated keyword, write a 2–3 sentence explanation about its meaning in the context of the passage.
+- Do not include the original keyword.
+
 
 Format:
 - [Translated Keyword]: [Explanation in ${promptLanguage}]

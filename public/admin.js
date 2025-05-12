@@ -272,10 +272,9 @@ async function loadQuestionsByTitleName(titleName) {
         <label style="float:right; font-size:14px;">
           <input type="checkbox" class="flashcard-checkbox" checked onchange="toggleFlashcardSelection(this)"> ✅
         </label>
-        ${q.source === "keyword" ? `
-          <span style="font-size: 12px; background: #e0f2fe; color: #0369a1; padding: 3px 6px; border-radius: 6px; margin-left: 6px;">
-            🔑 Keyword-Based
-          </span>` : ""}
+       <span style="font-size: 12px; background: ${q.source === "keyword" ? '#e0f2fe' : '#dbeafe'}; color: ${q.source === "keyword" ? '#0369a1' : '#1e3a8a'}; padding: 3px 6px; border-radius: 6px; margin-left: 6px;">
+  ${q.source === "keyword" ? '🔑 Keyword-Based' : '📝 Multiple Choice'}
+</span>
       </summary>
       ${q.source !== "keyword" ? `
         <ul>
@@ -297,7 +296,7 @@ async function loadQuestionsByTitleName(titleName) {
     
       container.appendChild(block);
     });
-    
+    enhanceQuestionViewAfterLoad();
   }
 
   // ✅ AFTER questions, create Recent Texts container
