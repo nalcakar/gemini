@@ -379,11 +379,24 @@ app.post("/patreon-me", async (req, res) => {
 });
 
 
-app.post("/transcribe", upload.any(), async (req, res) => {
+app.post("/transcribe", authMiddleware, checkUserTranscriptionLimit, upload.any(), async (req, res) => {
   try {
     const file = req.files?.[0];
     if (!file) return res.status(400).json({ error: "No file uploaded" });
 
+    const fileSize = file.size;
+    const { dailyUsed, monthlyUsed, dayKey, monthKey } = req.transcriptionUsage;
+
+    // Update Redis usage
+    await redis.set(dayKey, dailyUsed + fileSize);
+    await redis.expire(dayKey, 86400); // expire after 1 day
+
+    const now = new Date();
+    const daysRemaining = 32 - now.getDate(); // max safety margin
+    await redis.set(monthKey, monthlyUsed + fileSize);
+    await redis.expire(monthKey, 86400 * daysRemaining);
+
+    // Rename & transcribe
     const ext = path.extname(file.originalname) || ".mp3";
     const renamedPath = file.path + ext;
     fs.renameSync(file.path, renamedPath);
@@ -406,6 +419,41 @@ app.post("/transcribe", upload.any(), async (req, res) => {
     res.status(500).json({ error: "Transcription failed" });
   }
 });
+
+
+
+const DAILY_MB_LIMIT = 5 * 1024 * 1024;      // 5 MB
+const MONTHLY_MB_LIMIT = 150 * 1024 * 1024;  // 150 MB
+
+async function checkUserTranscriptionLimit(req, res, next) {
+  const user = req.user;
+  if (!user || !user.email) {
+    return res.status(403).json({ error: "❌ Audio transcription is for logged-in users only." });
+  }
+
+  const emailKey = user.email.replace(/[@.]/g, "_"); // Redis-safe
+  const today = new Date();
+  const dateStr = today.toISOString().split("T")[0];     // e.g. 2025-05-13
+  const monthStr = today.toISOString().slice(0, 7);      // e.g. 2025-05
+
+  const dayKey = `audio:daily:${emailKey}:${dateStr}`;
+  const monthKey = `audio:monthly:${emailKey}:${monthStr}`;
+
+  const dailyUsed = parseInt(await redis.get(dayKey) || "0", 10);
+  const monthlyUsed = parseInt(await redis.get(monthKey) || "0", 10);
+
+  req.transcriptionUsage = { dailyUsed, monthlyUsed, dayKey, monthKey };
+
+  if (dailyUsed >= DAILY_MB_LIMIT) {
+    return res.status(429).json({ error: "❌ Daily transcription limit (5MB) reached." });
+  }
+
+  if (monthlyUsed >= MONTHLY_MB_LIMIT) {
+    return res.status(429).json({ error: "❌ Monthly transcription limit (150MB) reached." });
+  }
+
+  next();
+}
 
 
 

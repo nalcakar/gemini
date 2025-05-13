@@ -777,23 +777,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.openModal = openModal;
   window.closeModal = closeModal;
-
-function updateTranscribeUsageBars(usage) {
-  if (!usage) return;
-  const { usedToday, limitToday, usedMonth, limitMonth } = usage;
-
-  const percentDay = Math.min(100, (usedToday / limitToday) * 100).toFixed(0);
-  const percentMonth = Math.min(100, (usedMonth / limitMonth) * 100).toFixed(0);
-
-  document.getElementById("transcribeUsageContainer").style.display = "block";
-  document.getElementById("usageTodayText").textContent = `${usedToday} / ${limitToday} MB`;
-  document.getElementById("usageTodayBar").style.width = `${percentDay}%`;
-
-  document.getElementById("usageMonthText").textContent = `${usedMonth} / ${limitMonth} MB`;
-  document.getElementById("usageMonthBar").style.width = `${percentMonth}%`;
-}
-
-
 </script>
 <!-- Modal Açma Butonu -->
 <!-- Modal Açma Butonu -->
@@ -906,26 +889,6 @@ function updateTranscribeUsageBars(usage) {
        style="display:inline-block; background:#7c3aed; color:white; padding:10px 20px; border-radius:8px; font-weight:bold; text-decoration:none;">
        🌟 Upgrade to Silver
     </a>
-  </div>
-</div>
-
-
-<!-- 🎧 AI Transcription Usage Bars -->
-<div id="transcribeUsageContainer" style="margin-top:20px; display:none;">
-  <div style="font-weight: bold; margin-bottom: 6px;">🎧 Transcription Usage</div>
-
-  <div style="margin-bottom: 12px;">
-    <div style="font-size: 13px;">📅 Today: <span id="usageTodayText">0 / 0 MB</span></div>
-    <div style="background:#e5e7eb; height:10px; border-radius:5px; overflow:hidden;">
-      <div id="usageTodayBar" style="height:100%; background:#3b82f6; width:0%; transition:width 0.3s;"></div>
-    </div>
-  </div>
-
-  <div>
-    <div style="font-size: 13px;">📆 This Month: <span id="usageMonthText">0 / 0 MB</span></div>
-    <div style="background:#e5e7eb; height:10px; border-radius:5px; overflow:hidden;">
-      <div id="usageMonthBar" style="height:100%; background:#10b981; width:0%; transition:width 0.3s;"></div>
-    </div>
   </div>
 </div>
 
