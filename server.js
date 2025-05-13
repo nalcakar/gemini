@@ -9,7 +9,7 @@ const upload = multer({ dest: "uploads/" });
 const FormData = require("form-data");
 const fs = require("fs");
 const axios = require("axios");
-
+const rateLimit = require("express-rate-limit");
 const { franc } = require("franc");
 
 require("dotenv").config();
