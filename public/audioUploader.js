@@ -24,9 +24,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Renders visual horizontal bars
-     function renderUsageBar(usage) {
-  const dailyLimitMB = (usage.dailyLimit / 1024 / 1024).toFixed(0);   // should be 50
-  const monthlyLimitMB = (usage.monthlyLimit / 1024 / 1024).toFixed(0); // should be 990
+function renderUsageBar(usage) {
+  const dailyLimitMB = (usage.dailyLimit / 1024 / 1024).toFixed(0);
+  const monthlyLimitMB = (usage.monthlyLimit / 1024 / 1024).toFixed(0);
   const dailyUsedMB = (usage.daily / 1024 / 1024).toFixed(2);
   const monthlyUsedMB = (usage.monthly / 1024 / 1024).toFixed(2);
 
@@ -37,7 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const monthlyWarn = usage.monthly >= usage.monthlyLimit;
 
   const usageBar = document.getElementById("audioUsageBar");
-  if (!usageBar) return;
+  const input = document.getElementById("audioInput");
+  const status = document.getElementById("audioStatus");
+
+  if (!usageBar || !input || !status) return;
 
   usageBar.innerHTML = `
     <div class="usage-bar-label">📆 Daily Usage: ${dailyUsedMB} / ${dailyLimitMB} MB</div>
@@ -49,7 +52,18 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="usage-bar-fill ${monthlyWarn ? "usage-bar-warning" : ""}" style="width: ${monthlyPercent}%;"></div>
     </div>
   `;
+
+  // 🔒 Disable file input if limit is exceeded
+  if (dailyWarn || monthlyWarn) {
+    input.disabled = true;
+    input.style.opacity = "0.5";
+    status.textContent = "❌ Upload disabled — usage limit reached.";
+  } else {
+    input.disabled = false;
+    input.style.opacity = "1";
+  }
 }
+
 
 
       // Initial fetch on page load
