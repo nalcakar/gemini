@@ -379,7 +379,68 @@ app.post("/patreon-me", async (req, res) => {
 });
 
 
-app.post("/transcribe", upload.any(), async (req, res) => {
+// 📦 Tier-based limits in MB
+const TIER_LIMITS = {
+  "bronze": { daily: 5, monthly: 50 },
+  "silver": { daily: 10, monthly: 150 },
+  "gold": { daily: 20, monthly: 300 }
+};
+
+// ✅ Middleware to enforce limits
+async function checkTranscriptionLimit(req, res, next) {
+  const visitorId = req.headers["x-visitor-id"];
+  const userTierId = req.user?.tier;
+  const tierMap = {
+    "25539224": "bronze",
+    "25296810": "silver",
+    "25669215": "gold"
+  };
+
+  const tierName = tierMap[userTierId];
+  if (!visitorId || !tierName || !TIER_LIMITS[tierName]) {
+    return res.status(400).json({ error: "Missing or invalid visitor/tier info" });
+  }
+
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const month = now.toISOString().slice(0, 7);
+
+  const file = req.files?.[0];
+  if (!file) return res.status(400).json({ error: "No file uploaded" });
+  const fileSizeMB = parseFloat((file.size / 1024 / 1024).toFixed(2));
+
+  const { daily, monthly } = TIER_LIMITS[tierName];
+  const dayKey = `transcribe:daily:${visitorId}:${today}`;
+  const monthKey = `transcribe:monthly:${visitorId}:${month}`;
+
+  const [usedTodayRaw, usedMonthRaw] = await Promise.all([
+    redis.get(dayKey), redis.get(monthKey)
+  ]);
+
+  const usedToday = parseFloat(usedTodayRaw || "0");
+  const usedMonth = parseFloat(usedMonthRaw || "0");
+
+  if (usedToday + fileSizeMB > daily) {
+    return res.status(429).json({ error: `❌ Daily limit exceeded (${usedToday.toFixed(2)}MB / ${daily}MB)` });
+  }
+
+  if (usedMonth + fileSizeMB > monthly) {
+    return res.status(429).json({ error: `❌ Monthly limit exceeded (${usedMonth.toFixed(2)}MB / ${monthly}MB)` });
+  }
+
+  req.transcribeSizeMB = fileSizeMB;
+  req.transcribeKeys = { dayKey, monthKey };
+  req.usageStatus = {
+    usedToday: (usedToday + fileSizeMB).toFixed(2),
+    usedMonth: (usedMonth + fileSizeMB).toFixed(2),
+    limitToday: daily,
+    limitMonth: monthly
+  };
+  next();
+}
+
+// 🎙️ /transcribe route
+app.post("/transcribe", upload.any(), checkTranscriptionLimit, async (req, res) => {
   try {
     const file = req.files?.[0];
     if (!file) return res.status(400).json({ error: "No file uploaded" });
@@ -400,12 +461,23 @@ app.post("/transcribe", upload.any(), async (req, res) => {
     });
 
     fs.unlinkSync(renamedPath);
-    res.json({ transcript: response.data.text });
+
+    const { dayKey, monthKey } = req.transcribeKeys;
+    await redis.incrbyfloat(dayKey, req.transcribeSizeMB);
+    await redis.incrbyfloat(monthKey, req.transcribeSizeMB);
+    await redis.expire(dayKey, 86400);
+    await redis.expire(monthKey, 60 * 60 * 24 * 31);
+
+    res.json({
+      transcript: response.data.text,
+      usage: req.usageStatus
+    });
   } catch (error) {
     console.error("❌ Whisper error:", error.response?.data || error.message);
     res.status(500).json({ error: "Transcription failed" });
   }
 });
+
 
 
 
