@@ -24,24 +24,33 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Renders visual horizontal bars
-      function renderUsageBar(usage) {
-        const dailyPercent = Math.min((usage.daily / usage.dailyLimit) * 100, 100);
-        const monthlyPercent = Math.min((usage.monthly / usage.monthlyLimit) * 100, 100);
+     function renderUsageBar(usage) {
+  const dailyLimitMB = (usage.dailyLimit / 1024 / 1024).toFixed(0);   // should be 50
+  const monthlyLimitMB = (usage.monthlyLimit / 1024 / 1024).toFixed(0); // should be 990
+  const dailyUsedMB = (usage.daily / 1024 / 1024).toFixed(2);
+  const monthlyUsedMB = (usage.monthly / 1024 / 1024).toFixed(2);
 
-        const dailyWarn = usage.daily >= usage.dailyLimit;
-        const monthlyWarn = usage.monthly >= usage.monthlyLimit;
+  const dailyPercent = Math.min((usage.daily / usage.dailyLimit) * 100, 100);
+  const monthlyPercent = Math.min((usage.monthly / usage.monthlyLimit) * 100, 100);
 
-        usageBar.innerHTML = `
-          <div class="usage-bar-label">📆 Daily Usage: ${(usage.daily / 1024 / 1024).toFixed(2)} / ${(usage.dailyLimit / 1024 / 1024).toFixed(0)} MB</div>
-          <div class="usage-bar">
-            <div class="usage-bar-fill ${dailyWarn ? "usage-bar-warning" : ""}" style="width: ${dailyPercent}%;"></div>
-          </div>
-          <div class="usage-bar-label" style="margin-top: 8px;">🗓️ Monthly Usage: ${(usage.monthly / 1024 / 1024).toFixed(2)} / ${(usage.monthlyLimit / 1024 / 1024).toFixed(0)} MB</div>
-          <div class="usage-bar">
-            <div class="usage-bar-fill ${monthlyWarn ? "usage-bar-warning" : ""}" style="width: ${monthlyPercent}%;"></div>
-          </div>
-        `;
-      }
+  const dailyWarn = usage.daily >= usage.dailyLimit;
+  const monthlyWarn = usage.monthly >= usage.monthlyLimit;
+
+  const usageBar = document.getElementById("audioUsageBar");
+  if (!usageBar) return;
+
+  usageBar.innerHTML = `
+    <div class="usage-bar-label">📆 Daily Usage: ${dailyUsedMB} / ${dailyLimitMB} MB</div>
+    <div class="usage-bar">
+      <div class="usage-bar-fill ${dailyWarn ? "usage-bar-warning" : ""}" style="width: ${dailyPercent}%;"></div>
+    </div>
+    <div class="usage-bar-label" style="margin-top: 8px;">🗓️ Monthly Usage: ${monthlyUsedMB} / ${monthlyLimitMB} MB</div>
+    <div class="usage-bar">
+      <div class="usage-bar-fill ${monthlyWarn ? "usage-bar-warning" : ""}" style="width: ${monthlyPercent}%;"></div>
+    </div>
+  `;
+}
+
 
       // Initial fetch on page load
       const token = localStorage.getItem("accessToken");

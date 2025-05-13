@@ -435,7 +435,7 @@ app.post("/transcribe", authMiddleware, checkUserTranscriptionLimit, upload.any(
 
 
 
-const DAILY_MB_LIMIT = 50 * 1024 * 1024;      // 50 MB
+const DAILY_MB_LIMIT = 1 * 1024 * 1024;      // 50 MB
 const MONTHLY_MB_LIMIT = 990 * 1024 * 1024;   // 990 MB
 
 async function checkUserTranscriptionLimit(req, res, next) {
