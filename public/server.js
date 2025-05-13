@@ -744,9 +744,7 @@ Instructions:
 - Each keyword must be significant for learners to grasp the subject well.
 - List each translated keyword on a new line, starting with a dash (-).
 - After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
-- The explanation must NOT contain or repeat the keyword itself, or any word stem/variation of it.
-- Assume this explanation will be used in a quiz where the keyword is hidden as the correct answer.
-
+- Do not include the keywords in the explanation.
 
 Format:
 - [Translated Keyword]: [Explanation in ${promptLanguage}]
