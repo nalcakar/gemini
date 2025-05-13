@@ -18,24 +18,29 @@ document.addEventListener("DOMContentLoaded", () => {
         const file = input.files[0];
         if (!file) return;
 
-        // 🔒 Dosya boyutu kontrolü
         const maxSize = 20 * 1024 * 1024;
         if (file.size > maxSize) {
           status.textContent = "❌ Dosya çok büyük. En fazla 20MB olabilir.";
           return;
         }
 
-        // Spinner göster
         spinner.style.display = "block";
         status.textContent = "⏳ Yükleniyor...";
 
-        // FormData hazırla
         const formData = new FormData();
         formData.append("file", file);
 
-        // XMLHttpRequest ile gönder
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "https://gemini-j8xd.onrender.com/transcribe");
+
+        // 🪪 Add headers
+        const visitorId = localStorage.getItem("visitorId") || "guest";
+        const accessToken = localStorage.getItem("accessToken");
+
+        xhr.setRequestHeader("x-visitor-id", visitorId);
+        if (accessToken) {
+          xhr.setRequestHeader("Authorization", "Bearer " + accessToken);
+        }
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
@@ -46,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         xhr.onload = () => {
-          spinner.style.display = "none"; // Yükleme bitti
+          spinner.style.display = "none";
           try {
             const res = JSON.parse(xhr.responseText);
             if (res.transcript) {
@@ -54,8 +59,11 @@ document.addEventListener("DOMContentLoaded", () => {
               window.extractedText = res.transcript;
               status.textContent = "✅ Transkripsiyon tamamlandı.";
               progressBar.value = 100;
+
+              // 🔄 Update usage bars if present
+              if (res.usage) updateTranscribeUsageBars(res.usage);
             } else {
-              throw new Error("Transkript alınamadı");
+              throw new Error("No transcript");
             }
           } catch {
             status.textContent = "❌ Transkripsiyon başarısız.";

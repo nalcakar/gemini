@@ -392,67 +392,75 @@ app.post("/patreon-me", async (req, res) => {
 });
 
 
-// 📦 Tier-based limits in MB
+// 💎 Tier-based limits in MB
 const TIER_LIMITS = {
   "bronze": { daily: 5, monthly: 50 },
   "silver": { daily: 10, monthly: 150 },
   "gold": { daily: 20, monthly: 300 }
 };
 
-// ✅ Middleware to enforce limits
+// 🛡 Middleware for tiered limit checking
 async function checkTranscriptionLimit(req, res, next) {
-  const visitorId = req.headers["x-visitor-id"];
-  const userTierId = req.user?.tier;
-  const tierMap = {
-    "25539224": "bronze",
-    "25296810": "silver",
-    "25669215": "gold"
-  };
+  try {
+    const visitorId = req.headers["x-visitor-id"];
+    const userTierId = req.user?.tier || "25539224"; // default to Bronze
+    const tierMap = {
+      "25539224": "bronze",
+      "25296810": "silver",
+      "25669215": "gold"
+    };
+    const tierName = tierMap[userTierId];
 
-  const tierName = tierMap[userTierId];
-  if (!visitorId || !tierName || !TIER_LIMITS[tierName]) {
-    return res.status(400).json({ error: "Missing or invalid visitor/tier info" });
+    if (!visitorId || !tierName || !TIER_LIMITS[tierName]) {
+      console.warn("⛔ Transcribe Limit - Invalid tier or visitorId", { visitorId, userTierId });
+      return res.status(400).json({ error: "Missing or invalid visitor/tier info" });
+    }
+
+    const file = req.files?.[0];
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const month = now.toISOString().slice(0, 7);
+
+    const fileSizeMB = parseFloat((file.size / 1024 / 1024).toFixed(2));
+    const { daily, monthly } = TIER_LIMITS[tierName];
+
+    const dayKey = `transcribe:daily:${visitorId}:${today}`;
+    const monthKey = `transcribe:monthly:${visitorId}:${month}`;
+
+    const [usedTodayRaw, usedMonthRaw] = await Promise.all([
+      redis.get(dayKey), redis.get(monthKey)
+    ]);
+
+    const usedToday = parseFloat(usedTodayRaw || "0");
+    const usedMonth = parseFloat(usedMonthRaw || "0");
+
+    if (usedToday + fileSizeMB > daily) {
+      return res.status(429).json({ error: `❌ Daily limit exceeded (${usedToday.toFixed(2)}MB / ${daily}MB)` });
+    }
+
+    if (usedMonth + fileSizeMB > monthly) {
+      return res.status(429).json({ error: `❌ Monthly limit exceeded (${usedMonth.toFixed(2)}MB / ${monthly}MB)` });
+    }
+
+    req.transcribeSizeMB = fileSizeMB;
+    req.transcribeKeys = { dayKey, monthKey };
+    req.usageStatus = {
+      usedToday: (usedToday + fileSizeMB).toFixed(2),
+      usedMonth: (usedMonth + fileSizeMB).toFixed(2),
+      limitToday: daily,
+      limitMonth: monthly
+    };
+
+    next();
+  } catch (err) {
+    console.error("❌ Middleware error in checkTranscriptionLimit:", err);
+    res.status(500).json({ error: "Internal server error (limit check)" });
   }
-
-  const now = new Date();
-  const today = now.toISOString().split("T")[0];
-  const month = now.toISOString().slice(0, 7);
-
-  const file = req.files?.[0];
-  if (!file) return res.status(400).json({ error: "No file uploaded" });
-  const fileSizeMB = parseFloat((file.size / 1024 / 1024).toFixed(2));
-
-  const { daily, monthly } = TIER_LIMITS[tierName];
-  const dayKey = `transcribe:daily:${visitorId}:${today}`;
-  const monthKey = `transcribe:monthly:${visitorId}:${month}`;
-
-  const [usedTodayRaw, usedMonthRaw] = await Promise.all([
-    redis.get(dayKey), redis.get(monthKey)
-  ]);
-
-  const usedToday = parseFloat(usedTodayRaw || "0");
-  const usedMonth = parseFloat(usedMonthRaw || "0");
-
-  if (usedToday + fileSizeMB > daily) {
-    return res.status(429).json({ error: `❌ Daily limit exceeded (${usedToday.toFixed(2)}MB / ${daily}MB)` });
-  }
-
-  if (usedMonth + fileSizeMB > monthly) {
-    return res.status(429).json({ error: `❌ Monthly limit exceeded (${usedMonth.toFixed(2)}MB / ${monthly}MB)` });
-  }
-
-  req.transcribeSizeMB = fileSizeMB;
-  req.transcribeKeys = { dayKey, monthKey };
-  req.usageStatus = {
-    usedToday: (usedToday + fileSizeMB).toFixed(2),
-    usedMonth: (usedMonth + fileSizeMB).toFixed(2),
-    limitToday: daily,
-    limitMonth: monthly
-  };
-  next();
 }
 
-// 🎙️ /transcribe route
+// 🎙️ POST /transcribe
 app.post("/transcribe", upload.any(), checkTranscriptionLimit, async (req, res) => {
   try {
     const file = req.files?.[0];
@@ -490,6 +498,7 @@ app.post("/transcribe", upload.any(), checkTranscriptionLimit, async (req, res) 
     res.status(500).json({ error: "Transcription failed" });
   }
 });
+
 
 
 
