@@ -14,6 +14,20 @@ const { franc } = require("franc");
 
 require("dotenv").config();
 
+
+const { createClient } = require("redis");
+
+const redis = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379"
+});
+
+redis.connect().catch(err => {
+  console.error("❌ Redis connection failed:", err);
+});
+
+redis.on("error", err => {
+  console.error("❌ Redis error:", err);
+});
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const app = express();
