@@ -19,7 +19,9 @@ const Docxtemplater = require("docxtemplater");
 const app = express();
 // ✅ JSON parse işlemi
 app.use(express.json());
+// ✅ Allow cross-origin requests from allowed origins
 const allowedOrigins = ["https://doitwithai.org", "http://localhost:3001"];
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -31,9 +33,20 @@ app.use(cors({
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
 }));
-const rateLimit = require("express-rate-limit");
-const Redis = require("ioredis");
-const redis = new Redis(process.env.REDIS_URL); // ✅ secure and dynamic
+
+// ✅ Ensure all preflight requests respond with full CORS headers
+app.options("*", (req, res) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-visitor-id");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    return res.sendStatus(204);
+  } else {
+    return res.status(403).send("CORS forbidden");
+  }
+});
 
 
 const VISITOR_LIMIT = 30;
