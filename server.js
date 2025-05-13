@@ -403,7 +403,13 @@ const TIER_LIMITS = {
 async function checkTranscriptionLimit(req, res, next) {
   try {
     const visitorId = req.headers["x-visitor-id"];
-    const userTierId = req.user?.tier || "25539224"; // default to Bronze
+    const userTierId = req.user?.tier;
+
+    // ✅ Enforce Patreon-only
+    if (!userTierId) {
+      return res.status(403).json({ error: "🔒 Patreon membership required to use transcription." });
+    }
+
     const tierMap = {
       "25539224": "bronze",
       "25296810": "silver",
