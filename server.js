@@ -387,16 +387,19 @@ app.post("/transcribe", authMiddleware, checkUserTranscriptionLimit, upload.any(
     const fileSize = file.size;
     const { dailyUsed, monthlyUsed, dayKey, monthKey } = req.transcriptionUsage;
 
-    // Update Redis usage
-    await redis.set(dayKey, dailyUsed + fileSize);
-    await redis.expire(dayKey, 86400); // expire after 1 day
+    const newDaily = dailyUsed + fileSize;
+    const newMonthly = monthlyUsed + fileSize;
+
+    // Save usage updates to Redis
+    await redis.set(dayKey, newDaily);
+    await redis.expire(dayKey, 86400); // 1 day
 
     const now = new Date();
-    const daysRemaining = 32 - now.getDate(); // max safety margin
-    await redis.set(monthKey, monthlyUsed + fileSize);
+    const daysRemaining = 32 - now.getDate();
+    await redis.set(monthKey, newMonthly);
     await redis.expire(monthKey, 86400 * daysRemaining);
 
-    // Rename & transcribe
+    // Transcription process
     const ext = path.extname(file.originalname) || ".mp3";
     const renamedPath = file.path + ext;
     fs.renameSync(file.path, renamedPath);
@@ -413,7 +416,17 @@ app.post("/transcribe", authMiddleware, checkUserTranscriptionLimit, upload.any(
     });
 
     fs.unlinkSync(renamedPath);
-    res.json({ transcript: response.data.text });
+
+    res.json({
+      transcript: response.data.text,
+      usage: {
+        daily: newDaily,
+        dailyLimit: DAILY_MB_LIMIT,
+        monthly: newMonthly,
+        monthlyLimit: MONTHLY_MB_LIMIT
+      }
+    });
+
   } catch (error) {
     console.error("❌ Whisper error:", error.response?.data || error.message);
     res.status(500).json({ error: "Transcription failed" });
@@ -432,9 +445,9 @@ async function checkUserTranscriptionLimit(req, res, next) {
   }
 
   const emailKey = user.email.replace(/[@.]/g, "_"); // Redis-safe
-  const today = new Date();
-  const dateStr = today.toISOString().split("T")[0];     // e.g. 2025-05-13
-  const monthStr = today.toISOString().slice(0, 7);      // e.g. 2025-05
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0];      // e.g., 2025-05-13
+  const monthStr = now.toISOString().slice(0, 7);       // e.g., 2025-05
 
   const dayKey = `audio:daily:${emailKey}:${dateStr}`;
   const monthKey = `audio:monthly:${emailKey}:${monthStr}`;
@@ -445,15 +458,58 @@ async function checkUserTranscriptionLimit(req, res, next) {
   req.transcriptionUsage = { dailyUsed, monthlyUsed, dayKey, monthKey };
 
   if (dailyUsed >= DAILY_MB_LIMIT) {
-    return res.status(429).json({ error: "❌ Daily transcription limit (5MB) reached." });
+    return res.status(429).json({
+      error: "❌ Daily transcription limit (5MB) reached.",
+      usage: {
+        daily: dailyUsed,
+        dailyLimit: DAILY_MB_LIMIT,
+        monthly: monthlyUsed,
+        monthlyLimit: MONTHLY_MB_LIMIT
+      }
+    });
   }
 
   if (monthlyUsed >= MONTHLY_MB_LIMIT) {
-    return res.status(429).json({ error: "❌ Monthly transcription limit (150MB) reached." });
+    return res.status(429).json({
+      error: "❌ Monthly transcription limit (150MB) reached.",
+      usage: {
+        daily: dailyUsed,
+        dailyLimit: DAILY_MB_LIMIT,
+        monthly: monthlyUsed,
+        monthlyLimit: MONTHLY_MB_LIMIT
+      }
+    });
   }
 
   next();
 }
+
+app.get("/transcribe-usage", authMiddleware, async (req, res) => {
+  const user = req.user;
+  if (!user || !user.email) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
+  const emailKey = user.email.replace(/[@.]/g, "_");
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0];
+  const monthStr = now.toISOString().slice(0, 7);
+
+  const dayKey = `audio:daily:${emailKey}:${dateStr}`;
+  const monthKey = `audio:monthly:${emailKey}:${monthStr}`;
+
+  const dailyUsed = parseInt(await redis.get(dayKey) || "0", 10);
+  const monthlyUsed = parseInt(await redis.get(monthKey) || "0", 10);
+
+  res.json({
+    usage: {
+      daily: dailyUsed,
+      dailyLimit: 5 * 1024 * 1024,
+      monthly: monthlyUsed,
+      monthlyLimit: 150 * 1024 * 1024
+    }
+  });
+});
 
 
 

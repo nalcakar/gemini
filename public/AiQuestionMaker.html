@@ -372,6 +372,31 @@ details summary {
   transition: transform 0.8s ease;
   transform-style: preserve-3d;
 }
+
+.usage-bar-container {
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+.usage-bar-label {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #374151;
+}
+.usage-bar {
+  height: 14px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+.usage-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, #3b82f6, #2563eb);
+  transition: width 0.3s ease;
+}
+.usage-bar-warning {
+  background: linear-gradient(to right, #dc2626, #b91c1c) !important;
+}
+
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>

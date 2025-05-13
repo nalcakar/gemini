@@ -14,39 +14,72 @@ document.addEventListener("DOMContentLoaded", () => {
     if (input && output && status && spinner && !input.dataset.listenerAttached) {
       input.dataset.listenerAttached = "true";
 
+      // Create usage container if needed
+      let usageBar = document.getElementById("audioUsageBar");
+      if (!usageBar) {
+        usageBar = document.createElement("div");
+        usageBar.id = "audioUsageBar";
+        usageBar.className = "usage-bar-container";
+        status.parentNode.insertBefore(usageBar, output);
+      }
+
+      // Renders visual horizontal bars
+      function renderUsageBar(usage) {
+        const dailyPercent = Math.min((usage.daily / usage.dailyLimit) * 100, 100);
+        const monthlyPercent = Math.min((usage.monthly / usage.monthlyLimit) * 100, 100);
+
+        const dailyWarn = usage.daily >= usage.dailyLimit;
+        const monthlyWarn = usage.monthly >= usage.monthlyLimit;
+
+        usageBar.innerHTML = `
+          <div class="usage-bar-label">📆 Daily Usage: ${(usage.daily / 1024 / 1024).toFixed(2)} / ${(usage.dailyLimit / 1024 / 1024).toFixed(0)} MB</div>
+          <div class="usage-bar">
+            <div class="usage-bar-fill ${dailyWarn ? "usage-bar-warning" : ""}" style="width: ${dailyPercent}%;"></div>
+          </div>
+          <div class="usage-bar-label" style="margin-top: 8px;">🗓️ Monthly Usage: ${(usage.monthly / 1024 / 1024).toFixed(2)} / ${(usage.monthlyLimit / 1024 / 1024).toFixed(0)} MB</div>
+          <div class="usage-bar">
+            <div class="usage-bar-fill ${monthlyWarn ? "usage-bar-warning" : ""}" style="width: ${monthlyPercent}%;"></div>
+          </div>
+        `;
+      }
+
+      // Initial fetch on page load
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        fetch("https://gemini-j8xd.onrender.com/transcribe-usage", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(r => r.json())
+          .then(data => data.usage && renderUsageBar(data.usage))
+          .catch(err => console.warn("⚠️ Cannot load usage info:", err.message));
+      }
+
       input.addEventListener("change", () => {
         const file = input.files[0];
         if (!file) return;
 
-        // ❌ Block visitors
-        if (!localStorage.getItem("accessToken")) {
+        if (!token) {
           status.textContent = "❌ Audio transcription is for logged-in users only.";
           return;
         }
 
-        // 🔒 File size limit (client-side max 20MB)
         const maxSize = 20 * 1024 * 1024;
         if (file.size > maxSize) {
           status.textContent = "❌ File too large. Max 20MB allowed.";
           return;
         }
 
-        // Show spinner
         spinner.style.display = "block";
         status.textContent = "⏳ Uploading...";
+        progressBar.value = 0;
+        output.value = "";
 
-        // Prepare form data
         const formData = new FormData();
         formData.append("file", file);
 
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "https://gemini-j8xd.onrender.com/transcribe");
-
-        // ✅ Include accessToken in Authorization header
-        const token = localStorage.getItem("accessToken");
-        if (token) {
-          xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-        }
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
@@ -60,6 +93,9 @@ document.addEventListener("DOMContentLoaded", () => {
           spinner.style.display = "none";
           try {
             const res = JSON.parse(xhr.responseText);
+
+            if (res.usage) renderUsageBar(res.usage);
+
             if (res.transcript) {
               output.value = res.transcript;
               window.extractedText = res.transcript;
@@ -68,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (res.error) {
               status.textContent = `❌ ${res.error}`;
             } else {
-              throw new Error("No transcript returned");
+              throw new Error("No transcript returned.");
             }
           } catch {
             status.textContent = "❌ Transcription failed.";
