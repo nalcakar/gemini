@@ -324,9 +324,18 @@ app.get("/member-usage", authMiddleware, async (req, res) => {
   const today = new Date().toISOString().split("T")[0];
   const key = `member:count:${emailKey}:${today}`;
 
-  const count = parseInt(await redis.get(key) || "0", 10);
-  res.json({ usage: { count, max: 50 } });
+  let count = await redis.get(key);
+
+  if (count === null) {
+    // ✅ Initialize usage on first visit
+    count = "0";
+    await redis.set(key, "0");
+    await redis.expire(key, 86400);
+  }
+
+  res.json({ usage: { count: parseInt(count), max: 50 } });
 });
+
 
 
 
