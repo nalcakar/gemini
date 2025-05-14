@@ -1060,3 +1060,146 @@ function enhanceQuestionViewAfterLoad() {
   enhanceQuestionCardBadges();
   addQuestionTypeFilter();
 }
+
+
+function printPreviewContent() {
+  const container = document.getElementById("modalQuestionList");
+  const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
+    block.querySelector("input[type='checkbox']")?.checked
+  );
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ No questions selected.");
+    return;
+  }
+
+  // ✅ Title detection from various places
+  const title =
+    window.currentTitleName ||
+    document.querySelector("#titleList .selected")?.textContent?.trim() ||
+    document.querySelector(".title-item.selected")?.textContent?.trim() ||
+    "Untitled Quiz";
+
+  let questionHTML = `<h1 style="text-align:center; margin-bottom:40px;">📝 ${title}</h1>`;
+  let answerHTML = `<h2 style="margin-top:60px; text-align:center; page-break-before: always;">=== ANSWERS ===</h2>`;
+
+  selectedBlocks.forEach((block, index) => {
+    const qNum = index + 1;
+
+    const questionSpan = block.querySelector("summary .q[data-key='question']") || block.querySelector("summary");
+    const questionText = questionSpan?.dataset.latex || questionSpan?.textContent.trim() || `Question ${qNum}`;
+
+    const optionsList = Array.from(block.querySelectorAll("ul li"));
+    const options = optionsList.map((li, i) => {
+      const text = li.dataset.latex || li.textContent.trim();
+      return `<div>${String.fromCharCode(65 + i)}) <span class="math">${text}</span></div>`;
+    }).join("");
+
+    // ✅ Get the answer from <p>
+    const answerText = block.querySelector("p:nth-of-type(1)")?.dataset.latex ||
+                       block.querySelector("p:nth-of-type(1)")?.textContent.replace(/^✅ Answer:\s*/, "").trim() ||
+                       "No answer";
+
+    // ✅ Find which option matches the answer
+    let correctLetter = "?";
+    let matchedAnswer = answerText;
+
+    for (let i = 0; i < optionsList.length; i++) {
+      const opt = optionsList[i];
+      const optText = opt.dataset.latex || opt.textContent.replace(/^✅\s*/, "").trim();
+      if (optText === answerText) {
+        correctLetter = String.fromCharCode(65 + i);
+        matchedAnswer = optText;
+        break;
+      }
+    }
+
+    // ✅ Get explanation
+    let explanation = "No explanation.";
+    const explanationEl = block.querySelector("p:nth-of-type(2)") || block.querySelector(".q[data-key='explanation']");
+    if (explanationEl) {
+      explanation = explanationEl.dataset.latex || explanationEl.textContent.replace(/^💡 Explanation:\s*/, "").trim();
+    }
+
+    // Add to question section
+    questionHTML += `
+      <div class="question-block" style="margin-bottom:24px; page-break-inside: avoid;">
+        <strong>${qNum}.</strong> <span class="math">${questionText}</span>
+        <div style="margin-left:16px; margin-top:6px;">${options}</div>
+      </div>
+    `;
+
+    // Add to answer section
+    answerHTML += `
+      <div class="answer-block" style="margin-bottom:18px; page-break-inside: avoid;">
+        <strong>${qNum}.</strong> ✅ <span class="math">${correctLetter}) ${matchedAnswer}</span><br/>
+        ${explanation !== "No explanation." ? `💡 <span class="math">${explanation}</span>` : ""}
+      </div>
+    `;
+  });
+
+  const finalHTML = `
+    <div id="print-content">
+      ${questionHTML}
+      ${answerHTML}
+    </div>
+  `;
+
+  // 📄 Render in iframe and print
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "100%";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+
+  iframe.onload = () => {
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Preview</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 40px;
+              line-height: 1.6;
+            }
+            h1, h2 {
+              text-align: center;
+            }
+            .question-block, .answer-block {
+              page-break-inside: avoid;
+            }
+          </style>
+          <script>
+            window.MathJax = {
+              tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']] },
+              svg: { fontCache: 'global' },
+              startup: {
+                ready: () => {
+                  MathJax.startup.defaultReady();
+                  MathJax.typesetPromise().then(() => {
+                    setTimeout(() => window.print(), 300);
+                  });
+                }
+              }
+            };
+          </script>
+          <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        </head>
+        <body>
+          ${finalHTML}
+        </body>
+      </html>
+    `);
+    doc.close();
+  };
+
+  document.body.appendChild(iframe);
+}
+
+
+
+

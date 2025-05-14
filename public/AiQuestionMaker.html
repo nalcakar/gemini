@@ -421,9 +421,9 @@ details summary {
 
 
 <div class="section-grid">
-  <div class="card" onclick="showSection('document')"><span>📑</span>PDF, DOCX...</div>
   <div class="card" onclick="showSection('text')"><span>✏️</span>Text</div>
-  <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
+  <div class="card" onclick="showSection('document')"><span>📑</span>PDF, DOCX...</div>
+    <div class="card" onclick="showSection('image')"><span>🖼️</span>Image</div>
   <div class="card" onclick="showSection('audio')"><span>🎬🎧</span>Video - Audio</div>
   <div class="card" onclick="showSection('topic')"><span>🧠</span>Topic</div>
   <div class="card" onclick="showSection('recent')"><span>🕒</span>Recent</div>
@@ -490,11 +490,12 @@ details summary {
 <div id="visitorAdvantages" style="display:none; margin-top: 30px; padding: 24px; background: #ecfdf5; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); max-width: 700px; margin-left: auto; margin-right: auto;">
   <h3 style="text-align:center; color: #065f46; margin-bottom: 16px;">✨ Why Upgrade to Pro?</h3>
   <ul style="list-style: none; padding-left: 0; font-size: 15px; color: #065f46; margin-bottom: 20px;">
-    <li>🔓 Unlock DOCX, Flashcards, Audio & Image modes</li>
-    <li>💡 Smarter, detailed AI explanations</li>
-    <li>📤 Clean export of questions with answer logic</li>
-    <li>🧠 Keyword-based focused question generation</li>
-    <li>🎯 Boost your learning experience with quizzes</li>
+    
+    <li>💡 Bronze members can produce 10 questions, Silver can produce 15 questions and Gold 20 questions at once.</li>
+    <li>🔓 Make unlimited titles and AI questions and save them in your account.</li>
+    <li>📤 Clean export of questions with answer logic - Print, Docx or Txt forms.</li>
+    <li>🧠 Bronze members can produce from Pdf, Docx formats, Silver Members from Images and Gold Members from audio and video formats.</li>
+    <li>🎯 Boost your learning experience with interactive quizzes withou question limit.</li>
   </ul>
   <div style="text-align:center;">
     <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
@@ -578,8 +579,8 @@ function renderUserBox() {
   const accessToken = localStorage.getItem("accessToken");
 
   const tierLabels = {
-    "25539224": "Bronze",
-    "25296810": "Silver",
+    "25539224": "Silver",
+    "25296810": "Bronze",
     "25669215": "Gold"
   };
 
@@ -648,20 +649,19 @@ window.showSection = function(type) {
     </div>`;
 
   switch(type) {
-    case 'document':
+      case 'text':
+      html = `
+        <h2>✏️ Paste or Type Text</h2>
+        <textarea id="textManualInput" placeholder="Paste your text here..."></textarea>
+       
+      `;
+      break;
+        case 'document':
       html = `
         <h2>📑 Upload File (.pdf, .docx, .txt)</h2>
         <input type="file" id="fileInput" accept=".pdf,.docx,.txt" />
         <textarea id="textOutput" placeholder="📄 Extracted content will appear here..." readonly></textarea>
-        
-      `;
-      break;
-
-    case 'text':
-      html = `
-        <h2>✏️ Paste or Type Text</h2>
-        <textarea id="textManualInput" placeholder="Paste your text here..."></textarea>
-        ${!hasTierAccess("25296810") ? lockedOverlay("🎙️ Audio transcription is Silver Tier Only") : ""}
+         ${!hasTierAccess("25296810") ? lockedOverlay("🎙️ Audio transcription is Bronze Tier Only") : ""}
       `;
       break;
 
@@ -670,7 +670,7 @@ window.showSection = function(type) {
         <h2>🖼️ Upload Image (Text Recognition)</h2>
         <input type="file" id="imageInput" accept="image/*" />
         <textarea id="imageTextOutput" placeholder="🧾 Extracted text from image will appear here..." readonly></textarea>
-     ${!hasTierAccess("25539224") ? lockedOverlay("🖼️ OCR image scanning is Bronze Tier Only") : ""}
+     ${!hasTierAccess("25539224") ? lockedOverlay("🖼️ OCR image scanning is Silver Tier Only") : ""}
 
       `;
       break;
@@ -694,7 +694,7 @@ case 'audio':
     </div>
     <div id="audioStatus" style="margin-top:10px; color:#333;"></div>
     <textarea id="audioTextOutput" placeholder="Text will appear here..." style="margin-top:10px; width:100%; height:140px;"></textarea>
-      ${!hasTierAccess("25669215") ? lockedOverlay("📄 DOCX Export is Gold Tier Only") : ""}
+      ${!hasTierAccess("25669215") ? lockedOverlay("📄 Video - Audio decoding is Gold Tier Only") : ""}
   `;
   break;
 
@@ -746,8 +746,8 @@ case 'audio':
 
 
 const TIER_RANKS = {
-  "25539224": 1, // Bronze
-  "25296810": 2, // Silver
+  "25296810": 1, // Bronze
+  "25539224": 2, // Silver
   "25669215": 3  // Gold
 };
 

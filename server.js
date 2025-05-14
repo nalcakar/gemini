@@ -263,9 +263,9 @@ const authMiddleware = async (req, res, next) => {
     const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
 
     const TIER_MAP = {
-      "25539224": "Bronze",
-      "25296810": "Silver",
-      "25669215": "Gold"
+       "25296810": "Bronze",
+      "25539224": "Silver",
+       "25669215": "Gold"
     };
 
     let tier = "free";
@@ -308,10 +308,10 @@ app.use(async (req, res, next) => {
     const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
 
     // ID'lere göre eşleştirme
-    const TIER_MAP = {
-      "25539224": "Bronze",
-      "25296810": "Silver",
-      "25669215": "Gold"
+  const TIER_MAP = {
+       "25296810": "Bronze",
+      "25539224": "Silver",
+       "25669215": "Gold"
     };
 
     let tier = "free"; // default
@@ -532,9 +532,9 @@ app.post("/generate-questions", async (req, res) => {
   const user = req.user || {};
 
   const tierQuestionCounts = {
-    "25539224": 10,  // Bronze
-    "25296810": 15,  // Silver
-    "25669215": 20   // Gold
+    "25296810": 10,  // Bronze
+    "25539224": 15,  // Silver
+        "25669215": 20   // Gold
   };
 
   const userTier = user.tier;
@@ -693,10 +693,10 @@ app.post("/generate-keywords", async (req, res) => {
   const { mycontent, userLanguage, difficulty } = req.body;
   const user = req.user || {};
 
-  const tierKeywordCounts = {
-    "25539224": 10,  // Bronze
-    "25296810": 15,  // Silver
-    "25669215": 20   // Gold
+  const tierQuestionCounts = {
+    "25296810": 10,  // Bronze
+    "25539224": 15,  // Silver
+        "25669215": 20   // Gold
   };
 
   const userTier = user.tier;
@@ -782,12 +782,11 @@ app.post("/generate-keywords-topic", async (req, res) => {
   const user = req.user || {};
 
   // 🎯 Tier-based keyword count
-  const tierKeywordCounts = {
-    "25539224": 10,  // Bronze
-    "25296810": 15,  // Silver
-    "25669215": 20   // Gold
+  const tierQuestionCounts = {
+    "25296810": 10,  // Bronze
+    "25539224": 15,  // Silver
+        "25669215": 20   // Gold
   };
-
   const userTier = user.tier;
   const keywordCount = tierKeywordCounts[userTier] || 8;
 
@@ -1115,9 +1114,9 @@ if (included && Array.isArray(included)) {
 
   // 🎯 Patreon Tier ID eşleşmeleri (görselden aldığın ID’ler)
   const TIER_MAP = {
-    "25539224": "Bronze",
-    "25296810": "Silver",
-    "25669215": "Gold"
+      "25296810": "Bronze",
+    "25539224": "Silver",
+      "25669215": "Gold"
   };
 
   for (const id of tierIds) {

@@ -160,7 +160,7 @@ function showPatreonUpgradePrompt(maxLimit) {
   badge.innerHTML = `
     🚫 Daily Limit of ${maxLimit} questions reached.<br>
     <span style="margin-top:6px; display:inline-block;">
-      👉 <a href="https://www.patreon.com/bePatron?u=YOUR_PATREON_USER_ID" target="_blank"
+      👉 <a href="https://www.patreon.com/c/quizmaker/membership" target="_blank"
         style="padding: 6px 12px; background: #ec4899; color: white; font-weight: bold; border-radius: 8px; text-decoration: none;">
         💎 Join Patreon for Unlimited Access
       </a>

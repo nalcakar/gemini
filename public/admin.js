@@ -156,8 +156,9 @@ async function loadTitles(categoryId) {
     div.className = "item";
     div.textContent = title.name;
     div.onclick = () => {
-      currentTitleId = title.id;
-      currentTitleName = title.name; // ✅ add this!
+    currentTitleId = title.id;
+currentTitleName = title.name;
+window.currentTitleName = title.name; // ✅ attach to window
       highlightSelected(div, "titles");
       loadQuestionsByTitleName(title.name);
     };
