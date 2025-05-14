@@ -275,7 +275,7 @@ const fetch = require("node-fetch");
 
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
+  if (!authHeader?.startsWith("Bearer ")) return next();
 
   const accessToken = authHeader.split(" ")[1];
   if (!accessToken) return next();
@@ -291,9 +291,9 @@ const authMiddleware = async (req, res, next) => {
     const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
 
     const TIER_MAP = {
-       "25296810": "Bronze",
+      "25296810": "Bronze",
       "25539224": "Silver",
-       "25669215": "Gold"
+      "25669215": "Gold"
     };
 
     let tier = "free";
@@ -308,11 +308,12 @@ const authMiddleware = async (req, res, next) => {
       req.user = { email, name, tier };
     }
   } catch (err) {
-    console.error("❌ Kullanıcı doğrulama hatası:", err.message);
+    console.error("❌ Auth error:", err.message);
   }
 
   next();
 };
+
 
 app.use(authMiddleware);
 
