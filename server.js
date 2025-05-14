@@ -317,9 +317,11 @@ const authMiddleware = async (req, res, next) => {
 
 app.use(authMiddleware);
 
-app.get("/member-usage", async (req, res) => {
+app.get("/member-usage", authMiddleware, async (req, res) => {
   const user = req.user;
-  if (!user?.email) return res.status(403).json({ error: "Unauthorized" });
+  if (!user?.email) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
 
   const emailKey = user.email.replace(/[@.]/g, "_");
   const today = new Date().toISOString().split("T")[0];
@@ -327,9 +329,7 @@ app.get("/member-usage", async (req, res) => {
 
   let count = await redis.get(key);
   if (count === null) {
-    count = "0";
-    await redis.set(key, "0");
-    await redis.expire(key, 86400);
+    count = "0"; // Default if user has not used anything yet
   }
 
   res.json({ usage: { count: parseInt(count), max: 50 } });
