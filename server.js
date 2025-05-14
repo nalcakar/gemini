@@ -732,7 +732,7 @@ Your task is to extract exactly ${keywordCount} important keywords from the foll
 Instructions:
 - Translate the keywords and explanations into ${promptLanguage}.
 - List each keyword on a new line, starting with a dash (-).
-- After the translated keyword, write a colon and give a 2–3 sentence explanation about its meaning **in the context of the passage**.
+- After the translated keyword, write a colon and give a 2–3 sentence explanation about its meaning in the context of the passage.
 - Do not include the original (source language) keyword.
 - Avoid dictionary definitions — explain how the keyword is used in this specific text.
 
@@ -801,7 +801,7 @@ app.post("/generate-keywords-topic", authMiddleware, checkMemberLimit, async (re
   const prompt = `
 You are an expert educator.
 
-Your task is to generate exactly ${keywordCount} essential and **educational** keywords related to the topic below.
+Your task is to generate exactly ${keywordCount} essential and educational keywords related to the topic below.
 
 Topic: "${topic}"
 ${focus ? `Focus: "${focus}"` : ""}

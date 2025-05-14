@@ -100,6 +100,19 @@ async function generateFullQuiz() {
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
+if (data.usage) {
+  const label = document.getElementById("memberUsageLabel");
+  const fill = document.getElementById("memberUsageBarFill");
+  const container = document.getElementById("memberUsageBarContainer");
+  const percent = Math.min(100, Math.round((data.usage.count / data.usage.max) * 100));
+
+  if (label && fill && container) {
+    container.style.display = "block";
+    label.textContent = `${data.usage.count} / ${data.usage.max}`;
+    fill.style.width = `${percent}%`;
+    fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+  }
+}
 
     if (!Array.isArray(data.questions)) {
       throw new Error("Invalid response from AI");
@@ -194,9 +207,7 @@ async function generateFullQuiz() {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate questions.\n${err.message}`);
   }
-if (typeof showMemberUsageBar === "function") {
-  showMemberUsageBar();
-}
+
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
   if (typeof updateFloatingButtonVisibility === "function") {
@@ -1549,7 +1560,19 @@ async function generateKeywords() {
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
+if (data.usage) {
+  const label = document.getElementById("memberUsageLabel");
+  const fill = document.getElementById("memberUsageBarFill");
+  const container = document.getElementById("memberUsageBarContainer");
+  const percent = Math.min(100, Math.round((data.usage.count / data.usage.max) * 100));
 
+  if (label && fill && container) {
+    container.style.display = "block";
+    label.textContent = `${data.usage.count} / ${data.usage.max}`;
+    fill.style.width = `${percent}%`;
+    fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+  }
+}
     if (!data.keywords || typeof data.keywords !== "string") {
       throw new Error("Invalid response from AI");
     }
@@ -1633,9 +1656,7 @@ async function generateKeywords() {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate keywords.\n${err.message}`);
   }
-if (typeof showMemberUsageBar === "function") {
-  showMemberUsageBar();
-}
+
   button.disabled = false;
   button.textContent = "✨ Generate Keywords and Explanations";
 
@@ -1714,6 +1735,20 @@ async function generateTopicKeywords() {
     });
 
     const data = await res.json();
+    if (data.usage) {
+  const label = document.getElementById("memberUsageLabel");
+  const fill = document.getElementById("memberUsageBarFill");
+  const container = document.getElementById("memberUsageBarContainer");
+  const percent = Math.min(100, Math.round((data.usage.count / data.usage.max) * 100));
+
+  if (label && fill && container) {
+    container.style.display = "block";
+    label.textContent = `${data.usage.count} / ${data.usage.max}`;
+    fill.style.width = `${percent}%`;
+    fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+  }
+}
+
     if (!res.ok || !data.keywords || typeof data.keywords !== "string") {
       throw new Error("❌ Invalid response from AI");
     }
@@ -1797,9 +1832,7 @@ async function generateTopicKeywords() {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate topic keywords.\n${err.message}`);
   }
-if (typeof showMemberUsageBar === "function") {
-  showMemberUsageBar();
-}
+
   btn.disabled = false;
   btn.textContent = "✨ Generate Keywords and Explanations";
 
