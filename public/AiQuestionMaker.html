@@ -827,6 +827,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+
+
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+
 async function showMemberUsageBar() {
   const token = localStorage.getItem("accessToken");
   if (!token) return;
@@ -850,15 +855,40 @@ async function showMemberUsageBar() {
       fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
     }
   } catch (err) {
-    console.warn("⚠️ Member usage bar error:", err.message);
+    console.warn("⚠️ Member usage fetch failed:", err.message);
   }
 }
 
-document.addEventListener("DOMContentLoaded", showMemberUsageBar);
+document.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
 
-  window.openModal = openModal;
-  window.closeModal = closeModal;
+  if (params.get("accessToken")) {
+    localStorage.setItem("accessToken", params.get("accessToken"));
+    localStorage.setItem("userEmail", params.get("userEmail"));
+    localStorage.setItem("userName", params.get("userName"));
 
+    const rawTier = params.get("membershipType") || "Free";
+    const allowedTiers = ["25539224", "25296810", "25669215"];
+    const tierToStore = allowedTiers.includes(rawTier) ? rawTier : "Free";
+    localStorage.setItem("membershipType", tierToStore);
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  renderUserBox();
+
+  const last = localStorage.getItem("lastSection");
+  if (last && typeof window.showSection === "function") {
+    setTimeout(() => {
+      console.log("💡 Detected Pro?", isProUser());
+      console.log("💎 Tier ID:", localStorage.getItem("membershipType"));
+      window.showSection(last);
+    }, 150);
+  }
+
+  // ✅ Only now the token is guaranteed to exist
+  showMemberUsageBar();
+});
 
 </script>
 <!-- Modal Açma Butonu -->
@@ -978,5 +1008,6 @@ document.addEventListener("DOMContentLoaded", showMemberUsageBar);
 
 
 <div id="user-toast">✅ Saved successfully!</div>
+
 </body>
 </html>
