@@ -507,7 +507,9 @@ details summary {
     <div id="memberUsageBarFill" class="usage-bar-fill" style="width: 0%;"></div>
   </div>
 </div>
-
+<p id="usageLimitNote" style="display:none; color: #b91c1c; text-align: center; font-weight: 500; margin-top: 10px;">
+  🚫 You have reached your daily limit of 50 AI items.
+</p>
 </div>
 <div id="visitorUsageBadge" style="text-align:center; font-weight:bold; margin-top:10px; color:#dc2626;"></div>
 
@@ -831,6 +833,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.openModal = openModal;
   window.closeModal = closeModal;
+
+
+  async function showMemberUsageBar() {
+  const token = localStorage.getItem("accessToken");
+  if (!token) return;
+
+  try {
+    const res = await fetch("/member-usage", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (data.usage) {
+      const label = document.getElementById("memberUsageLabel");
+      const fill = document.getElementById("memberUsageBarFill");
+      const container = document.getElementById("memberUsageBarContainer");
+
+      const note = document.getElementById("usageLimitNote");
+      const { count, max } = data.usage;
+      const percent = Math.min(100, Math.round((count / max) * 100));
+
+      if (label && fill && container) {
+        container.style.display = "block";
+        label.textContent = `${count} / ${max}`;
+        fill.style.width = `${percent}%`;
+        fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+      }
+
+      if (note) {
+        note.style.display = count >= max ? "block" : "none";
+      }
+    }
+  } catch (err) {
+    console.warn("❌ Failed to fetch usage on load:", err.message);
+  }
+}
 
 
 </script>

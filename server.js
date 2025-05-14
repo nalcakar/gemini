@@ -37,7 +37,7 @@ const redis = new Redis(process.env.REDIS_URL); // ✅ secure and dynamic
 
 
 const VISITOR_LIMIT = 30;
-const MEMBER_DAILY_LIMIT = 500;
+const MEMBER_DAILY_LIMIT = 50;
 
 async function checkMemberLimit(req, res, next) {
   const user = req.user;
