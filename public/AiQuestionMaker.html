@@ -834,28 +834,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function showMemberUsageBar() {
   const token = localStorage.getItem("accessToken");
-  if (!token) return;
+  if (!token) {
+    console.warn("⛔ No token found — not updating usage bar.");
+    return;
+  }
 
   try {
     const res = await fetch("/member-usage", {
       headers: { Authorization: `Bearer ${token}` }
     });
+
+    if (!res.ok) {
+      console.warn("⚠️ Member usage fetch failed with status:", res.status);
+      return;
+    }
+
     const data = await res.json();
 
-    const container = document.getElementById("memberUsageBarContainer");
-    const label = document.getElementById("memberUsageLabel");
-    const fill = document.getElementById("memberUsageBarFill");
+    if (data.usage) {
+      const label = document.getElementById("memberUsageLabel");
+      const fill = document.getElementById("memberUsageBarFill");
+      const container = document.getElementById("memberUsageBarContainer");
+      const percent = Math.min(100, Math.round((data.usage.count / data.usage.max) * 100));
 
-    if (data?.usage && container && label && fill) {
-      const { count, max } = data.usage;
-      const percent = Math.min(100, Math.round((count / max) * 100));
-      container.style.display = "block";
-      label.textContent = `${count} / ${max}`;
-      fill.style.width = `${percent}%`;
-      fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+      if (label && fill && container) {
+        container.style.display = "block";
+        label.textContent = `${data.usage.count} / ${data.usage.max}`;
+        fill.style.width = `${percent}%`;
+        fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+        console.log("✅ Usage bar updated:", data.usage);
+      }
+    } else {
+      console.warn("⚠️ Usage data not found in response:", data);
     }
   } catch (err) {
-    console.warn("⚠️ Member usage fetch failed:", err.message);
+    console.error("❌ Error fetching member usage:", err.message);
   }
 }
 
@@ -875,6 +888,9 @@ document.addEventListener("DOMContentLoaded", () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
+  // ⬇️ Ensure this is AFTER localStorage is populated
+  showMemberUsageBar();
+
   renderUserBox();
 
   const last = localStorage.getItem("lastSection");
@@ -885,11 +901,7 @@ document.addEventListener("DOMContentLoaded", () => {
       window.showSection(last);
     }, 150);
   }
-
-  // ✅ Only now the token is guaranteed to exist
-  showMemberUsageBar();
 });
-
 </script>
 <!-- Modal Açma Butonu -->
 <!-- Modal Açma Butonu -->
