@@ -558,14 +558,15 @@ app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, re
   const user = req.user || {};
 
   const tierQuestionCounts = {
-    "25539224": 10,  // Bronze
-    "25296810": 15,  // Silver
+    "25296810": 10,  // Bronze
+    "25539224": 15,  // Silver
     "25669215": 20   // Gold
   };
 
   const userTier = user.tier;
   const questionCount = tierQuestionCounts[userTier] || 5;
 
+  // Dil algılama
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
@@ -576,50 +577,92 @@ app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, re
   };
 
   const isoMap = {
-    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
-    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
-    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
-    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
+    "İngilizce": "English",
+    "Türkçe": "Turkish",
+    "Arapça": "Arabic",
+    "Fransızca": "French",
+    "İspanyolca": "Spanish",
+    "Almanca": "German",
+    "İtalyanca": "Italian",
+    "Portekizce": "Portuguese",
+    "Rusça": "Russian",
+    "Çince": "Chinese",
+    "Japonca": "Japanese",
+    "Korece": "Korean",
+    "Flemenkçe": "Dutch",
+    "Lehçe": "Polish",
+    "Hintçe": "Hindi",
+    "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese",
+    "Tayca": "Thai",
+    "Romence": "Romanian",
+    "Ukraynaca": "Ukrainian"
   };
 
-  let questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
+  let questionLanguage = "İngilizce";
+  if (userLanguage?.trim()) {
+    questionLanguage = userLanguage.trim();
+  } else if (languageMap[langCode]) {
+    questionLanguage = languageMap[langCode];
+  }
+
   const promptLanguage = isoMap[questionLanguage] || "English";
   const isShortTopic = mycontent.length < 80;
 
+  // ✅ Temiz tekli prompt yapısı
   let prompt = "";
 
   if (isShortTopic) {
     prompt = `
 You are an expert question generator.
+
 Your task is to generate exactly ${questionCount} multiple-choice questions based on the topic: "${mycontent}".
+
 ${userFocus?.trim() ? `Focus specifically on: "${userFocus.trim()}".` : ""}
-${difficulty ? `Target difficulty level: ${difficulty}.` : ""}
+${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}.` : ""}
+
 All output must be written in ${promptLanguage}.
 
 Format:
 ***[Question text]
+
 /// A) Option 1
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
 ~~Cevap: [Correct Option] 
-&&Açıklama: [Short Explanation]
+&&Açıklama: [Short Explanation about why this answer is correct.]
+
+Rules:
+- Use exactly this structure, no extra numbering (no 1., 2., etc.)
+- No additional comments outside the requested format.
+- Each explanation must be at least 2 complete sentences.
+- If the question involves math, format expressions using LaTeX ($...$).
 `;
   } else {
     prompt = `
 You are an expert quiz generator.
+
 Based on the following content (in ${promptLanguage}), generate exactly ${questionCount} multiple-choice questions:
+
 "${mycontent}"
 
 Format:
 ***[Question text]
+
 /// A) Option 1
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
 ~~Cevap: [Correct Option] 
-&&Açıklama: [Short Explanation]
+&&Açıklama: [Short Explanation about why this answer is correct.]
+
+Rules:
+- Use exactly the specified structure, no numbering.
+- No additional notes or commentary outside.
+- All content must be in ${promptLanguage}.
+- Each explanation should be at least 2 full sentences.
+- If math appears, format formulas properly using LaTeX ($...$).
 `;
   }
 
@@ -628,38 +671,55 @@ Format:
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
 
+    // Parse and map Gemini text to structured questions
     const blocks = raw.split("***").filter(Boolean);
-    const questions = blocks.map(block => {
+    const parsed = blocks.map(block => {
       const lines = block.trim().split("\n").map(line => line.trim());
       const question = lines[0];
-      const options = lines.filter(l => l.startsWith("///")).map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
+      const options = lines
+        .filter(l => l.startsWith("///"))
+        .map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
+    
       const optionMap = {};
-      ["A", "B", "C", "D"].forEach(key => {
-        const line = lines.find(l => l.startsWith(`/// ${key})`));
-        if (line) optionMap[key] = line.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
+      ["A", "B", "C", "D"].forEach((key, i) => {
+        const rawLine = lines.find(l => l.startsWith(`/// ${key})`));
+        if (rawLine) optionMap[key] = rawLine.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
       });
+    
       let answerRaw = (lines.find(l => l.startsWith("~~Cevap:")) || "").replace(/^~~Cevap:\s*/, "").trim();
       let explanation = (lines.find(l => l.startsWith("&&Açıklama:")) || "").replace(/^&&Açıklama:\s*/, "").trim();
-      if (/^[A-D]$/.test(answerRaw)) answerRaw = optionMap[answerRaw] || answerRaw;
-
-      return { question, options, answer: answerRaw, explanation };
+    
+      // If answer is A/B/C/D, replace with actual text
+      if (/^[A-D]$/.test(answerRaw)) {
+        answerRaw = optionMap[answerRaw] || answerRaw;
+      }
+    
+      return {
+        question,
+        options,
+        answer: answerRaw,
+        explanation
+      };
     });
 
-    const added = questions.length;
+    // ✅ Update daily usage in Redis
+    const added = parsed.length;
     const newCount = req.memberCount + added;
     await redis.set(req.memberKey, newCount);
     await redis.expire(req.memberKey, 86400);
     req.memberUsage.count = newCount;
 
-    return res.json({ questions, usage: req.memberUsage });
+    res.json({ questions: parsed, usage: req.memberUsage });
+
   } catch (err) {
-    console.error("❌ Question generation error:", err.message);
-    return res.status(500).json({
-      error: "AI question generation failed",
-      usage: req.memberUsage
+    console.error("Gemini Error:", err.message);
+    res.status(500).json({
+      error: "Failed to generate questions",
+      message: err.message
     });
   }
 });
+
 
 
 
