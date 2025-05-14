@@ -152,17 +152,7 @@ await redis.expire(req.visitorKey, 86400);
 });
 
 
-app.get("/member-usage", authMiddleware, async (req, res) => {
-  const user = req.user;
-  if (!user?.email) return res.status(403).json({ error: "Unauthorized" });
 
-  const emailKey = user.email.replace(/[@.]/g, "_");
-  const today = new Date().toISOString().split("T")[0];
-  const key = `member:count:${emailKey}:${today}`;
-
-  const count = parseInt(await redis.get(key) || "0", 10);
-  res.json({ usage: { count, max: 50 } });
-});
 
 async function generateWithAI({ mycontent, userLanguage, userFocus, difficulty, type = "mcq" }) {
   const langCode = franc(mycontent || "");
@@ -323,6 +313,20 @@ const authMiddleware = async (req, res, next) => {
 
   next();
 };
+
+
+app.get("/member-usage", authMiddleware, async (req, res) => {
+  const user = req.user;
+  if (!user?.email) return res.status(403).json({ error: "Unauthorized" });
+
+  const emailKey = user.email.replace(/[@.]/g, "_");
+  const today = new Date().toISOString().split("T")[0];
+  const key = `member:count:${emailKey}:${today}`;
+
+  const count = parseInt(await redis.get(key) || "0", 10);
+  res.json({ usage: { count, max: 50 } });
+});
+
 
 app.use(async (req, res, next) => {
   const authHeader = req.headers.authorization;
