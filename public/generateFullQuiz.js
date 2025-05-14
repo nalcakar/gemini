@@ -194,7 +194,9 @@ async function generateFullQuiz() {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate questions.\n${err.message}`);
   }
-
+if (typeof showMemberUsageBar === "function") {
+  showMemberUsageBar();
+}
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
   if (typeof updateFloatingButtonVisibility === "function") {
@@ -1631,7 +1633,9 @@ async function generateKeywords() {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate keywords.\n${err.message}`);
   }
-
+if (typeof showMemberUsageBar === "function") {
+  showMemberUsageBar();
+}
   button.disabled = false;
   button.textContent = "✨ Generate Keywords and Explanations";
 
@@ -1793,7 +1797,9 @@ async function generateTopicKeywords() {
     console.error("❌ Error:", err);
     alert(`❌ Failed to generate topic keywords.\n${err.message}`);
   }
-
+if (typeof showMemberUsageBar === "function") {
+  showMemberUsageBar();
+}
   btn.disabled = false;
   btn.textContent = "✨ Generate Keywords and Explanations";
 
@@ -1831,3 +1837,32 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 });
+
+async function showMemberUsageBar() {
+  const token = localStorage.getItem("accessToken");
+  if (!token) return;
+
+  try {
+    const res = await fetch("/member-usage", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    const container = document.getElementById("memberUsageBarContainer");
+    const label = document.getElementById("memberUsageLabel");
+    const fill = document.getElementById("memberUsageBarFill");
+
+    if (data?.usage && container && label && fill) {
+      const { count, max } = data.usage;
+      const percent = Math.min(100, Math.round((count / max) * 100));
+      container.style.display = "block";
+      label.textContent = `${count} / ${max}`;
+      fill.style.width = `${percent}%`;
+      fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+    }
+  } catch (err) {
+    console.warn("⚠️ Member usage bar error:", err.message);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", showMemberUsageBar);

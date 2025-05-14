@@ -397,6 +397,27 @@ details summary {
   background: linear-gradient(to right, #dc2626, #b91c1c) !important;
 }
 
+.usage-bar-label {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #374151;
+}
+.usage-bar {
+  height: 14px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+.usage-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, #3b82f6, #2563eb);
+  transition: width 0.3s ease;
+}
+.usage-bar-warning {
+  background: linear-gradient(to right, #dc2626, #b91c1c) !important;
+}
+
+
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -480,7 +501,13 @@ details summary {
   ✨ Generate Keywords and Explanations
 </button>
 
-  
+  <div id="memberUsageBarContainer" style="display:none; margin: 20px auto; max-width: 400px;">
+  <div class="usage-bar-label">🧑‍🏫 Member AI Usage: <span id="memberUsageLabel">0 / 50</span></div>
+  <div class="usage-bar">
+    <div id="memberUsageBarFill" class="usage-bar-fill" style="width: 0%;"></div>
+  </div>
+</div>
+
 </div>
 <div id="visitorUsageBadge" style="text-align:center; font-weight:bold; margin-top:10px; color:#dc2626;"></div>
 
