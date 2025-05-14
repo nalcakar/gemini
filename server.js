@@ -37,6 +37,32 @@ const redis = new Redis(process.env.REDIS_URL); // ✅ secure and dynamic
 
 
 const VISITOR_LIMIT = 30;
+const MEMBER_DAILY_LIMIT = 50;
+
+async function checkMemberLimit(req, res, next) {
+  const user = req.user;
+  if (!user?.email) return res.status(403).json({ error: "Unauthorized" });
+
+  const emailKey = user.email.replace(/[@.]/g, "_");
+  const today = new Date().toISOString().split("T")[0];
+  const key = `member:count:${emailKey}:${today}`;
+
+  let currentCount = parseInt(await redis.get(key) || "0", 10);
+  req.memberKey = key;
+  req.memberCount = currentCount;
+  req.memberUsage = { count: currentCount, max: MEMBER_DAILY_LIMIT };
+
+  if (currentCount >= MEMBER_DAILY_LIMIT) {
+    return res.status(429).json({
+      error: "❌ Daily AI generation limit of 50 items reached.",
+      usage: req.memberUsage
+    });
+  }
+
+  next();
+}
+
+
 
 // 🎯 Track how many questions a visitor has generated today
 async function checkVisitorLimit(req, res, next) {
@@ -527,20 +553,19 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
-app.post("/generate-questions", async (req, res) => {
+app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, res) => {
   const { mycontent, userLanguage, userFocus, difficulty } = req.body;
   const user = req.user || {};
 
   const tierQuestionCounts = {
-    "25296810": 10,  // Bronze
-    "25539224": 15,  // Silver
-        "25669215": 20   // Gold
+    "25539224": 10,  // Bronze
+    "25296810": 15,  // Silver
+    "25669215": 20   // Gold
   };
 
   const userTier = user.tier;
   const questionCount = tierQuestionCounts[userTier] || 5;
 
-  // Dil algılama
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
@@ -551,92 +576,50 @@ app.post("/generate-questions", async (req, res) => {
   };
 
   const isoMap = {
-    "İngilizce": "English",
-    "Türkçe": "Turkish",
-    "Arapça": "Arabic",
-    "Fransızca": "French",
-    "İspanyolca": "Spanish",
-    "Almanca": "German",
-    "İtalyanca": "Italian",
-    "Portekizce": "Portuguese",
-    "Rusça": "Russian",
-    "Çince": "Chinese",
-    "Japonca": "Japanese",
-    "Korece": "Korean",
-    "Flemenkçe": "Dutch",
-    "Lehçe": "Polish",
-    "Hintçe": "Hindi",
-    "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese",
-    "Tayca": "Thai",
-    "Romence": "Romanian",
-    "Ukraynaca": "Ukrainian"
+    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
+    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
+    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
+    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
   };
 
-  let questionLanguage = "İngilizce";
-  if (userLanguage?.trim()) {
-    questionLanguage = userLanguage.trim();
-  } else if (languageMap[langCode]) {
-    questionLanguage = languageMap[langCode];
-  }
-
+  let questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
   const promptLanguage = isoMap[questionLanguage] || "English";
   const isShortTopic = mycontent.length < 80;
 
-  // ✅ Temiz tekli prompt yapısı
   let prompt = "";
 
   if (isShortTopic) {
     prompt = `
 You are an expert question generator.
-
 Your task is to generate exactly ${questionCount} multiple-choice questions based on the topic: "${mycontent}".
-
 ${userFocus?.trim() ? `Focus specifically on: "${userFocus.trim()}".` : ""}
-${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}.` : ""}
-
+${difficulty ? `Target difficulty level: ${difficulty}.` : ""}
 All output must be written in ${promptLanguage}.
 
 Format:
 ***[Question text]
-
 /// A) Option 1
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
 ~~Cevap: [Correct Option] 
-&&Açıklama: [Short Explanation about why this answer is correct.]
-
-Rules:
-- Use exactly this structure, no extra numbering (no 1., 2., etc.)
-- No additional comments outside the requested format.
-- Each explanation must be at least 2 complete sentences.
-- If the question involves math, format expressions using LaTeX ($...$).
+&&Açıklama: [Short Explanation]
 `;
   } else {
     prompt = `
 You are an expert quiz generator.
-
 Based on the following content (in ${promptLanguage}), generate exactly ${questionCount} multiple-choice questions:
-
 "${mycontent}"
 
 Format:
 ***[Question text]
-
 /// A) Option 1
 /// B) Option 2
 /// C) Option 3
 /// D) Option 4
 ~~Cevap: [Correct Option] 
-&&Açıklama: [Short Explanation about why this answer is correct.]
-
-Rules:
-- Use exactly the specified structure, no numbering.
-- No additional notes or commentary outside.
-- All content must be in ${promptLanguage}.
-- Each explanation should be at least 2 full sentences.
-- If math appears, format formulas properly using LaTeX ($...$).
+&&Açıklama: [Short Explanation]
 `;
   }
 
@@ -645,227 +628,170 @@ Rules:
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
 
-    // Parse and map Gemini text to structured questions
     const blocks = raw.split("***").filter(Boolean);
-    const parsed = blocks.map(block => {
+    const questions = blocks.map(block => {
       const lines = block.trim().split("\n").map(line => line.trim());
       const question = lines[0];
-      const options = lines
-        .filter(l => l.startsWith("///"))
-        .map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
-    
+      const options = lines.filter(l => l.startsWith("///")).map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
       const optionMap = {};
-      ["A", "B", "C", "D"].forEach((key, i) => {
-        const rawLine = lines.find(l => l.startsWith(`/// ${key})`));
-        if (rawLine) optionMap[key] = rawLine.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
+      ["A", "B", "C", "D"].forEach(key => {
+        const line = lines.find(l => l.startsWith(`/// ${key})`));
+        if (line) optionMap[key] = line.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
       });
-    
       let answerRaw = (lines.find(l => l.startsWith("~~Cevap:")) || "").replace(/^~~Cevap:\s*/, "").trim();
       let explanation = (lines.find(l => l.startsWith("&&Açıklama:")) || "").replace(/^&&Açıklama:\s*/, "").trim();
-    
-      // If answer is A/B/C/D, replace with actual text
-      if (/^[A-D]$/.test(answerRaw)) {
-        answerRaw = optionMap[answerRaw] || answerRaw;
-      }
-    
-      return {
-        question,
-        options,
-        answer: answerRaw,
-        explanation
-      };
+      if (/^[A-D]$/.test(answerRaw)) answerRaw = optionMap[answerRaw] || answerRaw;
+
+      return { question, options, answer: answerRaw, explanation };
     });
-    
-    res.json({ questions: parsed });
-    
+
+    const added = questions.length;
+    const newCount = req.memberCount + added;
+    await redis.set(req.memberKey, newCount);
+    await redis.expire(req.memberKey, 86400);
+    req.memberUsage.count = newCount;
+
+    return res.json({ questions, usage: req.memberUsage });
   } catch (err) {
-    console.error("Gemini Error:", err.message);
-    res.status(500).json({
-      error: "Failed to generate questions",
-      message: err.message
+    console.error("❌ Question generation error:", err.message);
+    return res.status(500).json({
+      error: "AI question generation failed",
+      usage: req.memberUsage
     });
   }
 });
+
 
 
 // === ANAHTAR KELİME ÜRETME ===
-app.post("/generate-keywords", async (req, res) => {
+app.post("/generate-keywords", authMiddleware, checkMemberLimit, async (req, res) => {
   const { mycontent, userLanguage, difficulty } = req.body;
-  const user = req.user || {};
 
-  const tierQuestionCounts = {
-    "25296810": 10,  // Bronze
-    "25539224": 15,  // Silver
-        "25669215": 20   // Gold
-  };
-
-  const userTier = user.tier;
-  const keywordCount = tierKeywordCounts[userTier] || 8;
-
-  // 🌐 Language detection and mapping
-  const langCode = franc(mycontent || "");
+  const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça"
+    // add others if needed
   };
 
   const isoMap = {
-    "İngilizce": "English",
-    "Türkçe": "Turkish",
-    "Arapça": "Arabic",
-    "Fransızca": "French",
-    "İspanyolca": "Spanish",
-    "Almanca": "German",
-    "İtalyanca": "Italian",
-    "Portekizce": "Portuguese",
-    "Rusça": "Russian",
-    "Çince": "Chinese",
-    "Japonca": "Japanese",
-    "Korece": "Korean",
-    "Flemenkçe": "Dutch",
-    "Lehçe": "Polish",
-    "Hintçe": "Hindi",
-    "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese",
-    "Tayca": "Thai",
-    "Romence": "Romanian",
-    "Ukraynaca": "Ukrainian"
+    "İngilizce": "English", "Türkçe": "Turkish", "İspanyolca": "Spanish",
+    "Fransızca": "French", "Almanca": "German", "Portekizce": "Portuguese"
   };
 
-  let questionLanguage = "İngilizce";
-  if (userLanguage?.trim()) {
-    questionLanguage = userLanguage.trim();
-  } else if (languageMap[langCode]) {
-    questionLanguage = languageMap[langCode];
-  }
-
+  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
   const promptLanguage = isoMap[questionLanguage] || "English";
 
-  
   const prompt = `
-  You are an expert in content analysis and translation.
-  
-  Your task is to extract exactly ${keywordCount} important keywords from the following text.
-  
-  Instructions:
-  - Translate the keywords and explanations into ${promptLanguage}.
-  - List each keyword on a new line, starting with a dash (-).
-  - After the translated keyword, write a colon and give a 2–3 sentence explanation about its meaning **in the context of the passage**.
-  - Do not include the original (source language) keyword.
-  - Avoid dictionary definitions — explain how the keyword is used in this specific text.
-  
-  Format:
-  - [Translated Keyword]: [Explanation in ${promptLanguage}]
-  
-  Text:
-  """
-  ${mycontent}
-  """`;
-  
-
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await model.generateContent(prompt);
-    const text = await result.response.text();
-    res.json({ keywords: text });
-  } catch (err) {
-    console.error("Gemini Keyword hata:", err.message);
-    res.status(500).json({ error: "Anahtar kelimeler üretilemedi" });
-  }
-});
-
-app.post("/generate-keywords-topic", async (req, res) => {
-  const { topic, focus, userLanguage, difficulty } = req.body;
-  const user = req.user || {};
-
-  // 🎯 Tier-based keyword count
-  const tierQuestionCounts = {
-    "25296810": 10,  // Bronze
-    "25539224": 15,  // Silver
-        "25669215": 20   // Gold
-  };
-  const userTier = user.tier;
-  const keywordCount = tierKeywordCounts[userTier] || 8;
-
-  // 🌐 Language detection and mapping
-  const langCode = franc(topic || "");
-  const languageMap = {
-    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
-  };
-
-  const isoMap = {
-    "İngilizce": "English",
-    "Türkçe": "Turkish",
-    "Arapça": "Arabic",
-    "Fransızca": "French",
-    "İspanyolca": "Spanish",
-    "Almanca": "German",
-    "İtalyanca": "Italian",
-    "Portekizce": "Portuguese",
-    "Rusça": "Russian",
-    "Çince": "Chinese",
-    "Japonca": "Japanese",
-    "Korece": "Korean",
-    "Flemenkçe": "Dutch",
-    "Lehçe": "Polish",
-    "Hintçe": "Hindi",
-    "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese",
-    "Tayca": "Thai",
-    "Romence": "Romanian",
-    "Ukraynaca": "Ukrainian"
-  };
-
-  let questionLanguage = "İngilizce";
-  if (userLanguage?.trim()) {
-    questionLanguage = userLanguage.trim();
-  } else if (languageMap[langCode]) {
-    questionLanguage = languageMap[langCode];
-  }
-
-  const promptLanguage = isoMap[questionLanguage] || "English";
-
-  // 🧠 Topic-based prompt
-  const prompt = `
-You are an expert educator.
-
-Your task is to generate exactly ${keywordCount} essential and **educational** keywords related to the topic below.
-
-Topic: "${topic}"
-${focus ? `Focus: "${focus}"` : ""}
+You are an expert in content analysis and translation.
+Your task is to extract exactly 5 important keywords from the following text.
 
 Instructions:
-- Select keywords that are important for understanding and teaching this topic.
 - Translate the keywords and explanations into ${promptLanguage}.
-- Each keyword must be significant for learners to grasp the subject well.
-- List each translated keyword on a new line, starting with a dash (-).
-- After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
-- The explanation must NOT contain or repeat the keyword itself, or any word stem/variation of it.
-- Assume this explanation will be used in a quiz where the keyword is hidden as the correct answer.
-
+- List each keyword on a new line, starting with a dash (-).
+- After the keyword, write a 2–3 sentence explanation about its meaning in context.
 
 Format:
 - [Translated Keyword]: [Explanation in ${promptLanguage}]
-`;
 
+Text:
+"""
+${mycontent}
+"""`;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    const text = await result.response.text();
-    res.json({ keywords: text });
+    const raw = await result.response.text();
+
+    const keywordLines = raw.split("\n").filter(line => line.trim().startsWith("-"));
+    const added = keywordLines.length;
+    const newCount = req.memberCount + added;
+
+    await redis.set(req.memberKey, newCount);
+    await redis.expire(req.memberKey, 86400);
+    req.memberUsage.count = newCount;
+
+    return res.json({ keywords: raw, usage: req.memberUsage });
   } catch (err) {
-    console.error("Gemini Keyword Topic hata:", err.message);
-    res.status(500).json({ error: "Topic tabanlı anahtar kelimeler üretilemedi" });
+    console.error("❌ Keyword generation error:", err.message);
+    return res.status(500).json({
+      error: "AI keyword generation failed",
+      usage: req.memberUsage
+    });
   }
 });
+
+
+app.post("/generate-keywords-topic", authMiddleware, checkMemberLimit, async (req, res) => {
+  const { mycontent, userLanguage, difficulty } = req.body;
+  const user = req.user;
+
+  if (!mycontent || mycontent.trim().length < 2) {
+    return res.status(400).json({ error: "⚠️ Missing topic content." });
+  }
+
+  const langCode = franc(mycontent);
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+
+  const isoMap = {
+    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
+    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
+    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
+    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
+  };
+
+  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
+  const promptLanguage = isoMap[questionLanguage] || "English";
+
+  const prompt = `
+You are an expert in concept extraction and multilingual explanation.
+
+Generate exactly 5 important keywords related to the following topic:
+"${mycontent}"
+
+Instructions:
+- Each keyword must be relevant to the topic.
+- Output language: ${promptLanguage}
+- Format:
+  - [Keyword]: [Short explanation in ${promptLanguage} (1–2 sentences)]
+
+Example format:
+- Photosynthesis: The process by which plants use sunlight to synthesize food from carbon dioxide and water.
+
+Start now:
+`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const result = await model.generateContent(prompt);
+    const raw = await result.response.text();
+
+    const keywordLines = raw.split("\n").filter(line => line.trim().startsWith("-"));
+    const added = keywordLines.length;
+    const newCount = req.memberCount + added;
+
+    await redis.set(req.memberKey, newCount);
+    await redis.expire(req.memberKey, 86400);
+    req.memberUsage.count = newCount;
+
+    res.json({ keywords: raw, usage: req.memberUsage });
+  } catch (err) {
+    console.error("❌ Topic keyword generation error:", err.message);
+    res.status(500).json({
+      error: "Keyword generation failed.",
+      usage: req.memberUsage
+    });
+  }
+});
+
 
 
 
