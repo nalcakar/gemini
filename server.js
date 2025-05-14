@@ -726,72 +726,18 @@ Rules:
 // === ANAHTAR KELİME ÜRETME ===
 app.post("/generate-keywords", authMiddleware, checkMemberLimit, async (req, res) => {
   const { mycontent, userLanguage, difficulty } = req.body;
+  const user = req.user || {};
 
-  const langCode = franc(mycontent);
-  const languageMap = {
-    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça"
-    // add others if needed
+  const tierKeywordCounts = {
+    "25296810": 10,  // Bronze
+    "25539224": 15,  // Silver
+    "25669215": 20   // Gold
   };
 
-  const isoMap = {
-    "İngilizce": "English", "Türkçe": "Turkish", "İspanyolca": "Spanish",
-    "Fransızca": "French", "Almanca": "German", "Portekizce": "Portuguese"
-  };
+  const userTier = user.tier;
+  const keywordCount = tierKeywordCounts[userTier] || 8;
 
-  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
-  const promptLanguage = isoMap[questionLanguage] || "English";
-
-  const prompt = `
-You are an expert in content analysis and translation.
-Your task is to extract exactly 5 important keywords from the following text.
-
-Instructions:
-- Translate the keywords and explanations into ${promptLanguage}.
-- List each keyword on a new line, starting with a dash (-).
-- After the keyword, write a 2–3 sentence explanation about its meaning in context.
-
-Format:
-- [Translated Keyword]: [Explanation in ${promptLanguage}]
-
-Text:
-"""
-${mycontent}
-"""`;
-
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await model.generateContent(prompt);
-    const raw = await result.response.text();
-
-    const keywordLines = raw.split("\n").filter(line => line.trim().startsWith("-"));
-    const added = keywordLines.length;
-    const newCount = req.memberCount + added;
-
-    await redis.set(req.memberKey, newCount);
-    await redis.expire(req.memberKey, 86400);
-    req.memberUsage.count = newCount;
-
-    return res.json({ keywords: raw, usage: req.memberUsage });
-  } catch (err) {
-    console.error("❌ Keyword generation error:", err.message);
-    return res.status(500).json({
-      error: "AI keyword generation failed",
-      usage: req.memberUsage
-    });
-  }
-});
-
-
-app.post("/generate-keywords-topic", authMiddleware, checkMemberLimit, async (req, res) => {
-  const { mycontent, userLanguage, difficulty } = req.body;
-  const user = req.user;
-
-  if (!mycontent || mycontent.trim().length < 2) {
-    return res.status(400).json({ error: "⚠️ Missing topic content." });
-  }
-
-  const langCode = franc(mycontent);
+  const langCode = franc(mycontent || "");
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
     "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
@@ -808,49 +754,123 @@ app.post("/generate-keywords-topic", authMiddleware, checkMemberLimit, async (re
     "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
   };
 
-  const questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
+  let questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
   const promptLanguage = isoMap[questionLanguage] || "English";
 
   const prompt = `
-You are an expert in concept extraction and multilingual explanation.
+You are an expert in content analysis and translation.
 
-Generate exactly 5 important keywords related to the following topic:
-"${mycontent}"
+Your task is to extract exactly ${keywordCount} important keywords from the following text.
 
 Instructions:
-- Each keyword must be relevant to the topic.
-- Output language: ${promptLanguage}
-- Format:
-  - [Keyword]: [Short explanation in ${promptLanguage} (1–2 sentences)]
+- Translate the keywords and explanations into ${promptLanguage}.
+- List each keyword on a new line, starting with a dash (-).
+- After the translated keyword, write a colon and give a 2–3 sentence explanation about its meaning **in the context of the passage**.
+- Do not include the original (source language) keyword.
+- Avoid dictionary definitions — explain how the keyword is used in this specific text.
 
-Example format:
-- Photosynthesis: The process by which plants use sunlight to synthesize food from carbon dioxide and water.
+Format:
+- [Translated Keyword]: [Explanation in ${promptLanguage}]
 
-Start now:
+Text:
+"""
+${mycontent}
+"""`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
+
+    const keywordLines = text.split("\n").filter(line => line.trim().startsWith("-"));
+    const added = keywordLines.length;
+    const newCount = req.memberCount + added;
+    await redis.set(req.memberKey, newCount);
+    await redis.expire(req.memberKey, 86400);
+    req.memberUsage.count = newCount;
+
+    res.json({ keywords: text, usage: req.memberUsage });
+  } catch (err) {
+    console.error("Gemini Keyword hata:", err.message);
+    res.status(500).json({ error: "Anahtar kelimeler üretilemedi" });
+  }
+});
+
+
+
+app.post("/generate-keywords-topic", authMiddleware, checkMemberLimit, async (req, res) => {
+  const { topic, focus, userLanguage, difficulty } = req.body;
+  const user = req.user || {};
+
+  const tierKeywordCounts = {
+    "25296810": 10,  // Bronze
+    "25539224": 15,  // Silver
+    "25669215": 20   // Gold
+  };
+
+  const userTier = user.tier;
+  const keywordCount = tierKeywordCounts[userTier] || 8;
+
+  const langCode = franc(topic || "");
+  const languageMap = {
+    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
+    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
+    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
+    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
+    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
+  };
+
+  const isoMap = {
+    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
+    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
+    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
+    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
+  };
+
+  let questionLanguage = userLanguage?.trim() || languageMap[langCode] || "İngilizce";
+  const promptLanguage = isoMap[questionLanguage] || "English";
+
+  const prompt = `
+You are an expert educator.
+
+Your task is to generate exactly ${keywordCount} essential and **educational** keywords related to the topic below.
+
+Topic: "${topic}"
+${focus ? `Focus: "${focus}"` : ""}
+
+Instructions:
+- Select keywords that are important for understanding and teaching this topic.
+- Translate the keywords and explanations into ${promptLanguage}.
+- Each keyword must be significant for learners to grasp the subject well.
+- List each translated keyword on a new line, starting with a dash (-).
+- After the keyword, add a colon and give a 2–3 sentence educational explanation that highlights why it is important in the context of the topic.
+- The explanation must NOT contain or repeat the keyword itself, or any word stem/variation of it.
+- Assume this explanation will be used in a quiz where the keyword is hidden as the correct answer.
+
+Format:
+- [Translated Keyword]: [Explanation in ${promptLanguage}]
 `;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
-    const raw = await result.response.text();
+    const text = await result.response.text();
 
-    const keywordLines = raw.split("\n").filter(line => line.trim().startsWith("-"));
+    const keywordLines = text.split("\n").filter(line => line.trim().startsWith("-"));
     const added = keywordLines.length;
     const newCount = req.memberCount + added;
-
     await redis.set(req.memberKey, newCount);
     await redis.expire(req.memberKey, 86400);
     req.memberUsage.count = newCount;
 
-    res.json({ keywords: raw, usage: req.memberUsage });
+    res.json({ keywords: text, usage: req.memberUsage });
   } catch (err) {
-    console.error("❌ Topic keyword generation error:", err.message);
-    res.status(500).json({
-      error: "Keyword generation failed.",
-      usage: req.memberUsage
-    });
+    console.error("Gemini Keyword Topic hata:", err.message);
+    res.status(500).json({ error: "Topic tabanlı anahtar kelimeler üretilemedi" });
   }
 });
+
 
 
 
