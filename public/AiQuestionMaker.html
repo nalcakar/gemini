@@ -804,6 +804,7 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("userEmail", params.get("userEmail"));
     localStorage.setItem("userName", params.get("userName"));
 
+    // ✅ Store only valid tier IDs
     const rawTier = params.get("membershipType") || "Free";
     const allowedTiers = ["25539224", "25296810", "25669215"];
     const tierToStore = allowedTiers.includes(rawTier) ? rawTier : "Free";
@@ -816,50 +817,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const last = localStorage.getItem("lastSection");
   if (last && typeof window.showSection === "function") {
+    // Slight delay to ensure storage is ready
     setTimeout(() => {
+      console.log("💡 Detected Pro?", isProUser());
+      console.log("💎 Tier ID:", localStorage.getItem("membershipType"));
       window.showSection(last);
     }, 150);
   }
-
-  // ✅ ✅ ✅ This line was missing
-  showMemberUsageBar();
 });
-
 
 
 
 
   window.openModal = openModal;
   window.closeModal = closeModal;
-
-async function showMemberUsageBar() {
-  const token = localStorage.getItem("accessToken");
-  if (!token) return;
-
-  try {
-    const res = await fetch("/member-usage", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-
-    if (data.usage) {
-      const label = document.getElementById("memberUsageLabel");
-      const fill = document.getElementById("memberUsageBarFill");
-      const container = document.getElementById("memberUsageBarContainer");
-      const percent = Math.min(100, Math.round((data.usage.count / data.usage.max) * 100));
-
-      if (label && fill && container) {
-        container.style.display = "block";
-        label.textContent = `${data.usage.count} / ${data.usage.max}`;
-        fill.style.width = `${percent}%`;
-        fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
-        console.log("✅ Usage bar updated on load");
-      }
-    }
-  } catch (err) {
-    console.warn("❌ Failed to fetch usage on load:", err.message);
-  }
-}
 
 
 </script>
@@ -980,6 +951,5 @@ async function showMemberUsageBar() {
 
 
 <div id="user-toast">✅ Saved successfully!</div>
-
 </body>
 </html>
