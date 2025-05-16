@@ -598,23 +598,34 @@ function startQuizMode() {
 
   quizContainer.appendChild(quizBox);
   document.body.appendChild(quizContainer);
+
   renderQuestion();
+
+  // ✅ ENFORCE MathJax rendering after first question is rendered
+  if (window.MathJax?.typesetPromise) {
+    MathJax.typesetPromise([quizBox]);
+  }
 }
+
 
 function renderQuestion() {
   const block = quizBlocks[currentIndex];
-  const questionText = block.querySelector("summary .q[data-key='question']")?.textContent?.trim() || `Question ${currentIndex + 1}`;
-  const options = Array.from(block.querySelectorAll("ul li")).map(li => 
-  li.textContent.trim().replace(/^[A-D]\)\s*/, "")
-);
+  const questionText = block.querySelector("summary .q[data-key='question']")?.dataset.latex?.trim()
+    || block.querySelector("summary .q[data-key='question']")?.textContent.trim()
+    || `Question ${currentIndex + 1}`;
+
+  const options = Array.from(block.querySelectorAll("ul li")).map(li =>
+    li.dataset.latex?.trim() || li.textContent.trim().replace(/^[A-D]\)\s*/, "")
+  );
+
   const savedAnswer = selectedAnswers[currentIndex];
 
   quizBox.innerHTML = `
     <button onclick="document.body.removeChild(document.getElementById('quizModal'))"
             style="position:absolute; top:10px; right:10px; background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:6px;">✖️ Exit</button>
     ${inRetryMode ? `<p style="font-size:14px; color:#6366f1; font-weight:bold;">🔁 Retry Mode</p>` : ""}
-   <p style="font-size:14px; color:#6b7280;">Question ${currentIndex + 1} of ${quizBlocks.length}</p>
-<h3 style="font-size:20px; margin-bottom:16px;">${questionText}</h3>
+    <p style="font-size:14px; color:#6b7280;">Question ${currentIndex + 1} of ${quizBlocks.length}</p>
+    <h3 style="font-size:20px; margin-bottom:16px;">${questionText}</h3>
 
     <div id="quizOptions" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
       ${options.map((opt, i) => `
@@ -634,8 +645,6 @@ function renderQuestion() {
   const optionButtons = quizBox.querySelectorAll(".quiz-option");
   optionButtons.forEach(btn => {
     const value = btn.dataset.value;
-
-    // Restore selection
     if (value === savedAnswer) {
       btn.style.background = "#dbeafe";
       btn.style.color = "#1e3a8a";
@@ -643,15 +652,12 @@ function renderQuestion() {
 
     btn.onclick = () => {
       selectedAnswers[currentIndex] = value;
-
       optionButtons.forEach(b => {
         b.style.background = "white";
         b.style.color = "black";
       });
-
       btn.style.background = "#dbeafe";
       btn.style.color = "#1e3a8a";
-
       document.getElementById("nextBtn").disabled = false;
     };
   });
@@ -671,7 +677,13 @@ function renderQuestion() {
       showQuizResult();
     }
   };
+
+  // ✅ Re-render LaTeX
+  if (window.MathJax?.typesetPromise) {
+    MathJax.typesetPromise([quizBox]);
+  }
 }
+
 
 function showQuizResult() {
   let correct = 0;
@@ -680,10 +692,17 @@ function showQuizResult() {
 
   selectedAnswers.forEach((userAns, i) => {
     const block = quizBlocks[i];
-    const question = block.querySelector("summary .q[data-key='question']")?.textContent?.trim() || `Question ${i + 1}`;
+
+    const question = block.querySelector("summary .q[data-key='question']")?.dataset.latex?.trim()
+      || block.querySelector("summary .q[data-key='question']")?.textContent?.trim()
+      || `Question ${i + 1}`;
+
     const correctAns = correctAnswers[i];
+
     const explanationEl = block.querySelector("p:nth-of-type(2)") || block.querySelector(".q[data-key='explanation']");
-    const explanation = explanationEl?.textContent?.replace(/^💡 Explanation:\s*/, "") || "No explanation provided.";
+    const explanation = explanationEl?.dataset.latex?.trim()
+      || explanationEl?.textContent?.replace(/^💡 Explanation:\s*/, "")
+      || "No explanation provided.";
 
     const isCorrect = userAns === correctAns;
     if (!isCorrect) incorrectIndices.push(i);
@@ -706,17 +725,16 @@ function showQuizResult() {
     <p style="font-size:20px;">✅ Correct: ${correct} / ${quizBlocks.length}</p>
     <p style="font-size:22px; margin-top:12px;">Your Score: <strong>${score}%</strong></p>
     <div id="mcqResultScroll" style="max-height:50vh; overflow:auto; margin-top:20px;">${resultsHtml.join("")}</div>
-   <div style="text-align:center; margin-top:20px;">
-  ${incorrectIndices.length > 0 ? `
-    <button onclick="retryIncorrectMCQQuiz(${JSON.stringify(incorrectIndices)})"
-            style="margin-right:10px; padding:10px 18px; background:#6366f1; color:white; border:none; border-radius:8px;">🔁 Retry Incorrect</button>
-  ` : ""}
-  <button onclick="document.body.removeChild(document.getElementById('quizModal')); setTimeout(startQuizMode, 100);" 
-        style="padding:10px 18px; background:#10b981; color:white; border:none; border-radius:8px;">🔁 Restart All</button>
-  <button onclick="document.body.removeChild(document.getElementById('quizModal'))"
-          style="margin-left:10px; padding:10px 18px; background:#ef4444; color:white; border:none; border-radius:8px;">✖️ Close</button>
-</div>
-
+    <div style="text-align:center; margin-top:20px;">
+      ${incorrectIndices.length > 0 ? `
+        <button onclick='retryIncorrectMCQQuiz(${JSON.stringify(incorrectIndices)})'
+                style="margin-right:10px; padding:10px 18px; background:#6366f1; color:white; border:none; border-radius:8px;">🔁 Retry Incorrect</button>
+      ` : ""}
+      <button onclick="document.body.removeChild(document.getElementById('quizModal')); setTimeout(startQuizMode, 100);" 
+              style="padding:10px 18px; background:#10b981; color:white; border:none; border-radius:8px;">🔁 Restart All</button>
+      <button onclick="document.body.removeChild(document.getElementById('quizModal'))"
+              style="margin-left:10px; padding:10px 18px; background:#ef4444; color:white; border:none; border-radius:8px;">✖️ Close</button>
+    </div>
   `;
 
   // 🌀 Animate cards + scroll to first incorrect
@@ -738,7 +756,13 @@ function showQuizResult() {
       scrollBox.scrollTop = firstWrongCard.offsetTop - scrollBox.offsetTop;
     }
   }, 100);
+
+  // ✅ Re-render LaTeX after DOM content inserted
+  if (window.MathJax?.typesetPromise) {
+    MathJax.typesetPromise([quizBox]);
+  }
 }
+
 
 
 function retryIncorrectQuiz(indices) {

@@ -441,6 +441,26 @@
   word-wrap: break-word;   /* ✅ break long words */
   overflow-x: hidden;      /* ✅ prevent horizontal scrolling */
 }
+.nav-link {
+  text-decoration: none;
+  background: #e5e7eb;
+  color: #1f2937;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background 0.3s, color 0.3s;
+}
+
+.nav-link:hover {
+  background: #d1d5db;
+}
+
+.nav-link.current {
+  background: #3b82f6;
+  color: white;
+}
+
+
 
   </style>
   <!-- Ensure you include these in your HTML for docx templating -->
@@ -450,7 +470,11 @@
 </head>
 <body>
 
-
+<!-- 🌐 Navigation Bar -->
+<div id="page-nav" style="display: flex; justify-content: center; gap: 20px; margin-bottom: 30px;">
+  <a href="AiQuestionMaker.html" id="nav-generator" class="nav-link">🧠 AI Quiz Generator</a>
+  <a href="admin.html" id="nav-admin" class="nav-link">🛠️ Admin Panel</a>
+</div>
 
 
   <!-- 👤 Kullanıcı kutusu -->
@@ -531,18 +555,33 @@
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
   <script>
+ document.addEventListener("DOMContentLoaded", () => {
+    const path = window.location.pathname;
+    if (path.includes("admin.html")) {
+      document.getElementById("nav-admin")?.classList.add("current");
+    } else if (path.includes("AiQuestionMaker.html")) {
+      document.getElementById("nav-generator")?.classList.add("current");
+    }
+  });
 
 
-
-    function renderUserBox() {
-  const name = localStorage.getItem("userName");
-  const membership = localStorage.getItem("membershipType") || "Free";
+  function renderUserBox() {
+  const name = localStorage.getItem("userName") || "Admin";
+  const tierLabels = {
+    "25539224": "Silver",
+    "25296810": "Bronze",
+    "25669215": "Gold"
+  };
+  const rawMembership = localStorage.getItem("membershipType") || "Free";
+  const membership = tierLabels[rawMembership] || rawMembership;
   const accessToken = localStorage.getItem("accessToken");
 
   const container = document.getElementById("user-box");
 
   const currentPage = encodeURIComponent(window.location.href);
-  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  container.innerHTML = accessToken && name
+  const loginUrl = `https://www.patreon.com/oauth2/authorize?response_type=code&client_id=IGUdh16RfRFyfzSrcqZR-Ots5N2jUd3Cu5B2tK5EKm6Dlaou0h2Pzq4S_urdc0Sl&redirect_uri=https://gemini-j8xd.onrender.com/auth/patreon/callback&state=${currentPage}&scope=identity`;  
+
+  container.innerHTML = accessToken && name
     ? `<div class="user-box-inner">
         <span class="user-name">${name}</span>
         <span class="badge ${membership.toLowerCase()}">${membership}</span>
@@ -559,19 +598,6 @@
   };
 }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      renderUserBox();
-    });
-
-    const params = new URLSearchParams(window.location.search);
-  if (params.has("accessToken")) {
-    localStorage.setItem("accessToken", params.get("accessToken"));
-    localStorage.setItem("userEmail", params.get("userEmail"));
-    localStorage.setItem("userName", params.get("userName"));
-    localStorage.setItem("membershipType", params.get("membershipType"));
-    window.history.replaceState({}, document.title, window.location.pathname);
-    location.reload();
-  } 
 
 
   function filterByDifficulty(level) {
@@ -832,6 +858,37 @@ function collapseAllDetails() {
   });
 }
   
+
+function disableAllButtons() {
+  document.querySelectorAll("button").forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = "0.6";
+    btn.style.cursor = "not-allowed";
+  });
+
+  // 🌀 Show spinner if it exists
+  const spinner = document.getElementById("globalSpinner");
+  if (spinner) spinner.style.display = "flex";
+}
+
+function enableAllButtons() {
+  document.querySelectorAll("button").forEach(btn => {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "";
+  });
+
+  // ✅ Hide spinner if it exists
+  const spinner = document.getElementById("globalSpinner");
+  if (spinner) spinner.style.display = "none";
+}
+
+function showSpinner() {
+  document.getElementById("globalSpinner").style.display = "flex";
+}
+function hideSpinner() {
+  document.getElementById("globalSpinner").style.display = "none";
+}
   </script>
   <div id="modalContainer" style="display:none; position:fixed; top:30%; left:50%; transform:translate(-50%, -30%); background:white; padding:20px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000;">
     <label id="modalLabel" for="modalSelect">Select an item:</label>
@@ -994,7 +1051,24 @@ function collapseAllDetails() {
   </div>
 </div>
 
-
+<div id="globalSpinner" style="
+  display: none; /* ✅ Make sure it's hidden at first */
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+">
+  <div style="
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #3b82f6;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+  "></div>
+</div>
   
 </body>
 </html>

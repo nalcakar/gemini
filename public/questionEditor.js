@@ -67,40 +67,43 @@ let shouldReloadQuestions = false;
   
   
   function saveEditedQuestion(id, btn) {
-    const details = btn.closest("details");
-    const inputs = details.querySelectorAll("input");
-    const textarea = details.querySelector("textarea");
-  
-    const updated = {
-      question: inputs[0].value,
-      options: Array.from(inputs).slice(1, 5).map(i => i.value),
-      answer: inputs[5].value,
-      explanation: textarea.value
-    };
-  
-    fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(updated)
-    })
-    .then(res => {
-      if (res.ok) {
-        shouldReloadQuestions = true;
-        currentTitle = "";
-        location.reload();
-      } else {
-        alert("❌ Update failed.");
-      }
-    })
-    .catch(() => alert("❌ Server error"))
-    .finally(() => {
-      // ✅ Butonları tekrar aktif et
-      document.querySelectorAll('button[onclick^="editExistingQuestion"]').forEach(b => b.disabled = false);
-      document.querySelectorAll('button[onclick^="deleteExistingQuestion"]').forEach(b => b.disabled = false);
-    });
-  }
+  const details = btn.closest("details");
+  const inputs = details.querySelectorAll("input");
+  const textarea = details.querySelector("textarea");
+
+  const updated = {
+    question: inputs[0].value,
+    options: Array.from(inputs).slice(1, 5).map(i => i.value),
+    answer: inputs[5].value,
+    explanation: textarea.value
+  };
+
+  // 🔒 Lock buttons + show spinner
+  disableAllButtons();
+
+  fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(updated)
+  })
+  .then(res => {
+    if (res.ok) {
+      shouldReloadQuestions = true;
+      currentTitle = "";
+      location.reload(); // ✅ Page will reload, spinner will vanish naturally
+    } else {
+      alert("❌ Update failed.");
+    }
+  })
+  .catch(() => alert("❌ Server error"))
+  .finally(() => {
+    // ✅ Only re-enable buttons if page is not reloading
+    enableAllButtons();
+  });
+}
+
   
 
   
@@ -169,140 +172,135 @@ let shouldReloadQuestions = false;
   
   
   
-  window.saveExistingQuestion = async function (id, btn) {
-    const block = btn.closest("details");
-    if (!block) return;
-  
-    const textareas = block.querySelectorAll("textarea.q-edit");
-    const difficultySelect = block.querySelector("select.q-difficulty");
-  
-    const newContent = {};
-    textareas.forEach(t => {
-      const key = t.dataset.key;
-      newContent[key] = t.value.trim();
-    });
-  
-    const updatedQuestion = {
-      question: newContent.question || "",
-      options: [
-        newContent.option0 || "",
-        newContent.option1 || "",
-        newContent.option2 || "",
-        newContent.option3 || ""
-      ],
-      answer: newContent.answer || "",
-      explanation: newContent.explanation || "",
-      difficulty: difficultySelect?.value || "medium"
-    };
-  
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) throw new Error("No token found.");
-  
-      const response = await fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          question: updatedQuestion.question,
-          options: updatedQuestion.options,
-          explanation: updatedQuestion.explanation,
-          difficulty: updatedQuestion.difficulty,
-          answer: "placeholder"
-        })
-      });
-  
-      if (!response.ok) throw new Error(`Server error ${response.status}`);
-  
-      // ✅ Modal mı normal mi ayırt et
-      const isModal = !!block.closest("#modalQuestionList");
-  
-      // ✅ Q numarasını eski summary'den yakala
-      const oldSummary = block.querySelector("summary");
-      let qNumberText = "Q?";
-      const match = oldSummary?.innerText?.match(/^Q(\d+)/i);
-      if (match) {
-        qNumberText = `Q${match[1]}`;
-      }
-  
-      // ✅ Kartı baştan güncelle
-      block.innerHTML = `
-        <summary style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="flex-grow:1;">
-            <b>${qNumberText}.</b> 
-            <span class="q" data-key="question" data-latex="${updatedQuestion.question}">${updatedQuestion.question}</span>
-          </div>
-          ${!isModal ? `
-          <label style="margin-left:8px;">
-            <input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅
-          </label>
-          ` : ""}
-        </summary>
-        <ul>
-          ${updatedQuestion.options.map(opt => `
-            <li class="q" data-key="option" data-latex="${opt}">${opt}</li>
-          `).join("")}
-        </ul>
-        <p><strong>✅ Answer:</strong> <span class="q" data-key="answer" data-latex="${answer}">${answer}</span></p>
+ window.saveExistingQuestion = async function (id, btn) {
+  const block = btn.closest("details");
+  if (!block) return;
 
-        <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${updatedQuestion.explanation}">${updatedQuestion.explanation}</span></p>
-        <p class="difficulty-line" data-level="${updatedQuestion.difficulty}">
-          <strong>Difficulty:</strong> ${
-            updatedQuestion.difficulty === "easy" ? "🟢 Easy" :
-            updatedQuestion.difficulty === "hard" ? "🔴 Hard" :
-            "🟡 Medium"
-          }
-        </p>
-        <div style="margin-top:8px;">
-          <button onclick="editExistingQuestion(${id})">✏️ Edit</button>
-          <button onclick="deleteExistingQuestion(${id}, this)">🗑️ Delete</button>
-        </div>
-      `;
-  
-      // ✅ MathJax sıfırla ve sadece bu blok için yeniden çalıştır
-      if (window.MathJax) {
-        MathJax.startup.document.clear();
-        MathJax.startup.document.updateDocument();
-        MathJax.typesetPromise([block]).catch(console.error);
-      }
-  
-      // ✅ Save sonrası kartı yeşil yap, sonra eski haline dön
-      block.style.backgroundColor = "#dcfce7"; // light green
-      setTimeout(() => {
-        block.style.backgroundColor = "";
-      }, 2000);
-  
-      // ✅ Başarı mesajı (ufak toast)
-      const msg = document.createElement("div");
-      msg.textContent = "✅ Saved successfully!";
-      msg.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #4ade80;
-        color: #fff;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-weight: bold;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        z-index: 10000;
-        opacity: 0;
-        transition: all 0.5s ease;
-      `;
-      document.body.appendChild(msg);
-  
-      setTimeout(() => { msg.style.opacity = 1; }, 100);
-      setTimeout(() => { msg.style.opacity = 0; }, 2000);
-      setTimeout(() => { msg.remove(); }, 2500);
-  
-    } catch (error) {
-      console.error("❌ Save Error:", error);
-      alert(`❌ Failed to save. ${error.message}`);
-    }
+  const textareas = block.querySelectorAll("textarea.q-edit");
+  const difficultySelect = block.querySelector("select.q-difficulty");
+
+  const newContent = {};
+  textareas.forEach(t => {
+    const key = t.dataset.key;
+    newContent[key] = t.value.trim();
+  });
+
+  const updatedQuestion = {
+    question: newContent.question || "",
+    options: [
+      newContent.option0 || "",
+      newContent.option1 || "",
+      newContent.option2 || "",
+      newContent.option3 || ""
+    ],
+    answer: newContent.answer || "",
+    explanation: newContent.explanation || "",
+    difficulty: difficultySelect?.value || "medium"
   };
+
+  try {
+    disableAllButtons(); // 🔒 Lock the interface
+    const token = localStorage.getItem("accessToken");
+    if (!token) throw new Error("No token found.");
+
+    const response = await fetch(`https://gemini-j8xd.onrender.com/update-question/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        question: updatedQuestion.question,
+        options: updatedQuestion.options,
+        explanation: updatedQuestion.explanation,
+        difficulty: updatedQuestion.difficulty,
+        answer: "placeholder"
+      })
+    });
+
+    if (!response.ok) throw new Error(`Server error ${response.status}`);
+
+    const isModal = !!block.closest("#modalQuestionList");
+    const oldSummary = block.querySelector("summary");
+    let qNumberText = "Q?";
+    const match = oldSummary?.innerText?.match(/^Q(\d+)/i);
+    if (match) {
+      qNumberText = `Q${match[1]}`;
+    }
+
+    block.innerHTML = `
+      <summary style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="flex-grow:1;">
+          <b>${qNumberText}.</b> 
+          <span class="q" data-key="question" data-latex="${updatedQuestion.question}">${updatedQuestion.question}</span>
+        </div>
+        ${!isModal ? `
+        <label style="margin-left:8px;">
+          <input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅
+        </label>
+        ` : ""}
+      </summary>
+      <ul>
+        ${updatedQuestion.options.map(opt => `
+          <li class="q" data-key="option" data-latex="${opt}">${opt}</li>
+        `).join("")}
+      </ul>
+      <p><strong>✅ Answer:</strong> <span class="q" data-key="answer" data-latex="${updatedQuestion.answer}">${updatedQuestion.answer}</span></p>
+      <p><strong>💡 Explanation:</strong> <span class="q" data-key="explanation" data-latex="${updatedQuestion.explanation}">${updatedQuestion.explanation}</span></p>
+      <p class="difficulty-line" data-level="${updatedQuestion.difficulty}">
+        <strong>Difficulty:</strong> ${
+          updatedQuestion.difficulty === "easy" ? "🟢 Easy" :
+          updatedQuestion.difficulty === "hard" ? "🔴 Hard" :
+          "🟡 Medium"
+        }
+      </p>
+      <div style="margin-top:8px;">
+        <button onclick="editExistingQuestion(${id})">✏️ Edit</button>
+        <button onclick="deleteExistingQuestion(${id}, this)">🗑️ Delete</button>
+      </div>
+    `;
+
+    if (window.MathJax) {
+      MathJax.startup.document.clear();
+      MathJax.startup.document.updateDocument();
+      await MathJax.typesetPromise([block]);
+    }
+
+    block.style.backgroundColor = "#dcfce7";
+    setTimeout(() => {
+      block.style.backgroundColor = "";
+    }, 2000);
+
+    const msg = document.createElement("div");
+    msg.textContent = "✅ Saved successfully!";
+    msg.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4ade80;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 10000;
+      opacity: 0;
+      transition: all 0.5s ease;
+    `;
+    document.body.appendChild(msg);
+    setTimeout(() => { msg.style.opacity = 1; }, 100);
+    setTimeout(() => { msg.style.opacity = 0; }, 2000);
+    setTimeout(() => { msg.remove(); }, 2500);
+
+  } catch (error) {
+    console.error("❌ Save Error:", error);
+    alert(`❌ Failed to save. ${error.message}`);
+  } finally {
+    enableAllButtons(); // ✅ Restore interface no matter what
+  }
+};
+
   
   
   
@@ -445,3 +443,140 @@ window.deleteExistingQuestion = deleteExistingQuestion;
 function expandAllModalDetails(open = true) {
   document.querySelectorAll("#modalQuestionList details").forEach(d => d.open = open);
 }
+
+window.editExistingQuestion = function (id) {
+    const btn = document.querySelector(`button[onclick="editExistingQuestion(${id})"]`);
+    const block = btn?.closest("details");
+    if (!block) return;
+    if (block.querySelector("textarea")) return;
+  
+    // 🆕 Edit başlarken eski HTML sakla
+    if (!block.dataset.originalHTML) {
+      block.dataset.originalHTML = block.innerHTML;
+    }
+  
+    const summary = block.querySelector("summary");
+    let questionSpan = summary.querySelector(".q[data-key='question']");
+    let questionText = "";
+  
+    if (questionSpan) {
+      questionText = questionSpan.dataset.latex || questionSpan.textContent.trim();
+    } else {
+      const match = summary?.textContent.match(/^Q\d+\.\s*(.*)$/);
+      questionText = match?.[1] || summary?.textContent.trim() || "";
+    }
+  
+    const createAutoResizingTextarea = (value, key) => {
+      const textarea = document.createElement("textarea");
+      textarea.className = "q-edit";
+      textarea.dataset.key = key;
+      textarea.value = value;
+      textarea.style.cssText = `
+        width: 100%; margin-top: 8px; padding: 8px; font-size: 15px;
+        border-radius: 6px; overflow: hidden; resize: none; line-height: 1.2; height: 1.1em; min-height: 1.1em;
+      `;
+      textarea.addEventListener("input", () => {
+        textarea.style.height = "auto";
+        textarea.style.height = textarea.scrollHeight + "px";
+      });
+      setTimeout(() => {
+        textarea.style.height = textarea.scrollHeight + "px";
+      }, 30);
+      return textarea;
+    };
+  
+    const qTextarea = createAutoResizingTextarea(questionText, "question");
+    summary.insertAdjacentElement("afterend", qTextarea);
+  
+    qTextarea.addEventListener("input", () => {
+      if (questionSpan) {
+        const newText = qTextarea.value.trim();
+        questionSpan.textContent = newText;
+        questionSpan.dataset.latex = newText;
+        if (window.MathJax?.typesetPromise) MathJax.typesetPromise([questionSpan]);
+      }
+    });
+  
+    const options = block.querySelectorAll("ul li");
+    options.forEach((li, i) => {
+      const val = li.dataset.latex || li.textContent.trim();
+      const textarea = createAutoResizingTextarea(val, `option${i}`);
+      li.insertAdjacentElement("afterend", textarea);
+    });
+  const answerSpan = block.querySelector(".q[data-key='answer']");
+if (answerSpan) {
+  const val = answerSpan.dataset.latex || answerSpan.textContent.trim();
+  const textarea = createAutoResizingTextarea(val, "answer");
+  answerSpan.insertAdjacentElement("afterend", textarea);
+}
+
+    const expSpan = block.querySelector(".q[data-key='explanation']");
+    if (expSpan) {
+      const val = expSpan.dataset.latex || expSpan.textContent.trim();
+      const textarea = createAutoResizingTextarea(val, "explanation");
+      expSpan.insertAdjacentElement("afterend", textarea);
+    }
+  
+    const diffText = block.querySelector(".difficulty-line")?.innerText.toLowerCase() || "";
+    let difficulty = "medium";
+    if (diffText.includes("easy")) difficulty = "easy";
+    else if (diffText.includes("hard")) difficulty = "hard";
+  
+    const select = document.createElement("select");
+    select.className = "q-difficulty";
+    select.style.cssText = "margin-top: 8px; padding: 8px 10px; font-size: 14px; border-radius: 6px;";
+    ["easy", "medium", "hard"].forEach(level => {
+      const opt = document.createElement("option");
+      opt.value = level;
+      opt.textContent = {
+        easy: "🟢 Easy",
+        medium: "🟡 Medium",
+        hard: "🔴 Hard"
+      }[level];
+      if (level === difficulty) opt.selected = true;
+      select.appendChild(opt);
+    });
+    block.appendChild(select);
+  
+    // ✅ Save ve Cancel butonları
+    const btnRow = document.createElement("div");
+    btnRow.style.marginTop = "10px";
+  
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "✅ Save";
+    saveBtn.onclick = () => saveExistingQuestion(id, saveBtn);
+    saveBtn.style.marginRight = "8px";
+  
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "❌ Cancel";
+    cancelBtn.onclick = () => cancelExistingEdit(block);
+  
+    btnRow.appendChild(saveBtn);
+    btnRow.appendChild(cancelBtn);
+    block.appendChild(btnRow);
+  
+    // 🆕 Edit sırasında arka planı sarı yap
+    block.style.backgroundColor = "#fef9c3"; // light yellow
+  
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([block]).catch(console.error);
+    }
+  };
+  
+  
+  
+  
+  window.cancelExistingEdit = function (block) {
+    if (block?.dataset?.originalHTML) {
+      block.innerHTML = block.dataset.originalHTML;
+      delete block.dataset.originalHTML;
+  
+      if (window.MathJax) {
+        MathJax.startup.document.clear();
+        MathJax.startup.document.updateDocument();
+        MathJax.typesetPromise([block]).catch(console.error);
+      }
+    }
+    // 🆕 Cancel edince arka planı temizle
+    block.style.backgroundColor = "";
+  };

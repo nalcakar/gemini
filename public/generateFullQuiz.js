@@ -51,6 +51,7 @@ function expandAllDetails(open = true) {
 }
 
 async function generateFullQuiz() {
+  disableAllButtons();
   const output = document.getElementById("quizOutput");
   if (output) output.innerHTML = "";
 
@@ -66,6 +67,7 @@ async function generateFullQuiz() {
 
   if (!extractedText || (lastSection !== "topic" && extractedText.trim().length < 10)) {
     alert("⚠️ Please paste or upload some text first.");
+    enableAllButtons();
     return;
   }
 
@@ -204,10 +206,16 @@ if (data.usage) {
     }
 
   } catch (err) {
-    console.error("❌ Error:", err);
+  console.error("❌ Error:", err);
+
+  if (err.message.includes("429")) {
+    showLimitNote();
+    alert("🚫 You have reached your daily limit of 500 AI items.");
+  } else {
     alert(`❌ Failed to generate questions.\n${err.message}`);
   }
-
+}
+enableAllButtons();
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
   if (typeof updateFloatingButtonVisibility === "function") {
@@ -473,9 +481,15 @@ let currentTitleName = "";
 
 
 async function saveSelectedQuestions() {
+  disableAllButtons(); // 🛑 Prevent all button clicks
+
   const token = localStorage.getItem("accessToken");
   const email = localStorage.getItem("userEmail");
-  if (!token || !email) return alert("❌ Please log in.");
+  if (!token || !email) {
+    alert("❌ Please log in.");
+    enableAllButtons();
+    return;
+  }
 
   let titleName = "";
   const dropdown = document.getElementById("titleDropdown");
@@ -483,20 +497,33 @@ async function saveSelectedQuestions() {
 
   if (dropdown?.value === "__new__") {
     titleName = input?.value.trim();
-    if (!titleName) return alert("⚠️ Please enter a new title.");
+    if (!titleName) {
+      alert("⚠️ Please enter a new title.");
+      enableAllButtons();
+      return;
+    }
   } else {
     titleName = dropdown?.value;
-    if (!titleName) return alert("⚠️ Please select a title.");
+    if (!titleName) {
+      alert("⚠️ Please select a title.");
+      enableAllButtons();
+      return;
+    }
   }
 
   const categoryId = document.getElementById("categorySelect")?.value;
-  if (!categoryId) return alert("⚠️ Please select a category.");
+  if (!categoryId) {
+    alert("⚠️ Please select a category.");
+    enableAllButtons();
+    return;
+  }
 
   const selectedBlocks = Array.from(document.querySelectorAll(".quiz-preview"))
     .filter(block => block.querySelector("input[type='checkbox']")?.checked);
 
   if (selectedBlocks.length === 0) {
     alert("⚠️ You must select at least one question to save.");
+    enableAllButtons();
     return;
   }
 
@@ -510,7 +537,6 @@ async function saveSelectedQuestions() {
       .map(opt => opt.dataset.latex?.trim())
       .filter(Boolean);
 
-    // ✅ Robust answer extraction
     let answer = "";
     const answerSpan = block.querySelector("[data-key='answer']");
     if (answerSpan) {
@@ -551,7 +577,6 @@ async function saveSelectedQuestions() {
     const data = await res.json();
 
     if (res.ok && data.titleId) {
-      // ✅ Save to recent_texts with title_id
       await fetch("https://gemini-j8xd.onrender.com/save-recent-text", {
         method: "POST",
         headers: {
@@ -573,7 +598,10 @@ async function saveSelectedQuestions() {
     console.error("Save questions error:", err);
     alert(`❌ Failed to save questions.\n${err.message}`);
   }
+
+  enableAllButtons(); // ✅ Always re-enable after processing
 }
+
 
 
 async function saveSelectedKeywords() {
@@ -1519,6 +1547,7 @@ async function saveModalRecentText() {
 
 // keywords***********
 async function generateKeywords() {
+  disableAllButtons();
   const output = document.getElementById("quizOutput");
   if (output) output.innerHTML = "";
 
@@ -1536,6 +1565,7 @@ async function generateKeywords() {
   let extractedText = getCurrentSectionText();
   if (!extractedText || extractedText.trim().length < 2) {
     alert("⚠️ Please paste or upload some text first.");
+    enableAllButtons();
     button.disabled = false;
     button.textContent = "✨ Generate Keywords and Explanations";
     return;
@@ -1663,6 +1693,7 @@ if (data.usage) {
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
+  enableAllButtons();
 }
 
 
@@ -1677,6 +1708,7 @@ if (data.usage) {
 
 
 function smartSaveSelected() {
+  disableAllButtons();
   const output = document.getElementById("quizOutput");
   if (!output) return;
 
@@ -1689,12 +1721,15 @@ function smartSaveSelected() {
     saveSelectedQuestions();
   } else {
     alert("⚠️ No questions or keywords found.");
+    enableAllButtons();
+
   }
 }
 
 
 
 async function generateTopicKeywords() {
+  disableAllButtons();
   const topic = document.getElementById("topicInput")?.value.trim();
   const focus = document.getElementById("topicFocus")?.value.trim();
   const lang = document.getElementById("languageSelect")?.value;
@@ -1710,8 +1745,10 @@ async function generateTopicKeywords() {
   }
 
   if (!topic || topic.length < 2) {
+     enableAllButtons();
     alert("⚠️ Please enter a topic.");
     return;
+   
   }
 
   const btn = document.getElementById("generateKeywordsButton");
@@ -1839,6 +1876,7 @@ async function generateTopicKeywords() {
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
+  enableAllButtons();
 }
 
 
@@ -1871,3 +1909,39 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+function showLimitNote() {
+  const note = document.getElementById("usageLimitNote");
+  if (note) note.style.display = "block";
+}
+
+
+function disableAllButtons() {
+  document.querySelectorAll("button").forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = "0.6";
+    btn.style.cursor = "not-allowed";
+  });
+
+  // 🌀 Show spinner if it exists
+  const spinner = document.getElementById("globalSpinner");
+  if (spinner) spinner.style.display = "flex";
+}
+
+function enableAllButtons() {
+  document.querySelectorAll("button").forEach(btn => {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "";
+  });
+
+  // ✅ Hide spinner if it exists
+  const spinner = document.getElementById("globalSpinner");
+  if (spinner) spinner.style.display = "none";
+}
+
+function showSpinner() {
+  document.getElementById("globalSpinner").style.display = "flex";
+}
+function hideSpinner() {
+  document.getElementById("globalSpinner").style.display = "none";
+}

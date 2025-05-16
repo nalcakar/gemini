@@ -37,7 +37,7 @@ const redis = new Redis(process.env.REDIS_URL); // ✅ secure and dynamic
 
 
 const VISITOR_LIMIT = 30;
-const MEMBER_DAILY_LIMIT = 50;
+const MEMBER_DAILY_LIMIT = 500;
 
 async function checkMemberLimit(req, res, next) {
   const user = req.user;
@@ -615,6 +615,7 @@ Format:
 Rules:
 - Use exactly this structure, no extra numbering (no 1., 2., etc.)
 - No additional comments outside the requested format.
+- Each answer must have an explanation.
 - Each explanation must be at least 2 complete sentences.
 - If the question involves math, format expressions using LaTeX ($...$).
 `;
@@ -639,6 +640,7 @@ Format:
 Rules:
 - Use exactly the specified structure, no numbering.
 - No additional notes or commentary outside.
+- Each answer must have an explanation.
 - All content must be in ${promptLanguage}.
 - Each explanation should be at least 2 full sentences.
 - If math appears, format formulas properly using LaTeX ($...$).

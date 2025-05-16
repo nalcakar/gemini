@@ -9,7 +9,7 @@
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
       background: #f9fafb;
-      padding: 40px 20px;
+      padding: 20px;
     }
     h1 { text-align: center; margin-bottom: 30px; color: #111827; }
 
@@ -418,6 +418,30 @@ details summary {
 }
 
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.nav-link {
+  text-decoration: none;
+  background: #e5e7eb;
+  color: #1f2937;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background 0.3s, color 0.3s;
+}
+
+.nav-link:hover {
+  background: #d1d5db;
+}
+
+.nav-link.current {
+  background: #3b82f6;
+  color: white;
+}
+
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -436,9 +460,14 @@ details summary {
 
 </head>
 <body>
-
-<h1>AI Quiz Generator</h1>
+<!-- 🌐 Navigation Bar -->
+<div id="page-nav" style="display: flex; justify-content: center; gap: 20px; margin-bottom: 30px;">
+  <a href="AiQuestionMaker.html" id="nav-generator" class="nav-link">🧠 AI Quiz Generator</a>
+  <a href="admin.html" id="nav-admin" class="nav-link">🛠️ Admin Panel</a>
+</div>
 <div id="user-box"></div>
+<h1>AI Quiz Generator</h1>
+
 
 
 <div class="section-grid">
@@ -508,7 +537,7 @@ details summary {
   </div>
 </div>
 <p id="usageLimitNote" style="display:none; color: #b91c1c; text-align: center; font-weight: 500; margin-top: 10px;">
-  🚫 You have reached your daily limit of 50 AI items.
+  🚫 You have reached your daily limit of 500 AI items.
 </p>
 </div>
 <div id="visitorUsageBadge" style="text-align:center; font-weight:bold; margin-top:10px; color:#dc2626;"></div>
@@ -601,7 +630,14 @@ details summary {
 <script src="visitorFunctions.js"></script>
 <script>
 
-
+ document.addEventListener("DOMContentLoaded", () => {
+    const path = window.location.pathname;
+    if (path.includes("admin.html")) {
+      document.getElementById("nav-admin")?.classList.add("current");
+    } else if (path.includes("AiQuestionMaker.html")) {
+      document.getElementById("nav-generator")?.classList.add("current");
+    }
+  });
 function renderUserBox() {
   const name = localStorage.getItem("userName");
   const tierId = localStorage.getItem("membershipType") || "";
@@ -986,7 +1022,24 @@ document.addEventListener("DOMContentLoaded", () => {
   </div>
 </div>
 
-
+<div id="globalSpinner" style="
+  display: none; /* ✅ Make sure it's hidden at first */
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+">
+  <div style="
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #3b82f6;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+  "></div>
+</div>
 
 <div id="user-toast">✅ Saved successfully!</div>
 </body>

@@ -1,6 +1,14 @@
 const API = "https://gemini-j8xd.onrender.com";
 const token = localStorage.getItem("accessToken");
 const email = localStorage.getItem("userEmail");
+const name = localStorage.getItem("userName") || "Admin";
+const tierLabels = {
+  "25539224": "Silver",
+  "25296810": "Bronze",
+  "25669215": "Gold"
+};
+const rawMembership = localStorage.getItem("membershipType") || "Free";
+const membership = tierLabels[rawMembership] || rawMembership;
 let editMode = false;
 let currentRecentTextId = null;
 document.addEventListener("DOMContentLoaded", () => {
@@ -22,8 +30,16 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // ✅ Token/email varsa devam et
-  loadMainTopics();
+ // ✅ Show user badge box
+document.getElementById("user-box").innerHTML = `
+  <div class="user-box-inner">
+    <span class="user-name">${name}</span>
+    <span class="badge ${membership.toLowerCase()}">${membership}</span>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+`;
+
+loadMainTopics();
 });
 
 
@@ -1060,6 +1076,7 @@ function saveQuestionEdits(block) {
   const id = block.getAttribute("data-id");
   if (!id) return alert("❌ Soru ID'si bulunamadı.");
 
+  disableAllButtons(); // 🔒 Lock interface
   const edits = block.querySelectorAll(".q-edit");
   const selectedDiff = block.querySelector(".q-difficulty")?.value || "medium";
 
@@ -1095,9 +1112,10 @@ function saveQuestionEdits(block) {
       explanation: data.explanation,
       options: data.options,
       difficulty: data.difficulty,
-      answer: data.options[0] // Gerçek cevap gerekirse burada ayarlanır
+      answer: data.options[0] // 🔁 Placeholder logic
     })
-  }).then(res => {
+  })
+  .then(res => {
     if (!res.ok) return alert("❌ Update failed.");
 
     const index = Array.from(document.querySelectorAll("#modalQuestionList details")).indexOf(block);
@@ -1125,9 +1143,15 @@ function saveQuestionEdits(block) {
 
     block.open = true;
     if (window.MathJax?.typesetPromise) MathJax.typesetPromise([block]);
+
     flashMessage("✅ Question saved.");
-  }).catch(() => alert("❌ Server error"));
+  })
+  .catch(() => alert("❌ Server error"))
+  .finally(() => {
+    enableAllButtons(); // ✅ Restore interface
+  });
 }
+
 
 function filterQuestions() {
   const val = document.getElementById("searchInput").value.toLowerCase();
