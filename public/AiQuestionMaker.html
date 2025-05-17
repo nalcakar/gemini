@@ -442,6 +442,26 @@ details summary {
   color: white;
 }
 
+.export-btn {
+  padding: 12px 20px;
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+  transition: transform 0.2s, background 0.3s;
+}
+.export-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+.export-btn:active {
+  transform: scale(0.97);
+}
+
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -568,9 +588,10 @@ details summary {
 <div id="visitorOutputOptions" style="margin: 40px auto 20px auto; padding: 20px; max-width: 700px; background: #f9fafb; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: none;">
   <h3 style="text-align:center; margin-bottom: 20px;">📤 Export or Practice</h3>
   <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px;">
-   <button onclick="showVisitorPreviewModal('txt')">📜 Export as TXT</button>
-<button onclick="handleDocxExport()">📄 Export as DOCX</button> <!-- replace with exportVisitorAsWord() if you want -->
-<button onclick="openVisitorFlashcards()">🎴 Flashcards</button>  </div>
+   <button onclick="showVisitorPreviewModal('txt')" class="export-btn">📜 Export as TXT</button>
+<button onclick="handleDocxExport()" class="export-btn">📄 Export as DOCX</button>
+<button onclick="openVisitorFlashcards()" class="export-btn">🎴 Flashcards</button>
+<button onclick="startQuizMode()" class="export-btn" style="min-width:160px;">🧪Quiz</button>
 </div>
 
 <div id="saveQuizSection" style="display: none; margin-top: 40px; text-align: center;">
@@ -628,6 +649,7 @@ details summary {
 <script src="questionEditor.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/docx@8.3.1/build/index.umd.min.js"></script>
 <script src="visitorFunctions.js"></script>
+<script src="output.js"></script>
 <script>
 
  document.addEventListener("DOMContentLoaded", () => {
