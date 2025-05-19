@@ -8,7 +8,7 @@ if (!localStorage.getItem("visitorId")) {
 const VISITOR_ID = localStorage.getItem("visitorId");
 
 
-async function generateVisitorQuestions() {
+async function generateVisitorQuestions(event) {
   const extractedText = getCurrentSectionText();
   if (!extractedText || extractedText.length < 3) {
     alert("⚠️ Please provide some content first.");
@@ -19,8 +19,16 @@ async function generateVisitorQuestions() {
   const focus = document.getElementById("topicFocus")?.value.trim() || "";
   const difficulty = document.getElementById("difficultySelect")?.value || "";
 
+  const button = event?.target || document.querySelector("#generateQuizButton");
+
+  disableAllButtons();
+  if (button) {
+    button.disabled = true;
+    button.textContent = "⏳ Generating...";
+  }
+
   try {
-     const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-questions", {
+    const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-questions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -29,27 +37,31 @@ async function generateVisitorQuestions() {
       body: JSON.stringify({ mycontent: extractedText, userLanguage: lang, userFocus: focus, difficulty })
     });
 
-
     const data = await res.json();
 
-   if (res.status === 429) {
-  showPatreonUpgradePrompt(data.usage?.max || 30);
-  return;
-}
-if (!res.ok) throw new Error(data.error || "Unknown error");
-
+    if (res.status === 429) {
+      showPatreonUpgradePrompt(data.usage?.max || 30);
+      return;
+    }
+    if (!res.ok) throw new Error(data.error || "Unknown error");
 
     displayGeneratedQuestions(data.questions);
     updateVisitorUsageBadge(data.usage);
   } catch (err) {
     alert("❌ " + err.message);
+  } finally {
+    enableAllButtons();
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Generate Multiple Choice Questions";
+    }
+    document.getElementById("visitorOutputOptions").style.display = "block";
+    document.getElementById("visitorAdvantages").style.display = "block";
   }
-  document.getElementById("visitorOutputOptions").style.display = "block";
-document.getElementById("visitorAdvantages").style.display = "block";
-
 }
 
-async function generateVisitorKeywords() {
+
+async function generateVisitorKeywords(event) {
   const extractedText = getCurrentSectionText();
   if (!extractedText || extractedText.length < 3) {
     alert("⚠️ Please provide some content first.");
@@ -59,8 +71,16 @@ async function generateVisitorKeywords() {
   const lang = document.getElementById("languageSelect")?.value || "";
   const difficulty = document.getElementById("difficultySelect")?.value || "";
 
+  const button = event?.target || document.querySelector("#generateKeywordsButton");
+
+  disableAllButtons();
+  if (button) {
+    button.disabled = true;
+    button.textContent = "⏳ Generating...";
+  }
+
   try {
-        const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-keywords", {
+    const res = await fetch("https://gemini-j8xd.onrender.com/visitor/generate-keywords", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,22 +89,27 @@ async function generateVisitorKeywords() {
       body: JSON.stringify({ mycontent: extractedText, userLanguage: lang, difficulty })
     });
 
-
     const data = await res.json();
 
     if (res.status === 429) {
-  showPatreonUpgradePrompt(data.usage?.max || 30);
-  return;
-}
-if (!res.ok) throw new Error(data.error || "Limit reached or server error");
-
+      showPatreonUpgradePrompt(data.usage?.max || 30);
+      return;
+    }
+    if (!res.ok) throw new Error(data.error || "Limit reached or server error");
 
     displayGeneratedKeywords(data.keywords);
     updateVisitorUsageBadge(data.usage);
   } catch (err) {
     alert("❌ " + err.message);
+  } finally {
+    enableAllButtons();
+    if (button) {
+      button.disabled = false;
+      button.textContent = "✨ Generate Keywords and Explanations";
+    }
   }
 }
+
 
 function displayGeneratedQuestions(questions) {
   const output = document.getElementById("quizOutput");
@@ -112,26 +137,35 @@ function displayGeneratedQuestions(questions) {
     const answerHTML = `<span class="q" data-key="answer">${q.answer}</span>`;
     const explanationHTML = `<span class="q" data-key="explanation">${q.explanation}</span>`;
 
-    details.innerHTML = `
-      <summary style="display:flex; justify-content: space-between; align-items:center;">
-        <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
-        <label style="margin-left:10px;"><input type="checkbox" class="qcheck" checked /> ✅</label>
-      </summary>
-      <div style="margin-top: 8px; padding: 8px;">
-        <ul>${optionsHTML}</ul>
-        <p><strong>✅ Answer:</strong> ${answerHTML}</p>
-        <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
-        <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
-      </div>
-    `;
+ details.innerHTML = `
+  <summary style="display:flex; justify-content: space-between; align-items:center;">
+    <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
+    <label style="margin-left:10px;"><input type="checkbox" class="qcheck" checked /> ✅</label>
+  </summary>
+  <div style="margin-top: 8px; padding: 8px;">
+    <ul>${optionsHTML}</ul>
+    <p><strong>✅ Answer:</strong> ${answerHTML}</p>
+    <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
+    <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
+    <div style="margin-top: 8px;">
+      <button onclick="editQuestion(this)">✏️ Edit</button>
+      <button onclick="deleteQuestion(this)">🗑️ Delete</button>
+    </div>
+  </div>
+`;
 
     output.appendChild(details);
 
     // ✅ Also clone for export/flashcard modal
-    if (modalList) {
-      const clone = details.cloneNode(true);
-      modalList.appendChild(clone);
-    }
+  if (modalList) {
+  const clone = details.cloneNode(true);
+  const originalCheckbox = details.querySelector("input.qcheck");
+  const clonedCheckbox = clone.querySelector("input.qcheck");
+  if (originalCheckbox && clonedCheckbox) {
+    clonedCheckbox.checked = originalCheckbox.checked;
+  }
+  modalList.appendChild(clone);
+}
   });
 
   if (window.MathJax?.typesetPromise) {
@@ -172,7 +206,7 @@ function showPatreonUpgradePrompt(maxLimit) {
 function showVisitorPreviewModal(type) {
   const container = document.getElementById("modalQuestionList");
   if (!container) return alert("⚠️ No questions loaded.");
-
+syncVisitorSelections();
   const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
     block.querySelector("input[type='checkbox']")?.checked
   );
@@ -219,7 +253,7 @@ function showVisitorPreviewModal(type) {
 function exportVisitorAsTXT() {
   const container = document.getElementById("modalQuestionList");
   if (!container) return alert("⚠️ No questions loaded.");
-
+syncVisitorSelections();
   const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
     block.querySelector("input[type='checkbox']")?.checked
   );
@@ -282,37 +316,69 @@ function exportVisitorAsTXT() {
 }
 
 
-function openVisitorFlashcards() {
-  const blocks = document.querySelectorAll("#modalQuestionList .question-card");
 
-  const selected = Array.from(blocks).filter(block => {
-    const checkbox = block.querySelector("input[type='checkbox']");
-    return checkbox?.checked;
-  });
+function openVisitorFlashcards() {
+  const modalList = document.getElementById("modalQuestionList");
+  if (!modalList) {
+    alert("❌ Flashcard container not found.");
+    return;
+  }
+
+  const blocks = modalList.querySelectorAll(".question-card");
+  syncVisitorSelections();
+
+  const selected = Array.from(blocks).filter(block =>
+    block.querySelector("input[type='checkbox']")?.checked
+  );
 
   if (selected.length === 0) {
     alert("⚠️ No flashcards selected.");
     return;
   }
 
-  window.flashcards = selected.map((block, i) => {
+  const toggle = document.getElementById("flashcardFlipToggle");
+  const isAnswerFirst = toggle?.checked;
+
+  flashcards = selected.map((block, i) => {
     const source = block.dataset.source || "mcq";
-    const question = block.querySelector("summary .q[data-key='question']")?.textContent.trim() || `Q${i + 1}`;
-    const rawAnswer = block.querySelector("p:nth-of-type(1)")?.textContent || "Answer not found.";
-    const answer = rawAnswer.replace(/^✅?\s*Answer:\s*/i, "").trim();
+    const question = block.querySelector("span.q[data-key='question']")?.textContent.trim() || `Q${i + 1}`;
 
-    return source === "keyword"
-      ? { front: answer, back: question, isAnswered: false }
-      : { front: question, back: answer, isAnswered: false };
-  });
+    const answerSpan = block.querySelector("span.q[data-key='answer']");
+    const answer = answerSpan?.textContent.trim() || "No answer";
 
-  window.currentFlashcardIndex = 0;
-  window.knownCount = 0;
-  window.answeredCount = 0;
+    const explanationSpan = block.querySelector("span.q[data-key='explanation']");
+    const explanation = explanationSpan?.textContent.trim() || "No explanation";
 
-  document.getElementById("flashcardModal").style.display = "block";
-  renderFlashcard(); // assumes renderFlashcard() is defined globally
+    if (!question) return null;
+
+    if (source === "keyword") {
+      // 💡 Explanation shown on the front now
+      return isAnswerFirst
+        ? { front: `<strong>📘 Term:</strong> ${question}`, back: explanation, isAnswered: false }
+        : { front: explanation, back: `<strong>📘 Term:</strong> ${question}`, isAnswered: false };
+    } else {
+      if (!answer) return null;
+      return isAnswerFirst
+        ? { front: `<strong>✅ Answer:</strong> ${answer}`, back: question, isAnswered: false }
+        : { front: question, back: `<strong>✅ Answer:</strong> ${answer}`, isAnswered: false };
+    }
+  }).filter(Boolean); // Remove nulls
+
+  if (flashcards.length === 0) {
+    alert("❌ No valid flashcards to display.");
+    return;
+  }
+
+  currentFlashcardIndex = 0;
+  knownCount = 0;
+  answeredCount = 0;
+
+  document.getElementById("flashcardModal").style.display = "flex";
+  renderFlashcard();
 }
+
+
+
 
 function confirmExport(type) {
   document.getElementById("exportPreviewModal").style.display = "none";
@@ -402,7 +468,7 @@ window.exportVisitorAsWord = exportVisitorAsWord;
 async function exportVisitorAsWord() {
   const container = document.getElementById("modalQuestionList");
   if (!container) return alert("⚠️ No questions loaded.");
-
+syncVisitorSelections();
   const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
     block.querySelector("input[type='checkbox']")?.checked
   );
@@ -609,3 +675,78 @@ function closeSilverPromptModal() {
   const modal = document.getElementById("silverUpgradeModal");
   if (modal) modal.style.display = "none";
 }
+
+function exportSelectedQuestionsToDocx() {
+  const container = document.getElementById("modalQuestionList");
+  if (!container) return alert("⚠️ Question container not found.");
+syncVisitorSelections();
+  const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
+    block.querySelector("input[type='checkbox']")?.checked
+  );
+
+  if (selectedBlocks.length === 0) {
+    alert("⚠️ No questions selected.");
+    return;
+  }
+
+  const { Document, Packer, Paragraph, TextRun } = window.docx || {};
+  if (!Document || !Packer) {
+    alert("❌ DOCX library not loaded. Check your internet or script tag.");
+    return;
+  }
+
+  const paragraphs = [];
+
+  selectedBlocks.forEach((block, index) => {
+    const qNum = index + 1;
+    const source = block.dataset.source || "mcq";
+
+    const question = block.querySelector("summary .q[data-key='question']")?.textContent?.trim() || `Q${qNum}`;
+    const explanation = block.querySelector("span.q[data-key='explanation']")?.textContent?.trim() || "";
+    const answer = block.querySelector("span.q[data-key='answer']")?.textContent?.trim() || "";
+
+    paragraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: `${qNum}. ${question}`, bold: true }),
+        ],
+        spacing: { after: 200 }
+      })
+    );
+
+    if (source !== "keyword") {
+      const options = Array.from(block.querySelectorAll("ul li.q")).map((li, i) =>
+        `${String.fromCharCode(65 + i)}) ${li.textContent.trim()}`
+      );
+
+      if (options.length > 0) {
+        paragraphs.push(new Paragraph(options.join("\n")));
+      }
+
+      paragraphs.push(
+        new Paragraph(`✅ Answer: ${answer}`),
+        new Paragraph(`💡 Explanation: ${explanation}`),
+        new Paragraph("")
+      );
+    } else {
+      paragraphs.push(
+        new Paragraph(`✅ Definition: ${answer}`),
+        new Paragraph(`💡 Explanation: ${explanation}`),
+        new Paragraph("")
+      );
+    }
+  });
+
+  const doc = new Document({
+    sections: [{ children: paragraphs }]
+  });
+
+  Packer.toBlob(doc).then(blob => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `quiz_export.docx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+

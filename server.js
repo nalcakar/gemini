@@ -648,7 +648,7 @@ Rules:
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
 

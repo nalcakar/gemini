@@ -452,7 +452,7 @@ details summary {
   font-size: 15px;
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
-  transition: transform 0.2s, background 0.3s;
+  transition: transform 0.2s ease, background 0.3s ease;
 }
 .export-btn:hover {
   background: #2563eb;
@@ -461,12 +461,12 @@ details summary {
 .export-btn:active {
   transform: scale(0.97);
 }
-
   </style>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+
 
   <script>
     window.MathJax = {
@@ -564,7 +564,15 @@ details summary {
 
 <!-- Soruların çıktısı -->
 <div id="quizOutput" style="margin-top: 20px;"></div>
-
+<!-- 🎯 Export + Flashcard Options for Visitors -->
+<div id="visitorOutputOptions" style="margin: 40px auto 20px auto; padding: 20px; max-width: 700px; background: #f9fafb; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: none;">
+  <h3 style="text-align:center; margin-bottom: 20px;">📤 Export or Practice</h3>
+  <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px;">
+  <button onclick="showVisitorPreviewModal('txt')" class="export-btn">📜 Export as TXT</button>
+<button onclick="printPreviewContent()" class="export-btn">📄 Print</button>
+<button onclick="openVisitorFlashcards()" class="export-btn">🎴 Flashcards</button>
+<button onclick="startQuizMode()" class="export-btn">🧪 Take Practice Quiz</button> </div>
+</div>
 <div id="visitorAdvantages" style="display:none; margin-top: 30px; padding: 24px; background: #ecfdf5; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); max-width: 700px; margin-left: auto; margin-right: auto;">
   <h3 style="text-align:center; color: #065f46; margin-bottom: 16px;">✨ Why Upgrade to Pro?</h3>
   <ul style="list-style: none; padding-left: 0; font-size: 15px; color: #065f46; margin-bottom: 20px;">
@@ -584,15 +592,7 @@ details summary {
 </div>
 
 
-<!-- 🎯 Export + Flashcard Options for Visitors -->
-<div id="visitorOutputOptions" style="margin: 40px auto 20px auto; padding: 20px; max-width: 700px; background: #f9fafb; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: none;">
-  <h3 style="text-align:center; margin-bottom: 20px;">📤 Export or Practice</h3>
-  <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px;">
-   <button onclick="showVisitorPreviewModal('txt')" class="export-btn">📜 Export as TXT</button>
-<button onclick="handleDocxExport()" class="export-btn">📄 Export as DOCX</button>
-<button onclick="openVisitorFlashcards()" class="export-btn">🎴 Flashcards</button>
-<button onclick="startQuizMode()" class="export-btn" style="min-width:160px;">🧪Quiz</button>
-</div>
+
 
 <div id="saveQuizSection" style="display: none; margin-top: 40px; text-align: center;">
   <div style="max-width: 700px; margin: auto; background: #f9fafb; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
@@ -650,6 +650,7 @@ details summary {
  <script src="https://cdn.jsdelivr.net/npm/docx@8.3.1/build/index.umd.min.js"></script>
 <script src="visitorFunctions.js"></script>
 <script src="output.js"></script>
+  <script src="https://unpkg.com/docxtemplater@3.28.0/build/docxtemplater.js"></script>
 <script>
 
  document.addEventListener("DOMContentLoaded", () => {
@@ -999,6 +1000,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <!-- Flashcard Modal -->
 <!-- 🔥 Full Flashcard Modal -->
+ <div id="modalQuestionList" style="display: none;"></div>
 <div id="flashcardModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:95%; max-width:700px; background:white; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.2); padding:20px; z-index:10000;">
   <div style="text-align:right;">
     <button onclick="closeFlashcardModal()" style="background:red; color:white; border:none; padding:8px 14px; border-radius:8px; font-size:16px; cursor:pointer;">✖️ Exit</button>

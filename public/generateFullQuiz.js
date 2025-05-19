@@ -77,9 +77,7 @@ async function generateFullQuiz() {
 
   try {
     const accessToken = localStorage.getItem("accessToken") || "";
-    const userEmail = localStorage.getItem("userEmail") || "";
     const isLoggedIn = !!accessToken;
-
     const selectedLang = document.getElementById("languageSelect")?.value || "";
     const topicFocus = document.getElementById("topicFocus")?.value.trim() || "";
     const difficulty = document.getElementById("difficultySelect")?.value || "";
@@ -102,22 +100,23 @@ async function generateFullQuiz() {
 
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
-if (data.usage) {
-  const label = document.getElementById("memberUsageLabel");
-  const fill = document.getElementById("memberUsageBarFill");
-  const container = document.getElementById("memberUsageBarContainer");
-  const percent = Math.min(100, Math.round((data.usage.count / data.usage.max) * 100));
-
-  if (label && fill && container) {
-    container.style.display = "block";
-    label.textContent = `${data.usage.count} / ${data.usage.max}`;
-    fill.style.width = `${percent}%`;
-    fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
-  }
-}
 
     if (!Array.isArray(data.questions)) {
       throw new Error("Invalid response from AI");
+    }
+
+    // Update usage bar if applicable
+    if (data.usage) {
+      const label = document.getElementById("memberUsageLabel");
+      const fill = document.getElementById("memberUsageBarFill");
+      const container = document.getElementById("memberUsageBarContainer");
+      const percent = Math.min(100, Math.round((data.usage.count / data.usage.max) * 100));
+      if (label && fill && container) {
+        container.style.display = "block";
+        label.textContent = `${data.usage.count} / ${data.usage.max}`;
+        fill.style.width = `${percent}%`;
+        fill.className = percent >= 100 ? "usage-bar-fill usage-bar-warning" : "usage-bar-fill";
+      }
     }
 
     const parsedQuestions = data.questions;
@@ -139,43 +138,72 @@ if (data.usage) {
     const bottomControls = createControls();
     output.appendChild(topControls);
 
+    const modalList = document.getElementById("modalQuestionList");
+    if (modalList) modalList.innerHTML = "";
+
     parsedQuestions.forEach((q, i) => {
       const details = document.createElement("details");
-      details.className = "quiz-preview";
+      details.className = "quiz-preview question-card";
       details.style.maxWidth = "700px";
       details.style.margin = "15px auto";
       details.dataset.index = i;
-      details.dataset.difficulty = q.difficulty;
+      details.dataset.source = q.type || "mcq";
+      details.dataset.difficulty = q.difficulty || "medium";
 
-      const badge = q.difficulty === "easy" ? "🟢 Easy"
-                  : q.difficulty === "hard" ? "🔴 Hard"
-                  : "🟡 Medium";
+      if (q.type === "keyword") {
+        const questionHTML = `<span class="q" data-key="question" data-latex="${q.keyword.replace(/"/g, '&quot;')}">${q.keyword}</span>`;
+        const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
 
-      const questionHTML = `<span class="q" data-key="question" data-latex="${q.question.replace(/"/g, '&quot;')}">${q.question}</span>`;
-      const optionsHTML = q.options.map((opt, j) =>
-        `<li class="q" data-key="option${j + 1}" data-latex="${opt.replace(/"/g, '&quot;')}">${opt}</li>`
-      ).join("");
-      const answerHTML = `<span class="q" data-key="answer" data-latex="${q.answer.replace(/"/g, '&quot;')}">${q.answer}</span>`;
-      const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
-
-      details.innerHTML = `
-        <summary style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
-          ${isLoggedIn ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
-        </summary>
-        <div style="margin-top: 8px; padding: 8px;">
-          <ul>${optionsHTML}</ul>
-          <p><strong>✅ Answer:</strong> ${answerHTML}</p>
-          <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
-          <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
-          <div style="margin-top: 8px;">
-            <button onclick="editQuestion(this)">✏️ Edit</button>
-            <button onclick="deleteQuestion(this)">🗑️ Delete</button>
+        details.innerHTML = `
+          <summary style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
+            ${isLoggedIn ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
+          </summary>
+          <div style="margin-top: 8px; padding: 8px;">
+            <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
           </div>
-        </div>
-      `;
+        `;
+      } else {
+        const badge = q.difficulty === "easy" ? "🟢 Easy"
+                    : q.difficulty === "hard" ? "🔴 Hard"
+                    : "🟡 Medium";
+
+        const questionHTML = `<span class="q" data-key="question" data-latex="${q.question.replace(/"/g, '&quot;')}">${q.question}</span>`;
+        const optionsHTML = q.options.map((opt, j) =>
+          `<li class="q" data-key="option${j + 1}" data-latex="${opt.replace(/"/g, '&quot;')}">${opt}</li>`
+        ).join("");
+        const answerHTML = `<span class="q" data-key="answer" data-latex="${q.answer.replace(/"/g, '&quot;')}">${q.answer}</span>`;
+        const explanationHTML = `<span class="q" data-key="explanation" data-latex="${q.explanation.replace(/"/g, '&quot;')}">${q.explanation}</span>`;
+
+        details.innerHTML = `
+          <summary style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="flex-grow:1;"><b>Q${i + 1}.</b> ${questionHTML}</div>
+            ${isLoggedIn ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
+          </summary>
+          <div style="margin-top: 8px; padding: 8px;">
+            <ul>${optionsHTML}</ul>
+            <p><strong>✅ Answer:</strong> ${answerHTML}</p>
+            <p><strong>💡 Explanation:</strong> ${explanationHTML}</p>
+            <p class="difficulty-line" data-level="${q.difficulty}"><strong>Difficulty:</strong> ${badge}</p>
+            <div style="margin-top: 8px;">
+              <button onclick="editQuestion(this)">✏️ Edit</button>
+              <button onclick="deleteQuestion(this)">🗑️ Delete</button>
+            </div>
+          </div>
+        `;
+      }
 
       output.appendChild(details);
+
+      if (modalList) {
+  const clone = details.cloneNode(true);
+  const originalCheckbox = details.querySelector("input.qcheck");
+  const clonedCheckbox = clone.querySelector("input.qcheck");
+  if (originalCheckbox && clonedCheckbox) {
+    clonedCheckbox.checked = originalCheckbox.checked;
+  }
+  modalList.appendChild(clone);
+}
     });
 
     const newTitleInput = document.getElementById("newTitleInput");
@@ -184,8 +212,11 @@ if (data.usage) {
     output.appendChild(bottomControls);
 
     if (window.MathJax?.typesetPromise) {
-      window.MathJax.typesetPromise().catch(err => console.error("MathJax render error:", err));
+      await MathJax.typesetPromise();
     }
+
+    const visitorOptions = document.getElementById("visitorOutputOptions");
+    if (visitorOptions) visitorOptions.style.display = "block";
 
     if (saveBox && isLoggedIn) {
       saveBox.style.display = "block";
@@ -206,22 +237,24 @@ if (data.usage) {
     }
 
   } catch (err) {
-  console.error("❌ Error:", err);
-
-  if (err.message.includes("429")) {
-    showLimitNote();
-    alert("🚫 You have reached your daily limit of 500 AI items.");
-  } else {
-    alert(`❌ Failed to generate questions.\n${err.message}`);
+    console.error("❌ Error:", err);
+    if (err.message.includes("429")) {
+      showLimitNote();
+      alert("🚫 You have reached your daily limit of 500 AI items.");
+    } else {
+      alert(`❌ Failed to generate questions.\n${err.message}`);
+    }
   }
-}
-enableAllButtons();
+
+  enableAllButtons();
   button.disabled = false;
   button.textContent = "Generate Multiple Choice Questions";
+
   if (typeof updateFloatingButtonVisibility === "function") {
     updateFloatingButtonVisibility();
   }
 }
+
 
 
 
@@ -381,11 +414,12 @@ function saveQuestionEdits(block) {
   const selectedDiff = block.querySelector(".q-difficulty")?.value || "medium";
 
   const newDetails = document.createElement("details");
-  newDetails.className = "quiz-preview";
+  newDetails.className = "quiz-preview question-card";
   newDetails.style.maxWidth = "700px";
   newDetails.style.margin = "15px auto";
   newDetails.dataset.index = block.dataset.index;
   newDetails.dataset.difficulty = selectedDiff;
+  newDetails.dataset.source = "mcq";
 
   const difficultyIcon = selectedDiff === "easy" ? "🟢 Easy"
                         : selectedDiff === "hard" ? "🔴 Hard"
@@ -413,29 +447,24 @@ function saveQuestionEdits(block) {
   });
   if (optionsHTML) optionsHTML += "</ul>";
 
-  // 🔁 summary tek satır ve temiz şekilde yapılsın
   const summaryHTML = `
-  <summary style="display: flex; justify-content: space-between; align-items: center;">
-    <div style="flex-grow:1;">
-      <b>Q${parseInt(newDetails.dataset.index) + 1}.</b> 
-      <span class="q" data-key="question" data-latex="${questionText}">${questionText}</span>
+    <summary style="display: flex; justify-content: space-between; align-items: center;">
+      <div style="flex-grow:1;">
+        <b>Q${parseInt(newDetails.dataset.index) + 1}.</b> 
+        <span class="q" data-key="question" data-latex="${questionText}">${questionText}</span>
+      </div>
+      <label style="margin-left:8px;"><input type="checkbox" class="qcheck" checked> ✅</label>
+    </summary>
+  `;
+
+  const difficultyHTML = `<p class="difficulty-line" data-level="${selectedDiff}"><strong>Difficulty:</strong> ${difficultyIcon}</p>`;
+
+  const buttonsHTML = `
+    <div style="margin-top: 8px;">
+      <button onclick="editQuestion(this)">✏️ Edit</button>
+      <button onclick="deleteQuestion(this)">🗑️ Delete</button>
     </div>
-    ${localStorage.getItem("userEmail") ? `<label style="margin-left:8px;"><input type="checkbox" class="qcheck" onchange="toggleHighlight(this)"> ✅</label>` : ""}
-  </summary>
-`;
-
-  const difficultyHTML = `<p><strong>Difficulty:</strong> ${difficultyIcon}</p>`;
-  const checkboxHTML = localStorage.getItem("userEmail")
-  ? `<label><input type="checkbox" class="qcheck"> ✅ Save</label>` : "";
-
-const buttonsHTML = `
-  <div style="margin-top: 8px;">
-    <button onclick="editQuestion(this)">✏️ Edit</button>
-    <button onclick="deleteQuestion(this)">🗑️ Delete</button>
-  </div>
-`;
-
-
+  `;
 
   newDetails.innerHTML = `
     ${summaryHTML}
@@ -443,19 +472,37 @@ const buttonsHTML = `
     ${answerHTML}
     ${explanationHTML}
     ${difficultyHTML}
-    ${checkboxHTML}
     ${buttonsHTML}
   `;
 
-  // ✨ Eski bloğun yerine temiz yeni bloğu koy
+  // ⬇️ Replace old block
   block.replaceWith(newDetails);
-  newDetails.open = true; // kullanıcı güncellemeyi hemen görsün
+  newDetails.open = true;
 
-  // ✅ MathJax yeniden çalışsın
+  // 🔁 ModalQuestionList'i Güncelle
+  const modalList = document.getElementById("modalQuestionList");
+  if (modalList) {
+    modalList.innerHTML = "";
+    document.querySelectorAll(".quiz-preview").forEach(el => {
+      const modalClone = el.cloneNode(true);
+      const cb1 = el.querySelector("input.qcheck");
+      const cb2 = modalClone.querySelector("input.qcheck");
+      if (cb1 && cb2) cb2.checked = cb1.checked;
+      modalList.appendChild(modalClone);
+    });
+  }
+
+  // 🔁 Ziyaretçi checkbox'larını eşitle
+  if (typeof syncVisitorSelections === "function") {
+    syncVisitorSelections();
+  }
+
+  // ✅ LaTeX tekrar işlem görsün
   if (window.MathJax && window.MathJax.typesetPromise) {
     window.MathJax.typesetPromise().catch(console.error);
   }
 }
+
 
 
   
@@ -1939,9 +1986,5 @@ function enableAllButtons() {
   if (spinner) spinner.style.display = "none";
 }
 
-function showSpinner() {
-  document.getElementById("globalSpinner").style.display = "flex";
-}
-function hideSpinner() {
-  document.getElementById("globalSpinner").style.display = "none";
-}
+
+

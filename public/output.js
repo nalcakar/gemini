@@ -565,6 +565,10 @@ function reviewUnknownFlashcards() {
 
 
 function startQuizMode() {
+  // ✅ Sync checkbox states from main UI to modal copy
+  syncVisitorSelections();
+
+  // 🧠 Use modal (which is used by export/preview) for selected questions
   quizBlocks = Array.from(document.querySelectorAll("#modalQuestionList .question-card"))
     .filter(block => block.querySelector("input[type='checkbox']")?.checked)
     .filter(block => block.dataset.source !== "keyword");
@@ -601,7 +605,7 @@ function startQuizMode() {
 
   renderQuestion();
 
-  // ✅ ENFORCE MathJax rendering after first question is rendered
+  // ✅ Ensure MathJax renders any LaTeX content
   if (window.MathJax?.typesetPromise) {
     MathJax.typesetPromise([quizBox]);
   }
@@ -1084,9 +1088,22 @@ function enhanceQuestionViewAfterLoad() {
   enhanceQuestionCardBadges();
   addQuestionTypeFilter();
 }
+function syncVisitorSelections() {
+  const outputCards = document.querySelectorAll("#quizOutput .question-card");
+  const modalCards = document.querySelectorAll("#modalQuestionList .question-card");
 
+  outputCards.forEach((outputCard, i) => {
+    const outputCheck = outputCard.querySelector("input.qcheck");
+    const modalCheck = modalCards[i]?.querySelector("input.qcheck");
+
+    if (outputCheck && modalCheck) {
+      modalCheck.checked = outputCheck.checked;
+    }
+  });
+}
 
 function printPreviewContent() {
+    syncVisitorSelections();
   const container = document.getElementById("modalQuestionList");
   const selectedBlocks = Array.from(container.querySelectorAll("details")).filter(block =>
     block.querySelector("input[type='checkbox']")?.checked
@@ -1102,7 +1119,7 @@ function printPreviewContent() {
     window.currentTitleName ||
     document.querySelector("#titleList .selected")?.textContent?.trim() ||
     document.querySelector(".title-item.selected")?.textContent?.trim() ||
-    "Untitled Quiz";
+    "Quiz";
 
   let questionHTML = `<h1 style="text-align:center; margin-bottom:40px;">📝 ${title}</h1>`;
   let answerHTML = `<h2 style="margin-top:60px; text-align:center; page-break-before: always;">=== ANSWERS ===</h2>`;
