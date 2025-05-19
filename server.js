@@ -608,7 +608,6 @@ Format:
 /// A) Option 1
 /// B) Option 2
 /// C) Option 3
-/// D) Option 4
 ~~Cevap: [Correct Option] 
 &&Açıklama: [Short Explanation about why this answer is correct.]
 
@@ -648,7 +647,7 @@ Rules:
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const result = await model.generateContent(prompt);
     const raw = await result.response.text();
 
