@@ -86,9 +86,9 @@ function renderUsageBar(usage) {
           return;
         }
 
-        const maxSize = 20 * 1024 * 1024;
+        const maxSize =  62 * 1024 * 1024; 
         if (file.size > maxSize) {
-          status.textContent = "❌ File too large. Max 20MB allowed.";
+          status.textContent = "❌ File too large. Max 60MB allowed.";
           return;
         }
 

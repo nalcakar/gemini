@@ -533,7 +533,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // === SORU ÜRETME ===
 app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, res) => {
-  const { mycontent, userLanguage, userFocus: initialUserFocus, difficulty } = req.body;
+  const { mycontent, userLanguage, userFocus, difficulty } = req.body;
   const user = req.user || {};
 
   const tierQuestionCounts = {
@@ -545,7 +545,7 @@ app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, re
   const userTier = user.tier;
   const questionCount = tierQuestionCounts[userTier] || 5;
 
-  // Language detection
+  // Dil algılama
   const langCode = franc(mycontent);
   const languageMap = {
     "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
@@ -556,11 +556,26 @@ app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, re
   };
 
   const isoMap = {
-    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
-    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
-    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
-    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
+    "İngilizce": "English",
+    "Türkçe": "Turkish",
+    "Arapça": "Arabic",
+    "Fransızca": "French",
+    "İspanyolca": "Spanish",
+    "Almanca": "German",
+    "İtalyanca": "Italian",
+    "Portekizce": "Portuguese",
+    "Rusça": "Russian",
+    "Çince": "Chinese",
+    "Japonca": "Japanese",
+    "Korece": "Korean",
+    "Flemenkçe": "Dutch",
+    "Lehçe": "Polish",
+    "Hintçe": "Hindi",
+    "Bengalce": "Bengali",
+    "Vietnamca": "Vietnamese",
+    "Tayca": "Thai",
+    "Romence": "Romanian",
+    "Ukraynaca": "Ukrainian"
   };
 
   let questionLanguage = "İngilizce";
@@ -573,41 +588,16 @@ app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, re
   const promptLanguage = isoMap[questionLanguage] || "English";
   const isShortTopic = mycontent.length < 80;
 
-  let userFocus = initialUserFocus?.trim() || "";
-
-  // If short topic and no focus, try to generate one
-  if (isShortTopic && !userFocus) {
-    try {
-      const focusPrompt = `
-Given the topic: "${mycontent}", suggest 3 specific subtopics or angles that can be used to create meaningful and informative quiz questions.
-
-Format:
-- [Subtopic 1]
-- [Subtopic 2]
-- [Subtopic 3]
-
-Be concise but informative.
-Language: ${promptLanguage}
-      `;
-      const focusModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-      const focusResult = await focusModel.generateContent(focusPrompt);
-      const focusText = await focusResult.response.text();
-      const lines = focusText.split("\n").map(l => l.replace(/^-/, "").trim()).filter(Boolean);
-      userFocus = lines[0] || "";
-    } catch (e) {
-      console.warn("⚠️ Could not generate focus:", e.message);
-    }
-  }
-
-  // Prepare main prompt
+  // ✅ Temiz tekli prompt yapısı
   let prompt = "";
+
   if (isShortTopic) {
     prompt = `
 You are an expert question generator.
 
 Your task is to generate exactly ${questionCount} multiple-choice questions based on the topic: "${mycontent}".
 
-${userFocus ? `Focus specifically on: "${userFocus}".` : ""}
+${userFocus?.trim() ? `Focus specifically on: "${userFocus.trim()}".` : ""}
 ${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}.` : ""}
 
 All output must be written in ${promptLanguage}.
@@ -621,15 +611,6 @@ Format:
 /// D) Option 4
 ~~Cevap: [Correct Option] 
 &&Açıklama: [Short Explanation about why this answer is correct.]
-
-Example:
-***What is the capital of France?
-/// A) Berlin
-/// B) Madrid
-/// C) Paris
-/// D) Rome
-~~Cevap: C
-&&Açıklama: Paris is the capital of France, located in the north-central part of the country. It is a major cultural and political center in Europe.
 
 Rules:
 - Use exactly this structure, no extra numbering (no 1., 2., etc.)
@@ -645,9 +626,6 @@ You are an expert quiz generator.
 Based on the following content (in ${promptLanguage}), generate exactly ${questionCount} multiple-choice questions:
 
 "${mycontent}"
-
-${userFocus ? `Focus specifically on: "${userFocus}".` : ""}
-${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}.` : ""}
 
 Format:
 ***[Question text]
@@ -679,21 +657,24 @@ Rules:
     const parsed = blocks.map(block => {
       const lines = block.trim().split("\n").map(line => line.trim());
       const question = lines[0];
-      const options = lines.filter(l => l.startsWith("///")).map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
-
+      const options = lines
+        .filter(l => l.startsWith("///"))
+        .map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
+    
       const optionMap = {};
       ["A", "B", "C", "D"].forEach((key, i) => {
         const rawLine = lines.find(l => l.startsWith(`/// ${key})`));
         if (rawLine) optionMap[key] = rawLine.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
       });
-
+    
       let answerRaw = (lines.find(l => l.startsWith("~~Cevap:")) || "").replace(/^~~Cevap:\s*/, "").trim();
       let explanation = (lines.find(l => l.startsWith("&&Açıklama:")) || "").replace(/^&&Açıklama:\s*/, "").trim();
-
+    
+      // If answer is A/B/C/D, replace with actual text
       if (/^[A-D]$/.test(answerRaw)) {
         answerRaw = optionMap[answerRaw] || answerRaw;
       }
-
+    
       return {
         question,
         options,
@@ -702,7 +683,7 @@ Rules:
       };
     });
 
-    // ✅ Update Redis usage
+    // ✅ Update daily usage in Redis
     const added = parsed.length;
     const newCount = req.memberCount + added;
     await redis.set(req.memberKey, newCount);
@@ -719,7 +700,6 @@ Rules:
     });
   }
 });
-
 
 
 
@@ -1160,180 +1140,74 @@ res.redirect(302, redirectUrl.toString());
 
 /////////////Sql////////
 // === SAVE QUESTIONS ===
-app.post("/generate-questions", authMiddleware, checkMemberLimit, async (req, res) => {
-  const { mycontent, userLanguage, userFocus: initialUserFocus, difficulty } = req.body;
-  const user = req.user || {};
+app.post("/save-questions", authMiddleware, async (req, res) => {
+  const { titleName, categoryId, questions } = req.body;
+  const email = req.user?.email;
 
-  const tierQuestionCounts = {
-    "25296810": 10,  // Bronze
-    "25539224": 15,  // Silver
-    "25669215": 20   // Gold
-  };
-
-  const userTier = user.tier;
-  const questionCount = tierQuestionCounts[userTier] || 5;
-
-  // Dil algılama
-  const langCode = franc(mycontent);
-  const languageMap = {
-    "eng": "İngilizce", "tur": "Türkçe", "spa": "İspanyolca", "fra": "Fransızca",
-    "deu": "Almanca", "ita": "İtalyanca", "por": "Portekizce", "rus": "Rusça",
-    "jpn": "Japonca", "kor": "Korece", "nld": "Flemenkçe", "pol": "Lehçe",
-    "ara": "Arapça", "hin": "Hintçe", "ben": "Bengalce", "zho": "Çince",
-    "vie": "Vietnamca", "tha": "Tayca", "ron": "Romence", "ukr": "Ukraynaca"
-  };
-
-  const isoMap = {
-    "İngilizce": "English", "Türkçe": "Turkish", "Arapça": "Arabic", "Fransızca": "French",
-    "İspanyolca": "Spanish", "Almanca": "German", "İtalyanca": "Italian", "Portekizce": "Portuguese",
-    "Rusça": "Russian", "Çince": "Chinese", "Japonca": "Japanese", "Korece": "Korean",
-    "Flemenkçe": "Dutch", "Lehçe": "Polish", "Hintçe": "Hindi", "Bengalce": "Bengali",
-    "Vietnamca": "Vietnamese", "Tayca": "Thai", "Romence": "Romanian", "Ukraynaca": "Ukrainian"
-  };
-
-  let questionLanguage = "İngilizce";
-  if (userLanguage?.trim()) {
-    questionLanguage = userLanguage.trim();
-  } else if (languageMap[langCode]) {
-    questionLanguage = languageMap[langCode];
+  if (!titleName || !categoryId || !questions || !Array.isArray(questions)) {
+    return res.status(400).json({ error: "Missing data" });
   }
 
-  const promptLanguage = isoMap[questionLanguage] || "English";
-  const isShortTopic = mycontent.length < 80;
-
-  let userFocus = initialUserFocus?.trim() || "";
-
-  // 🌐 Aşama 1: Otomatik bağlam açıklaması
-  let contextInfo = "";
-
-  if (isShortTopic) {
-    // 1. Focus önerisi yoksa üret
-    if (!userFocus) {
-      try {
-        const focusPrompt = `
-Given the topic: "${mycontent}", suggest 3 specific subtopics or angles that can be used to create meaningful and informative quiz questions.
-
-Format:
-- [Subtopic 1]
-- [Subtopic 2]
-- [Subtopic 3]
-
-Language: ${promptLanguage}
-        `;
-        const focusModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-        const focusResult = await focusModel.generateContent(focusPrompt);
-        const focusText = await focusResult.response.text();
-        const lines = focusText.split("\n").map(l => l.replace(/^-/, "").trim()).filter(Boolean);
-        userFocus = lines[0] || "";
-      } catch (e) {
-        console.warn("⚠️ Could not generate focus:", e.message);
-      }
-    }
-
-    // 2. Bağlam açıklaması üret
-    try {
-      const contextPrompt = `
-Provide a short encyclopedic explanation (3-4 sentences) about the topic: "${mycontent}".
-Make it suitable to help generate quiz questions.
-Language: ${promptLanguage}
-      `;
-      const ctxModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-      const ctxResult = await ctxModel.generateContent(contextPrompt);
-      contextInfo = (await ctxResult.response.text())?.trim();
-    } catch (e) {
-      console.warn("⚠️ Context enrichment failed:", e.message);
-    }
-  }
-
-  // 🎯 Aşama 2: Prompt oluştur
-  let prompt = `
-You are an expert quiz generator.
-
-${contextInfo ? `Here is some background information to help you:\n"${contextInfo}"\n\n` : ""}
-Your task is to generate exactly ${questionCount} multiple-choice questions on the topic: "${mycontent}".
-
-${userFocus ? `Focus specifically on: "${userFocus}".` : ""}
-${difficulty?.trim() ? `Target difficulty level: ${difficulty.trim()}.` : ""}
-
-Use general knowledge and factual context to enrich the questions if the topic is too narrow or vague.
-
-Format:
-***[Question text]
-
-/// A) Option 1
-/// B) Option 2
-/// C) Option 3
-/// D) Option 4
-~~Cevap: [Correct Option] 
-&&Açıklama: [Short Explanation about why this answer is correct.]
-
-Example:
-***What is the capital of France?
-/// A) Berlin
-/// B) Madrid
-/// C) Paris
-/// D) Rome
-~~Cevap: C
-&&Açıklama: Paris is the capital of France, located in the north-central part of the country. It is a major cultural and political center in Europe.
-
-Rules:
-- Do not use numbering like 1., 2., etc.
-- Only use the specified format.
-- Each question must have 4 options and an explanation.
-- Use LaTeX ($...$) for math.
-- All content must be in ${promptLanguage}.
-`;
-
+  const client = await pool.connect();
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await model.generateContent(prompt);
-    const raw = await result.response.text();
+    let titleId = null;
 
-    const blocks = raw.split("***").filter(Boolean);
-    const parsed = blocks.map(block => {
-      const lines = block.trim().split("\n").map(line => line.trim());
-      const question = lines[0];
-      const options = lines.filter(l => l.startsWith("///")).map(l => l.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim());
+    // Check if title exists
+    const titleCheck = await client.query(`
+      SELECT id FROM titles WHERE name = $1 AND category_id = $2 AND user_email = $3
+    `, [titleName, categoryId, email]);
 
-      const optionMap = {};
-      ["A", "B", "C", "D"].forEach((key) => {
-        const rawLine = lines.find(l => l.startsWith(`/// ${key})`));
-        if (rawLine) optionMap[key] = rawLine.replace(/^\/\/\/\s*[A-D]\)\s*/, "").trim();
-      });
+    if (titleCheck.rows.length > 0) {
+      titleId = titleCheck.rows[0].id;
+    } else {
+      const insertTitle = await client.query(`
+        INSERT INTO titles (name, category_id, user_email)
+        VALUES ($1, $2, $3)
+        RETURNING id
+      `, [titleName, categoryId, email]);
+      titleId = insertTitle.rows[0].id;
+    }
 
-      let answerRaw = (lines.find(l => l.startsWith("~~Cevap:")) || "").replace(/^~~Cevap:\s*/, "").trim();
-      let explanation = (lines.find(l => l.startsWith("&&Açıklama:")) || "").replace(/^&&Açıklama:\s*/, "").trim();
-
-      if (/^[A-D]$/.test(answerRaw)) {
-        answerRaw = optionMap[answerRaw] || answerRaw;
+    for (const question of questions) {
+      if (!question.question || typeof question.question !== "string" || question.question.trim() === "") {
+        continue; // Skip if question text is missing
+      }
+      if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+        question.options = ["Placeholder Option"];
+      }
+      if (!question.answer || typeof question.answer !== "string") {
+        question.answer = "Placeholder Answer";
+      }
+      if (!question.explanation || typeof question.explanation !== "string") {
+        question.explanation = "";
+      }
+      if (!question.difficulty || !["easy", "medium", "hard"].includes(question.difficulty)) {
+        question.difficulty = "medium";
       }
 
-      return {
-        question,
-        options,
-        answer: answerRaw,
-        explanation
-      };
-    });
+      await client.query(`
+        INSERT INTO questions (title_id, question, options, answer, explanation, difficulty, user_email, source)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        titleId,
+        question.question,
+        JSON.stringify(question.options),
+        question.answer,
+        question.explanation,
+        question.difficulty,
+        email,
+        question.source || null
+      ]);
+    }
 
-    // ✅ Kullanım takibi
-    const added = parsed.length;
-    const newCount = req.memberCount + added;
-    await redis.set(req.memberKey, newCount);
-    await redis.expire(req.memberKey, 86400);
-    req.memberUsage.count = newCount;
-
-    res.json({ questions: parsed, usage: req.memberUsage });
-
+    res.json({ success: true, titleId });
   } catch (err) {
-    console.error("Gemini Error:", err.message);
-    res.status(500).json({
-      error: "Failed to generate questions",
-      message: err.message
-    });
+    console.error("❌ Save questions error:", err.message);
+    res.status(500).json({ error: "Failed to save questions." });
+  } finally {
+    client.release();
   }
 });
-
 
 
 
