@@ -377,11 +377,39 @@ app.post("/patreon-me", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(400).json({ error: "Token eksik" });
 
-  const userInfo = await verifyPatreonToken(token);
-  if (!userInfo) return res.status(401).json({ error: "Geçersiz token" });
+  try {
+    const response = await fetch("https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-  res.json(userInfo); // Örnek çıktı: { email: "...", name: "..." }
+    const data = await response.json();
+    const email = data.data?.attributes?.email;
+    const name = data.data?.attributes?.full_name;
+    const tiers = data.included?.[0]?.relationships?.currently_entitled_tiers?.data || [];
+
+    const TIER_MAP = {
+      "25296810": "Bronze",
+      "25539224": "Silver",
+      "25669215": "Gold"
+    };
+
+    let tier = "free";
+    for (const t of tiers) {
+      if (TIER_MAP[t.id]) {
+        tier = t.id;
+        break;
+      }
+    }
+
+    if (!email) return res.status(403).json({ error: "Email not found" });
+
+    res.json({ email, name, tier });
+  } catch (err) {
+    console.error("patreon-me error:", err.message);
+    return res.status(500).json({ error: "Failed to fetch Patreon data" });
+  }
 });
+
 
 
 app.post("/transcribe", authMiddleware, checkUserTranscriptionLimit, upload.any(), async (req, res) => {
