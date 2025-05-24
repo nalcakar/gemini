@@ -1047,93 +1047,34 @@ ${content}
 
 app.get("/auth/patreon/callback", async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.status(400).send("❌ Kod alınamadı.");
+  const state = decodeURIComponent(req.query.state || "/learn-with-ai/ai-mcq-maker/"); // ✅ fallback
+
+  if (!code) return res.redirect(state);
 
   try {
-    // 🎟️ 1. Token al
-    const response = await fetch("https://www.patreon.com/api/oauth2/token", {
+    const tokenRes = await fetch("https://www.patreon.com/api/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        code,
         grant_type: "authorization_code",
+        code,
         client_id: process.env.PATREON_CLIENT_ID,
         client_secret: process.env.PATREON_CLIENT_SECRET,
         redirect_uri: "https://gemini-j8xd.onrender.com/auth/patreon/callback"
       })
     });
 
-    const tokenData = await response.json();
-
-    if (!tokenData.access_token) {
-      console.error("❌ Token alınamadı:", tokenData);
-      return res.status(500).send("❌ Access token alınamadı.");
-    }
-
+    const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
 
-    // 👤 2. Kullanıcı bilgilerini al
-    const userRes = await fetch(
-      "https://www.patreon.com/api/oauth2/v2/identity?include=memberships.currently_entitled_tiers&fields[user]=email,full_name",
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
-    );
-
-    const userData = await userRes.json();
-
-    if (!userData?.data?.attributes) {
-      console.error("❌ Patreon kullanıcı verisi alınamadı:", userData);
-      return res.status(500).send("❌ Kullanıcı bilgileri alınamadı.");
-    }
-
-    const email = userData.data.attributes.email;
-    const name = userData.data.attributes.full_name;
-
-   // 🏷️ 3. Üyelik tipi belirle
-let membershipType = "Free"; // default giriş yapmayanlar için
-const included = userData.included;
-
-if (included && Array.isArray(included)) {
-  const member = included.find(i => i.type === "member");
-  const tiers = member?.relationships?.currently_entitled_tiers?.data || [];
-
-  const tierIds = tiers.map(t => t.id);
-
-  // 🎯 Patreon Tier ID eşleşmeleri (görselden aldığın ID’ler)
-  const TIER_MAP = {
-      "25296810": "Bronze",
-    "25539224": "Silver",
-      "25669215": "Gold"
-  };
-
-  for (const id of tierIds) {
-    if (TIER_MAP[id]) {
-     membershipType = id; 
-      break;
-    }
-  }
-
-  console.log("🔍 Kullanıcının tier ID'leri:", tierIds);
-  console.log("🎯 Belirlenen membershipType:", membershipType);
-}
-
-// 🔁 4. Frontend'e yönlendir
-const originalRedirect = req.query.state || "https://doitwithai.org/AiQuestionMaker.html";
-
-const redirectUrl = new URL(originalRedirect);
-redirectUrl.searchParams.set("accessToken", accessToken);
-redirectUrl.searchParams.set("userEmail", email);
-redirectUrl.searchParams.set("userName", name);
-redirectUrl.searchParams.set("membershipType", membershipType);
-
-res.redirect(302, redirectUrl.toString());
-
+    // 🔁 Redirect back to the original page with access token in localStorage (via query string or cookie)
+    return res.redirect(`${state}?token=${accessToken}`);
   } catch (err) {
-    console.error("OAuth callback hatası:", err);
-    res.status(500).send("❌ Sunucu hatası: OAuth işleminde hata oluştu.");
+    console.error("Patreon callback error:", err.message);
+    return res.redirect(state);
   }
 });
+
 
 
 
